@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ welcome_title }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
-
     <style>
         /* CSS WIDOKU GŁÓWNEGO */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; display: flex; }
@@ -281,7 +279,8 @@
             <button onclick="closeScannerModal(true)" style="margin-top: 15px;">{{ _('Anuluj/Wróć') }}</button>
         </div>
     </div>
-
+    
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
     <script>
         // --- 1. SŁOWNIK TŁUMACZEŃ DLA JAVASCRIPT ---
@@ -642,11 +641,11 @@
 
             // 2. Inicjalizacja skanera (jeśli nie jest zainicjowany)
             if (!globalQrCodeReader) {
+                // Ta linia teraz działa, ponieważ biblioteka Html5QrcodeScanner została załadowana powyżej, na końcu <body>
                 globalQrCodeReader = new Html5QrcodeScanner("qrReader", { 
                     fps: 10, 
                     qrbox: {width: 250, height: 250},
                     // Używamy preferowanej kamery, tylnej (environment)
-                    // Ta opcja jest krytyczna dla urządzeń mobilnych
                     
                 }, false);
             }
