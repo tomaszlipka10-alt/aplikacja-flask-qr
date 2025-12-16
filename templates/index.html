@@ -201,7 +201,7 @@
             <p><strong>{{ _('Aktualny Stan/Lokalizacja:') }}</strong> <span id="op_current_stock">---</span> w <span id="op_current_location">---</span></p>
 
             <div id="receive_specific_fields" style="display: none;">
-                 <div class="form-group">
+                    <div class="form-group">
                     <label for="op_new_location_id">{{ _('NOWA LOKALIZACJA (Jeśli inna)') }}</label>
                     <select id="op_new_location_id"></select>
                     <button onclick="openScannerModal('locationScanner')" style="margin-top: 5px; background-color: #009688;" type="button"><i class="fas fa-qrcode"></i> {{ _('Skanuj Lokalizację') }}</button>
@@ -291,7 +291,7 @@
             error_communication: "{{ _('Błąd komunikacji z serwerem.') }}",
             low_stock: "{{ _('NISKI STAN:') }}",
             select_option: "-- {{ _('Wybierz') }} --",
-            error_scanner_start: "{{ _('Błąd: Nie można uruchomić kamery lub brak uprawnień. Upewnij się, że używasz HTTPS/localhost i przyznano dostęp.') }}",
+            error_scanner_start: "{{ _('Błąd: Nie można uruchomić kamery. Upewnij się, że używasz HTTPS i przyznano dostęp.') }}",
             scanner_scanning: "{{ _('Skanowanie kodu QR...') }}",
             product_scanned_filled: "{{ _('Kod produktu zeskanowany i wypełniony.') }}",
             location_found: "{{ _('Znaleziono lokalizację:') }}",
@@ -353,7 +353,7 @@
                 loadAuditData();
                 closeModal('operationModal');
                 closeModal('newProductModal');
-                closeScannerModal(); // Na wszelki wypadek
+                closeScannerModal(true); // ZATRZYMUJEMY SKANER PO OPERACJI
                 
             } else {
                 alert("Błąd: " + (response.message || JS_MESSAGES.error_unknown));
@@ -403,8 +403,8 @@
                 
                 const actionCell = row.insertCell();
                 actionCell.innerHTML = `<i class="fas fa-qrcode table-icon" onclick="openQrModal(${item.id}, '${item.name}', '${item.item_number}')" title="{{ _('Generuj QR') }}"></i>
-                                        <i class="fas fa-plus-square table-icon" onclick="openOperationModal('receive', '${item.item_number}')" title="{{ _('Przyjmij Towar') }}"></i>
-                                        <i class="fas fa-minus-square table-icon" onclick="openOperationModal('issue', '${item.item_number}')" title="{{ _('Wydaj Towar') }}"></i>`;
+                                         <i class="fas fa-plus-square table-icon" onclick="openOperationModal('receive', '${item.item_number}')" title="{{ _('Przyjmij Towar') }}"></i>
+                                         <i class="fas fa-minus-square table-icon" onclick="openOperationModal('issue', '${item.item_number}')" title="{{ _('Wydaj Towar') }}"></i>`;
             });
         }
 
@@ -503,7 +503,7 @@
         // --- MODALE: NOWY PRODUKT ---
 
         async function openNewProductModal(keepData = false) {
-            closeScannerModal();
+            closeScannerModal(true);
             closeModal('operationModal');
 
             if (!keepData) {
@@ -553,7 +553,7 @@
         // --- MODALE: OPERACJE (PRZYJĘCIE/WYDANIE) ---
 
         async function openOperationModal(type, itemNumber = null, keepData = false) {
-            closeScannerModal();
+            closeScannerModal(true);
             closeModal('newProductModal');
             
             operationType = type;
@@ -624,200 +624,196 @@
             }
         }
         
-        async function submitOperation() {
-            const productId = document.getElementById('op_product_id').textContent;
-            const amount = document.getElementById('op_amount').value;
-            const newLocationId = document.getElementById('op_new_location_id').value;
-            const currentOperationType = document.getElementById('operationModal').getAttribute('data-operation-type');
+        // --- FUNKCJE OBSŁUGI SKANERA QR (NOWY FRAGMENT KODU) ---
 
-            if (productId === '---' || !amount || parseInt(amount) <= 0) {
-                alert("{{ _('Proszę podać prawidłowy ID produktu oraz ilość.') }}");
+        /**
+         * Uruchamia modal skanera i inicjalizuje Html5QrcodeScanner.
+         * @param {string} mode - Tryb pracy skanera ('productScanner', 'locationScanner', 'newProductScanner').
+         */
+        async function openScannerModal(mode) {
+            currentScannerMode = mode;
+            
+            // 1. Zresetowanie stanu i wyświetlenie modalu
+            document.getElementById('decodedTextOutput').textContent = '---';
+            document.getElementById('scan-result-info').innerHTML = '';
+            document.getElementById('universalScannerModal').style.display = 'flex';
+            document.getElementById('scanner-status').textContent = JS_MESSAGES.scanner_scanning;
+            document.getElementById('scanner-status').className = 'status-ready';
+
+            // 2. Inicjalizacja skanera (jeśli nie jest zainicjowany)
+            if (!globalQrCodeReader) {
+                globalQrCodeReader = new Html5QrcodeScanner("qrReader", { 
+                    fps: 10, 
+                    qrbox: {width: 250, height: 250},
+                    // Używamy preferowanej kamery, tylnej (environment)
+                    // Ta opcja jest krytyczna dla urządzeń mobilnych
+                    
+                }, false);
+            }
+
+            // 3. Uruchomienie skanowania z obsługą błędów
+            try {
+                // Resetowanie widoku kontenera, na wypadek gdyby pozostały po poprzedniej sesji
+                document.getElementById("qrReader").innerHTML = ''; 
+
+                await globalQrCodeReader.start(
+                    { facingMode: "environment" }, 
+                    onScanSuccess, 
+                    onScanFailure
+                );
+                console.log("Skaner uruchomiony pomyślnie. Czekam na kody.");
+
+            } catch (err) {
+                console.error("BŁĄD STARTU KAMERY:", err);
+                document.getElementById('scanner-status').textContent = JS_MESSAGES.error_scanner_start;
+                document.getElementById('scanner-status').className = 'status-error';
+                alert(JS_MESSAGES.error_scanner_start);
+                closeScannerModal(false); // W razie błędu nie ma sensu powracać do modalu, tylko zamknąć skaner
+            }
+        }
+
+        /**
+         * Zamyka modal skanera i opcjonalnie zatrzymuje kamerę.
+         * @param {boolean} stopScanning - Czy zatrzymać kamerę (zawsze powinna być true, chyba że nastąpił błąd startu).
+         */
+        function closeScannerModal(stopScanning = true) {
+            document.getElementById('universalScannerModal').style.display = 'none';
+            if (globalQrCodeReader && stopScanning) {
+                globalQrCodeReader.stop().then((ignore) => {
+                    console.log("Skaner zatrzymany.");
+                    // Konieczne, ponieważ .stop() może zostawić domyślny komunikat Html5QrcodeScanner
+                    document.getElementById("qrReader").innerHTML = ''; 
+
+                    // Wracamy do poprzedniego modalu, jeśli istniał
+                    if (currentScannerMode === 'productOperationScanner' || currentScannerMode === 'locationScanner') {
+                        document.getElementById('operationModal').style.display = 'flex';
+                    } else if (currentScannerMode === 'newProductScanner') {
+                        document.getElementById('newProductModal').style.display = 'flex';
+                    }
+                    currentScannerMode = null;
+                }).catch((err) => {
+                    // Czasem błąd stop() może się zdarzyć, gdy kamera nie była w pełni uruchomiona
+                    console.warn("Błąd zatrzymania skanera:", err);
+                    document.getElementById("qrReader").innerHTML = ''; 
+                    currentScannerMode = null;
+                });
+            } else {
+                currentScannerMode = null;
+            }
+        }
+
+        /**
+         * Wywoływana po udanym zeskanowaniu kodu.
+         */
+        async function onScanSuccess(decodedText, decodedResult) {
+            await globalQrCodeReader.stop();
+            document.getElementById('decodedTextOutput').textContent = decodedText;
+            
+            // 1. Obsługa skanowania w trybie wprowadzania produktu (z dashboardu lub z modalu operacji)
+            if (currentScannerMode === 'productScanner' || currentScannerMode === 'productOperationScanner') {
+                document.getElementById('op_item_number').value = decodedText;
+                await autoFillProductData(decodedText, 'operationModal');
+                alert(JS_MESSAGES.product_scanned_filled);
+
+                // Jeśli skanowanie rozpoczęto z sidebar (productScanner), otwieramy modal operacji
+                if (currentScannerMode === 'productScanner') {
+                    openOperationModal('receive', decodedText); 
+                }
+                
+                closeScannerModal(false); // Zamknięcie skanera bez powrotu do modalu (bo zaraz otworzymy nowy)
+                
+            // 2. Obsługa skanowania w trybie wprowadzania lokalizacji (tylko w modal operacji/przyjęcia)
+            } else if (currentScannerMode === 'locationScanner') {
+                const locationSelect = document.getElementById('op_new_location_id');
+                const locationOption = Array.from(locationSelect.options).find(opt => opt.textContent.trim() === decodedText.trim());
+
+                if (locationOption) {
+                    locationSelect.value = locationOption.value;
+                    document.getElementById('scan-result-info').innerHTML = `<span class="status-ready" style="padding: 5px;">${JS_MESSAGES.location_found} ${decodedText}</span>`;
+                    alert(`${JS_MESSAGES.location_found} ${decodedText}`);
+                } else {
+                    document.getElementById('scan-result-info').innerHTML = `<span class="status-error" style="padding: 5px;">${JS_MESSAGES.location_not_found} ${decodedText}</span>`;
+                    alert(`${JS_MESSAGES.location_not_found} ${decodedText}`);
+                }
+                
+                closeScannerModal(false); 
+                document.getElementById('operationModal').style.display = 'flex'; // Powrót do modalu operacji
+
+            // 3. Obsługa skanowania w trybie dodawania nowego produktu
+            } else if (currentScannerMode === 'newProductScanner') {
+                document.getElementById('np_item_number').value = decodedText;
+                alert(JS_MESSAGES.product_scanned_filled);
+                
+                closeScannerModal(false); 
+                document.getElementById('newProductModal').style.display = 'flex'; // Powrót do modalu nowego produktu
+            }
+        }
+
+        /**
+         * Wywoływana przy błędach skanowania/przetwarzania, ale nie przy błędach startu.
+         */
+        function onScanFailure(errorMessage) {
+            // Logowanie błędów jest zwykle zbyt uciążliwe, 
+            // ponieważ ta funkcja wywołuje się non-stop, gdy nic nie jest skanowane.
+            // Ważny jest tylko błąd startu, który jest obsługiwany w try-catch w openScannerModal.
+        }
+        
+        // --- POZOSTAŁE FUNKCJE ---
+
+        function openQrModal(id, name, itemNumber) {
+            const qrCodeData = itemNumber; // Używamy item_number jako danych do QR
+            const qrImageUrl = `/api/qrcode/${qrCodeData}`;
+            
+            document.getElementById('qrProductName').textContent = name;
+            document.getElementById('qrCodeData').textContent = qrCodeData;
+            document.getElementById('qrImage').src = qrImageUrl;
+            document.getElementById('qrModal').style.display = 'flex';
+        }
+
+        async function submitOperation() {
+            const product_id = document.getElementById('op_product_id').textContent;
+            const item_number = document.getElementById('op_item_number').value;
+            const amount = parseInt(document.getElementById('op_amount').value);
+            const type = operationType;
+            let new_location_id = null;
+            
+            if (type === 'receive') {
+                new_location_id = document.getElementById('op_new_location_id').value;
+            }
+
+            if (product_id === '---' || !amount || amount <= 0) {
+                alert("{{ _('Proszę najpierw zeskanować lub wprowadzić poprawny numer produktu i podać ilość.') }}");
                 return;
             }
 
-            let endpoint = '';
-            let payload = { product_id: parseInt(productId), amount: parseInt(amount) };
-
-            if (currentOperationType === 'receive') {
-                endpoint = '/api/stock/receive';
-                
-                // Sprawdź, czy lokalizacja została zmieniona (nowa lokalizacja musi być wybrana, jeśli inna)
-                const product = inventoryData.find(p => String(p.id) === productId);
-                const isLocationChanged = product && newLocationId && (String(product.location.id) !== newLocationId);
-
-                if (newLocationId && isLocationChanged) {
-                    // Jeśli lokalizacja zmieniona, najpierw zaktualizuj lokalizację
-                    try {
-                        const locUpdateResponse = await fetch('/api/product/update_location', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ product_id: parseInt(productId), location_id: parseInt(newLocationId) })
-                        });
-                        const locUpdateResult = await locUpdateResponse.json();
-                        if (!locUpdateResult.success) {
-                             alert(`{{ _('Błąd aktualizacji lokalizacji przed przyjęciem:') }} ${locUpdateResult.message}`);
-                             return;
-                        }
-                    } catch (e) {
-                        alert(`{{ _('Błąd komunikacji podczas aktualizacji lokalizacji:') }} ${e.message}`);
-                        return;
-                    }
-                }
-                
-            } else if (currentOperationType === 'issue') {
-                endpoint = '/api/stock/issue';
-            } else {
-                return; 
+            if (type === 'issue' && amount > parseInt(document.getElementById('op_current_stock').textContent)) {
+                alert("{{ _('Błąd: Nie możesz wydać więcej niż jest na stanie.') }}");
+                return;
             }
 
             try {
+                const endpoint = `/api/${type}`; // /api/receive lub /api/issue
+                const payload = {
+                    product_id: parseInt(product_id),
+                    amount: amount,
+                    new_location_id: new_location_id ? parseInt(new_location_id) : null
+                };
+
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const result = await response.json();
-                handleApiResponse(result);
+                
+                let successMsg = type === 'receive' ? "{{ _('Pomyślnie przyjęto towar.') }}" : "{{ _('Pomyślnie wydano towar.') }}";
+                handleApiResponse(result, successMsg);
+                
             } catch (error) {
                 console.error('Błąd operacji magazynowej:', error);
                 alert(JS_MESSAGES.error_communication);
             }
         }
-        
-        // --- MODAL KODU QR ---
-        
-        async function openQrModal(id, name, itemNumber) {
-            document.getElementById('qrProductName').textContent = `${name} (${itemNumber})`;
-            document.getElementById('qrCodeData').textContent = id; 
-            document.getElementById('qrImage').src = `/api/generate_qr?data=${id}`;
-            document.getElementById('qrModal').style.display = 'flex';
-        }
-
-        // --- UNIWERSALNY SKANER QR (POPRAWIONA IMPLEMENTACJA) ---
-
-        /**
-         * Zamyka modal skanera i, jeśli required === true, próbuje ponownie otworzyć modal operacji.
-         * @param {boolean} reopenModal Otwórz ponownie poprzedni modal (używane przy Anuluj/Wróć).
-         */
-        function closeScannerModal(reopenModal = false) {
-            document.getElementById('universalScannerModal').style.display = 'none';
-            if (globalQrCodeReader) {
-                globalQrCodeReader.clear().catch(err => console.error("Błąd zatrzymania skanera:", err));
-                globalQrCodeReader = null;
-            }
-            if (reopenModal && (currentScannerMode === 'productOperationScanner' || currentScannerMode === 'locationScanner')) {
-                 const opType = document.getElementById('operationModal').getAttribute('data-operation-type');
-                 if (opType) {
-                    document.getElementById('operationModal').style.display = 'flex';
-                 }
-            } else if (reopenModal && currentScannerMode === 'newProductScanner') {
-                document.getElementById('newProductModal').style.display = 'flex';
-            }
-
-            currentScannerMode = null;
-        }
-
-        function openScannerModal(mode) {
-            closeModal('operationModal');
-            closeModal('newProductModal');
-
-            document.getElementById('universalScannerModal').style.display = 'flex';
-            document.getElementById('scanner-status').textContent = JS_MESSAGES.scanner_scanning;
-            document.getElementById('scanner-status').className = 'status-ready';
-            document.getElementById('decodedTextOutput').textContent = '---';
-            document.getElementById('scan-result-info').innerHTML = '';
-            
-            currentScannerMode = mode;
-            startUniversalScanner();
-        }
-
-        function startUniversalScanner() {
-            if (globalQrCodeReader) {
-                globalQrCodeReader.clear().catch(err => console.error("Błąd ponownego uruchomienia skanera:", err));
-            }
-            
-            // Resetujemy div skanera
-            document.getElementById("qrReader").innerHTML = '';
-            globalQrCodeReader = new Html5Qrcode("qrReader");
-            
-            const qrCodeSuccessCallback = async (decodedText, decodedResult) => {
-                // Natychmiastowe zatrzymanie skanera po sukcesie
-                if (globalQrCodeReader) {
-                    globalQrCodeReader.stop().catch(err => console.error("Błąd zatrzymania skanera:", err));
-                }
-                
-                document.getElementById('decodedTextOutput').textContent = decodedText;
-                
-                // Użycie timeout, aby dać czas na zatrzymanie kamery na niektórych urządzeniach
-                setTimeout(async () => {
-                    if (currentScannerMode === 'newProductScanner') {
-                        document.getElementById('np_item_number').value = decodedText;
-                        document.getElementById('scanner-status').textContent = JS_MESSAGES.product_scanned_filled;
-                        closeModal('universalScannerModal');
-                        openNewProductModal(true); // Wróć do modalu nowego produktu
-                        
-                    } else if (currentScannerMode === 'locationScanner') {
-                        await handleScannedLocation(decodedText);
-                        closeModal('universalScannerModal');
-                        // Wróć do modalu operacji (jeśli był otwarty)
-                        const opType = document.getElementById('operationModal').getAttribute('data-operation-type');
-                        if (opType) {
-                            openOperationModal(opType, document.getElementById('op_item_number').value, true);
-                        }
-                        
-                    } else if (currentScannerMode === 'productOperationScanner' || currentScannerMode === 'productScanner') {
-                         // Wyszukaj i wypełnij dane (używając albo indeksu, albo ID)
-                        document.getElementById('op_item_number').value = decodedText;
-                        const product = await autoFillProductData(decodedText, 'operationModal');
-                        
-                        closeModal('universalScannerModal');
-                        
-                        // Po zeskanowaniu produktu otwórz modal operacji (zawsze receive, jeśli skanowano z dashbordu)
-                        if (currentScannerMode === 'productScanner') {
-                            openOperationModal('receive', decodedText, true);
-                        } else {
-                            // Jeśli skanowano z modalu operacji (productOperationScanner)
-                            document.getElementById('operationModal').style.display = 'flex';
-                        }
-                    }
-                }, 300);
-            };
-
-            const config = { fps: 10, qrbox: { width: 250, height: 250 }, disableFlip: false };
-
-            globalQrCodeReader.start({ facingMode: "environment" }, config, qrCodeSuccessCallback) 
-                .catch(err => {
-                    console.error("Błąd startu skanera:", err);
-                    document.getElementById('scanner-status').textContent = JS_MESSAGES.error_scanner_start;
-                    document.getElementById('scanner-status').className = 'status-error';
-                    // Po błędzie startu, pozwól użytkownikowi wrócić do poprzedniego modalu
-                    document.getElementById('universalScannerModal').style.display = 'none';
-                    const opType = document.getElementById('operationModal').getAttribute('data-operation-type');
-                    if (opType) {
-                        document.getElementById('operationModal').style.display = 'flex';
-                    }
-                });
-        }
-        
-        async function handleScannedLocation(locationName) {
-            // Ponownie ładujemy dane lokalizacji, aby mieć aktualne ID
-            const locations = await loadDropdownData('locations', 'op_new_location_id'); 
-            // Zakładamy, że kod QR zawiera Pełną Nazwę Lokalizacji
-            const location = locations.find(loc => loc.name === locationName); 
-            const statusInfo = document.getElementById('scan-result-info');
-            
-            if (location) {
-                // Ustawienie ID w selekcie
-                document.getElementById('op_new_location_id').value = location.id;
-                statusInfo.innerHTML = `${JS_MESSAGES.location_found} <strong>${location.name}</strong>`;
-                document.getElementById('scanner-status').className = 'status-ready';
-            } else {
-                document.getElementById('op_new_location_id').value = ''; 
-                statusInfo.innerHTML = `${JS_MESSAGES.location_not_found} <strong>${locationName}</strong>`;
-                document.getElementById('scanner-status').className = 'status-error';
-            }
-        }
-
     </script>
 </body>
 </html>
