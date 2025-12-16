@@ -94,7 +94,6 @@
             <a href="#" id="tab-dashboard" class="menu-item active" data-view="dashboard-view"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
             <a href="#" id="tab-inventory" class="menu-item" data-view="inventory-view"><i class="fas fa-boxes"></i> {{ tab_inventory }}</a>
             <a href="#" id="tab-audit" class="menu-item" data-view="audit-view"><i class="fas fa-history"></i> {{ tab_audit }}</a>
-            
             <a href="#" id="tab-scanner-open" style="color: #ffc107;"><i class="fas fa-qrcode"></i> {{ _('Skanuj Towar') }}</a>
         </div>
 
@@ -196,7 +195,7 @@
             </div>
             
             <p><strong>{{ _('ID Produktu:') }}</strong> <span id="op_product_id" style="color: #dc3545;">---</span></p>
-            <p><strong>{{ _('Nazwa Produktu:')</strong> <span id="op_product_name">---</span></p>
+            <p><strong>{{ _('Nazwa Produktu:') }}</strong> <span id="op_product_name">---</span></p>
             <p><strong>{{ _('Aktualny Stan/Lokalizacja:') }}</strong> <span id="op_current_stock">---</span> w <span id="op_current_location">---</span></p>
 
             <div id="receive_specific_fields" style="display: none;">
@@ -320,12 +319,12 @@
                 });
             });
             
-            // POPRAWKA B: Dodanie event listenera dla przycisku skanera (zastępuje onclick w HTML)
+            // POPRAWKA 2: Dodanie event listenera dla przycisku skanera (zastępuje onclick w HTML)
             document.getElementById('tab-scanner-open').addEventListener('click', (e) => {
                 e.preventDefault();
                 openScannerModal('productScanner');
             });
-            // Koniec poprawki B
+            // Koniec poprawki 2
 
             loadInventoryData();
             loadAuditData(); 
@@ -650,7 +649,6 @@
 
             // 2. Inicjalizacja skanera (jeśli nie jest zainicjowany)
             if (!globalQrCodeReader) {
-                // Ta linia teraz działa, ponieważ biblioteka Html5QrcodeScanner została załadowana powyżej, na końcu <body>
                 globalQrCodeReader = new Html5QrcodeScanner("qrReader", { 
                     fps: 10, 
                     qrbox: {width: 250, height: 250},
