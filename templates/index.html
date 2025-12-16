@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="{{ session.get('lang', 'pl') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ welcome_title }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+
+    <style>
+        /* CSS WIDOKU GŁÓWNEGO */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; display: flex; }
+        
+        /* SIDEBAR */
+        .sidebar { width: 250px; background-color: #343a40; color: white; height: 100vh; position: fixed; display: flex; flex-direction: column; padding-top: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); }
+        .sidebar-header { text-align: center; margin-bottom: 30px; }
+        .sidebar-header h1 { font-size: 1.5em; margin: 0; }
+        .sidebar-menu a, .sidebar-actions a { display: block; padding: 15px 20px; text-decoration: none; color: #adb5bd; transition: background-color 0.3s, color 0.3s; }
+        .sidebar-menu a:hover, .sidebar-actions a:hover, .sidebar-menu a.active { background-color: #495057; color: white; border-left: 5px solid #007bff; padding-left: 15px; }
+        .sidebar-menu i, .sidebar-actions i { margin-right: 10px; }
+        .sidebar-actions { border-top: 1px solid #495057; padding-top: 15px; margin-top: auto; }
+        .logout-link { color: #f8d7da !important; }
+        .logout-link:hover { background-color: #dc3545 !important; }
+
+        /* MAIN CONTENT */
+        .main-content { margin-left: 250px; padding: 20px; width: calc(100% - 250px); box-sizing: border-box; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #ddd; }
+        .header h2 { color: #343a40; margin: 0; }
+
+        /* DASHBOARD - ACTION BUTTONS */
+        .action-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background-color: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border-left: 5px solid #007bff; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+        .card i { font-size: 2.5em; margin-bottom: 10px; color: #007bff; }
+        .card h4 { margin: 0; color: #343a40; font-size: 1.1em; }
+        .card.receive i { color: #28a745; }
+        .card.receive { border-left-color: #28a745; }
+        .card.issue i { color: #dc3545; }
+        .card.issue { border-left-color: #dc3545; }
+        .card.new-product i { color: #ffc107; }
+        .card.new-product { border-left-color: #ffc107; }
+
+        /* DATA VIEW */
+        .data-view { display: none; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); overflow-x: auto; }
+        .data-view.active { display: block; }
+        
+        /* TABELE */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table th, table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        table th { background-color: #f8f9fa; color: #343a40; font-weight: 600; }
+        table tbody tr:hover { background-color: #f1f1f1; }
+        .low-stock { background-color: #fff3cd; color: #856404; font-weight: bold; }
+        .table-icon { cursor: pointer; color: #007bff; margin-right: 10px; transition: color 0.2s; }
+        .table-icon:hover { color: #0056b3; }
+        .audit-receive { color: #28a745; font-weight: bold; }
+        .audit-issue { color: #dc3545; font-weight: bold; }
+
+        /* MODALE */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
+        .modal-content { background-color: #fefefe; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%; max-width: 550px; animation: fadeIn 0.3s; }
+        .modal-content h3 { border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; color: #343a40; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-button:hover { color: #333; }
+        .modal .form-group { margin-bottom: 15px; }
+        .modal label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .modal input[type="text"], .modal input[type="number"], .modal select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .modal button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.2s; }
+        .modal button:hover { background-color: #0056b3; }
+        .modal button.secondary { background-color: #6c757d; margin-left: 10px; }
+        .modal button.secondary:hover { background-color: #5a6268; }
+
+        /* SKANER */
+        #scanner-status { margin-top: 15px; padding: 10px; border-radius: 4px; font-weight: bold; }
+        .status-ready { background-color: #d4edda; color: #155724; }
+        .status-error { background-color: #f8d7da; color: #721c24; }
+        #qr-preview { margin-top: 20px; text-align: center; }
+        #qr-preview img { max-width: 100%; height: auto; }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: auto; position: relative; }
+            .main-content { margin-left: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-warehouse" style="font-size: 2em; color: #007bff;"></i>
+            <h1>WMS</h1>
+        </div>
+        
+        <div class="sidebar-menu">
+            <a href="#" id="tab-dashboard" class="menu-item active" data-view="dashboard-view"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="#" id="tab-inventory" class="menu-item" data-view="inventory-view"><i class="fas fa-boxes"></i> {{ tab_inventory }}</a>
+            <a href="#" id="tab-audit" class="menu-item" data-view="audit-view"><i class="fas fa-history"></i> {{ tab_audit }}</a>
+            <a href="#" id="tab-scanner-open" onclick="openScannerModal('productScanner')" style="color: #ffc107;"><i class="fas fa-qrcode"></i> {{ _('Skanuj Towar') }}</a>
+        </div>
+
+        <div class="sidebar-actions">
+            <p style="text-align: center; font-size: 0.9em; color: #adb5bd;">{{ current_user.full_name }}</p>
+            <a href="/logout" class="logout-link"><i class="fas fa-sign-out-alt"></i> {{ logout_link }}</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>{{ welcome_title }}</h2>
+            <div class="language-select">
+                <select onchange="window.location.href = '/set_language/' + this.value;">
+                    {% for code, name in config['LANGUAGES'].items() %}
+                        <option value="{{ code }}" {% if session.get('lang', config['BABEL_DEFAULT_LOCALE']) == code %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="dashboard-view" class="data-view active">
+            <h3 style="color: #343a40; margin-bottom: 20px;">{{ welcome_action_title }}</h3>
+            <div class="action-cards">
+                <div class="card receive" onclick="openOperationModal('receive')">
+                    <i class="fas fa-truck-loading"></i>
+                    <h4>{{ action_receive }}</h4>
+                </div>
+                <div class="card issue" onclick="openOperationModal('issue')">
+                    <i class="fas fa-dolly"></i>
+                    <h4>{{ action_issue }}</h4>
+                </div>
+                <div class="card new-product" onclick="openNewProductModal()">
+                    <i class="fas fa-plus-circle"></i>
+                    <h4>{{ action_new_product }}</h4>
+                </div>
+                <div class="card" onclick="alert('{{ _('Funkcjonalność Kompletacji niezaimplementowana.') }}')">
+                    <i class="fas fa-clipboard-list"></i>
+                    <h4>{{ action_picking }}</h4>
+                </div>
+            </div>
+            
+            <h3 style="color: #343a40; margin-top: 40px; border-bottom: 1px solid #ddd; padding-bottom: 10px;">{{ _('Stan Magazynowy - Podgląd') }}</h3>
+            <div id="low-stock-alert" class="action-cards" style="margin-top: 15px;">
+            </div>
+        </div>
+
+
+        <div id="inventory-view" class="data-view">
+            <h3>{{ tab_inventory }}</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ th_id }}</th>
+                        <th>{{ th_item_number }}</th>
+                        <th>{{ th_name }}</th>
+                        <th>{{ th_stock }}</th>
+                        <th>{{ th_min_level }}</th>
+                        <th>{{ th_location }}</th>
+                        <th>{{ th_supplier }}</th>
+                        <th>{{ th_unit }}</th>
+                        <th>{{ _('Akcje') }}</th>
+                    </tr>
+                </thead>
+                <tbody id="inventory-table-body">
+                    </tbody>
+            </table>
+        </div>
+
+        <div id="audit-view" class="data-view">
+            <h3>{{ tab_audit }}</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>{{ th_time }}</th>
+                        <th>{{ th_product }}</th>
+                        <th>{{ th_type }}</th>
+                        <th>{{ th_change_amount }}</th>
+                        <th>{{ th_user }}</th>
+                    </tr>
+                </thead>
+                <tbody id="audit-table-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div id="operationModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('operationModal')">&times;</span>
+            <h3 id="operationModalTitle"></h3>
+            
+            <button onclick="openScannerModal('productOperationScanner')" style="margin-bottom: 15px; background-color: #007bff;" type="button"><i class="fas fa-qrcode"></i> {{ _('Skanuj Kod Produktu') }}</button>
+            <p style="text-align: center; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 10px;">{{ _('... lub wpisz Indeks') }}</p>
+
+            <div class="form-group">
+                <label for="op_item_number">{{ _('Indeks/Numer Produktu') }}</label>
+                <input type="text" id="op_item_number" name="item_number" onchange="autoFillProductData(this.value, 'operationModal')" required>
+            </div>
+            
+            <p><strong>{{ _('ID Produktu:') }}</strong> <span id="op_product_id" style="color: #dc3545;">---</span></p>
+            <p><strong>{{ _('Nazwa Produktu:') }}</strong> <span id="op_product_name">---</span></p>
+            <p><strong>{{ _('Aktualny Stan/Lokalizacja:') }}</strong> <span id="op_current_stock">---</span> w <span id="op_current_location">---</span></p>
+
+            <div id="receive_specific_fields" style="display: none;">
+                 <div class="form-group">
+                    <label for="op_new_location_id">{{ _('NOWA LOKALIZACJA (Jeśli inna)') }}</label>
+                    <select id="op_new_location_id"></select>
+                    <button onclick="openScannerModal('locationScanner')" style="margin-top: 5px; background-color: #009688;" type="button"><i class="fas fa-qrcode"></i> {{ _('Skanuj Lokalizację') }}</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                {% set amount_label = _('Ilość') %}
+                <label for="op_amount">{{ amount_label }}</label>
+                <input type="number" id="op_amount" name="amount" min="1" required>
+            </div>
+            
+            <button id="op_submit_button" onclick="submitOperation()">{{ _('Wykonaj') }}</button>
+        </div>
+    </div>
+    
+    <div id="newProductModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('newProductModal')">&times;</span>
+            <h3>{{ action_new_product }}</h3>
+            
+            <div class="form-group">
+                <label for="np_item_number">{{ item_number_label }}</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="np_item_number" required style="flex-grow: 1;">
+                    <button onclick="openScannerModal('newProductScanner')" style="background-color: #007bff;" type="button"><i class="fas fa-qrcode"></i> {{ _('Skanuj') }}</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="np_name">{{ name_label }}</label>
+                <input type="text" id="np_name" required>
+            </div>
+            <div class="form-group">
+                <label for="np_location_id">{{ _('Lokalizacja') }}</label>
+                <select id="np_location_id" required></select>
+            </div>
+             <div class="form-group">
+                <label for="np_unit_id">{{ _('Jednostka') }}</label>
+                <select id="np_unit_id" required></select>
+            </div>
+            <div class="form-group">
+                <label for="np_supplier_id">{{ _('Dostawca') }}</label>
+                <select id="np_supplier_id" required></select>
+            </div>
+            <div class="form-group">
+                <label for="np_initial_stock">{{ _('Ilość Początkowa') }}</label>
+                <input type="number" id="np_initial_stock" value="0" min="0" required>
+            </div>
+            <div class="form-group">
+                <label for="np_min_stock_level">{{ min_level_label }}</label>
+                <input type="number" id="np_min_stock_level" value="0" min="0" required>
+            </div>
+            
+            <button onclick="submitNewProduct()">{{ add_to_db_button }}</button>
+        </div>
+    </div>
+
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('qrModal')">&times;</span>
+            <h3>{{ _('Kod QR dla Produktu') }} <span id="qrProductName"></span></h3>
+            <div id="qr-preview">
+                <img id="qrImage" src="" alt="{{ _('Kod QR') }}">
+                <p style="margin-top: 15px;">{{ _('Kod:') }} <strong id="qrCodeData"></strong></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="universalScannerModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-button" onclick="closeScannerModal()">&times;</span>
+            <h3><i class="fas fa-qrcode"></i> {{ _('Skaner Uniwersalny') }}</h3>
+            <div id="qrReader" style="width: 100%;"></div> 
+            <div id="scanner-status" class="status-ready">{{ _('Skanowanie kodu QR...') }}</div>
+            <div id="scan-result-info" style="margin-top: 15px;"></div>
+            <p style="margin-top: 15px; font-weight: bold;">{{ _('Zeskanowany kod:') }} <span id="decodedTextOutput" style="color: #dc3545;">---</span></p>
+            <button onclick="closeScannerModal(true)" style="margin-top: 15px;">{{ _('Anuluj/Wróć') }}</button>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 1. SŁOWNIK TŁUMACZEŃ DLA JAVASCRIPT ---
+        const JS_MESSAGES = {
+            error_unknown: "{{ _('Wystąpił nieznany błąd serwera.') }}",
+            error_inventory_loading: "{{ _('Błąd ładowania danych inwentarza.') }}",
+            error_communication: "{{ _('Błąd komunikacji z serwerem.') }}",
+            low_stock: "{{ _('NISKI STAN:') }}",
+            select_option: "-- {{ _('Wybierz') }} --",
+            error_scanner_start: "{{ _('Błąd: Nie można uruchomić kamery lub brak uprawnień. Upewnij się, że używasz HTTPS/localhost i przyznano dostęp.') }}",
+            scanner_scanning: "{{ _('Skanowanie kodu QR...') }}",
+            product_scanned_filled: "{{ _('Kod produktu zeskanowany i wypełniony.') }}",
+            location_found: "{{ _('Znaleziono lokalizację:') }}",
+            location_not_found: "{{ _('Błąd: Nie znaleziono lokalizacji o nazwie:') }}",
+            low_stock_all_ok: "{{ _('Wszystkie stany magazynowe są w normie.') }}",
+            error_product_not_found: "{{ _('Produkt o podanym indeksie nie został znaleziony.') }}",
+            product_data_loaded: "{{ _('Załadowano dane produktu.') }}"
+        };
+        // ---------------------------------------------
+        
+        let inventoryData = []; 
+        let globalQrCodeReader = null; 
+        let currentScannerMode = null; 
+        let operationType = null; // Przechowuje 'receive' lub 'issue'
+
+        // --- FUNKCJE OGÓLNE ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const viewId = item.getAttribute('data-view');
+                    if (viewId) {
+                        showView(viewId);
+                    }
+                });
+            });
+            loadInventoryData();
+            loadAuditData(); 
+        });
+
+
+        function showView(viewId) {
+            document.querySelectorAll('.data-view').forEach(view => view.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            const activeMenuItem = document.querySelector(`[data-view="${viewId}"]`);
+            if (activeMenuItem) {
+                activeMenuItem.classList.add('active');
+            }
+
+            if (viewId === 'inventory-view' || viewId === 'dashboard-view') {
+                loadInventoryData();
+            } else if (viewId === 'audit-view') {
+                loadAuditData();
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // --- OBSŁUGA BŁĘDÓW/KOMUNIKATÓW Z API ---
+        function handleApiResponse(response, successMessage) {
+            if (response.success) {
+                alert(successMessage || response.message);
+                loadInventoryData(); 
+                loadAuditData();
+                closeModal('operationModal');
+                closeModal('newProductModal');
+                closeScannerModal(); // Na wszelki wypadek
+                
+            } else {
+                alert("Błąd: " + (response.message || JS_MESSAGES.error_unknown));
+            }
+        }
+
+        // --- ŁADOWANIE DANYCH Z BACKENDU ---
+
+        async function loadInventoryData() {
+             try {
+                const response = await fetch('/api/products');
+                const result = await response.json();
+                
+                if (result.data) {
+                    inventoryData = result.data; 
+                    renderInventoryTable(result.data);
+                    renderLowStockAlerts(result.data);
+                } else {
+                    document.getElementById('inventory-table-body').innerHTML = `<tr><td colspan="10">${JS_MESSAGES.error_inventory_loading}</td></tr>`;
+                }
+            } catch (error) {
+                console.error('Błąd pobierania inwentarza:', error);
+                document.getElementById('inventory-table-body').innerHTML = `<tr><td colspan="10">${JS_MESSAGES.error_communication}</td></tr>`;
+            }
+        }
+
+        function renderInventoryTable(data) {
+            const tbody = document.getElementById('inventory-table-body');
+            tbody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = tbody.insertRow();
+                const isLowStock = item.current_stock < item.min_stock_level;
+                
+                if (isLowStock) {
+                    row.classList.add('low-stock');
+                }
+                
+                row.insertCell().textContent = item.id;
+                row.insertCell().textContent = item.item_number;
+                row.insertCell().textContent = item.name;
+                row.insertCell().textContent = item.current_stock;
+                row.insertCell().textContent = item.min_stock_level;
+                row.insertCell().textContent = item.location_name;
+                row.insertCell().textContent = item.supplier_name;
+                row.insertCell().textContent = item.unit_name;
+                
+                const actionCell = row.insertCell();
+                actionCell.innerHTML = `<i class="fas fa-qrcode table-icon" onclick="openQrModal(${item.id}, '${item.name}', '${item.item_number}')" title="{{ _('Generuj QR') }}"></i>
+                                        <i class="fas fa-plus-square table-icon" onclick="openOperationModal('receive', '${item.item_number}')" title="{{ _('Przyjmij Towar') }}"></i>
+                                        <i class="fas fa-minus-square table-icon" onclick="openOperationModal('issue', '${item.item_number}')" title="{{ _('Wydaj Towar') }}"></i>`;
+            });
+        }
+
+        function renderLowStockAlerts(data) {
+            const container = document.getElementById('low-stock-alert');
+            container.innerHTML = '';
+
+            const lowStockItems = data.filter(item => item.current_stock < item.min_stock_level);
+            
+            if (lowStockItems.length === 0) {
+                container.innerHTML = `<p style="padding: 15px; color: #155724; background-color: #d4edda; border-radius: 4px;">${JS_MESSAGES.low_stock_all_ok}</p>`;
+                return;
+            }
+
+            lowStockItems.forEach(item => {
+                const card = document.createElement('div');
+                card.classList.add('card', 'issue');
+                card.style.cursor = 'default';
+                
+                const title = document.createElement('h4');
+                title.textContent = `${item.name} (${item.item_number})`;
+                
+                const stockText = document.createElement('p');
+                stockText.style.color = '#dc3545';
+                stockText.textContent = `${JS_MESSAGES.low_stock} ${item.current_stock} / ${item.min_stock_level} ${item.unit_name}`;
+                
+                card.appendChild(title);
+                card.appendChild(stockText);
+                container.appendChild(card);
+            });
+        }
+
+        async function loadAuditData() {
+            try {
+                const response = await fetch('/api/audit');
+                const result = await response.json();
+                
+                if (result.data) {
+                    renderAuditTable(result.data);
+                }
+            } catch (error) {
+                console.error('Błąd pobierania audytu:', error);
+            }
+        }
+
+        function renderAuditTable(data) {
+            const tbody = document.getElementById('audit-table-body');
+            tbody.innerHTML = '';
+            
+            data.forEach(log => {
+                const row = tbody.insertRow();
+                
+                const changeAmount = log.change_amount;
+                let amountClass = '';
+                
+                if (log.transaction_type === 'Przyjęcie') {
+                    amountClass = 'audit-receive';
+                } else if (log.transaction_type === 'Wydanie') {
+                    amountClass = 'audit-issue';
+                }
+
+                row.insertCell().textContent = log.timestamp;
+                row.insertCell().textContent = log.product_name;
+                row.insertCell().textContent = log.transaction_type;
+                row.insertCell().innerHTML = `<span class="${amountClass}">${changeAmount > 0 ? '+' : ''}${changeAmount}</span>`;
+                row.insertCell().textContent = log.user_full_name;
+            });
+        }
+        
+        async function loadDropdownData(endpoint, selectId) {
+            try {
+                const response = await fetch(`/api/${endpoint}`);
+                const result = await response.json();
+                const select = document.getElementById(selectId);
+                
+                if (!select) return []; 
+                
+                select.innerHTML = `<option value="">${JS_MESSAGES.select_option}</option>`;
+
+                if (result.data) {
+                    result.data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        // Kod QR lokalizacji będzie zawierał name (np. "A1 - Półka Wysoka"), więc name jest kluczowe
+                        option.textContent = item.name; 
+                        select.appendChild(option);
+                    });
+                }
+                return result.data;
+            } catch (error) {
+                console.error(`Błąd ładowania danych dla ${endpoint}:`, error);
+                return [];
+            }
+        }
+
+        // --- MODALE: NOWY PRODUKT ---
+
+        async function openNewProductModal(keepData = false) {
+            closeScannerModal();
+            closeModal('operationModal');
+
+            if (!keepData) {
+                document.getElementById('np_item_number').value = '';
+                document.getElementById('np_name').value = '';
+                document.getElementById('np_initial_stock').value = 0;
+                document.getElementById('np_min_stock_level').value = 0;
+            }
+
+            await loadDropdownData('locations', 'np_location_id');
+            await loadDropdownData('units', 'np_unit_id');
+            await loadDropdownData('suppliers', 'np_supplier_id');
+
+            document.getElementById('newProductModal').style.display = 'flex';
+        }
+
+        async function submitNewProduct() {
+            const item_number = document.getElementById('np_item_number').value;
+            const name = document.getElementById('np_name').value;
+            const location_id = document.getElementById('np_location_id').value;
+            const unit_id = document.getElementById('np_unit_id').value;
+            const supplier_id = document.getElementById('np_supplier_id').value;
+            const initial_stock = document.getElementById('np_initial_stock').value;
+            const min_stock_level = document.getElementById('np_min_stock_level').value;
+
+            if (!item_number || !name || !location_id || !unit_id) {
+                alert("{{ _('Wypełnij wszystkie wymagane pola (Indeks, Nazwa, Lokalizacja, Jednostka).') }}");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        item_number, name, location_id, unit_id, supplier_id, initial_stock, min_stock_level 
+                    })
+                });
+                const result = await response.json();
+                handleApiResponse(result);
+            } catch (error) {
+                console.error('Błąd dodawania produktu:', error);
+                alert(JS_MESSAGES.error_communication);
+            }
+        }
+        
+        // --- MODALE: OPERACJE (PRZYJĘCIE/WYDANIE) ---
+
+        async function openOperationModal(type, itemNumber = null, keepData = false) {
+            closeScannerModal();
+            closeModal('newProductModal');
+            
+            operationType = type;
+            const modal = document.getElementById('operationModal');
+
+            if (type === 'receive') {
+                modal.setAttribute('data-operation-type', 'receive');
+                document.getElementById('operationModalTitle').textContent = `{{ action_receive }}`;
+                document.getElementById('op_submit_button').textContent = `{{ receive_button }}`;
+                document.getElementById('receive_specific_fields').style.display = 'block';
+                await loadDropdownData('locations', 'op_new_location_id');
+            } else if (type === 'issue') {
+                modal.setAttribute('data-operation-type', 'issue');
+                document.getElementById('operationModalTitle').textContent = `{{ action_issue }}`;
+                document.getElementById('op_submit_button').textContent = `{{ issue_button }}`;
+                document.getElementById('receive_specific_fields').style.display = 'none';
+            } else {
+                return;
+            }
+            
+            if (!keepData) {
+                // Reset pól
+                document.getElementById('op_item_number').value = itemNumber || '';
+                document.getElementById('op_amount').value = '';
+                document.getElementById('op_product_id').textContent = '---';
+                document.getElementById('op_product_name').textContent = '---';
+                document.getElementById('op_current_stock').textContent = '---';
+                document.getElementById('op_current_location').textContent = '---';
+                document.getElementById('op_new_location_id').value = '';
+            }
+
+            if (itemNumber) {
+                await autoFillProductData(itemNumber, 'operationModal');
+            }
+            
+            modal.style.display = 'flex';
+        }
+
+        async function autoFillProductData(itemNumber, modalId) {
+            const product = inventoryData.find(p => p.item_number === itemNumber || String(p.id) === itemNumber);
+            
+            document.getElementById('op_product_id').textContent = '---';
+            document.getElementById('op_product_name').textContent = '---';
+            document.getElementById('op_current_stock').textContent = '---';
+            document.getElementById('op_current_location').textContent = '---';
+
+            if (product) {
+                document.getElementById('op_product_id').textContent = product.id;
+                document.getElementById('op_product_name').textContent = product.name;
+                document.getElementById('op_current_stock').textContent = `${product.current_stock} ${product.unit_name}`;
+                document.getElementById('op_current_location').textContent = product.location_name;
+                
+                // Automatyczne ustawienie bieżącej lokalizacji jako domyślnej w liście wyboru
+                const locationSelect = document.getElementById('op_new_location_id');
+                if (locationSelect) {
+                    const existingOption = Array.from(locationSelect.options).find(opt => opt.textContent === product.location_name);
+                    if (existingOption) {
+                        locationSelect.value = existingOption.value;
+                    }
+                }
+                
+                document.getElementById('scan-result-info').innerHTML = `<strong>${JS_MESSAGES.product_data_loaded}</strong>: ${product.name} (${product.item_number})`;
+
+                return product;
+            } else {
+                document.getElementById('scan-result-info').innerHTML = `<span class="status-error" style="padding: 5px;">${JS_MESSAGES.error_product_not_found}</span>`;
+                return null;
+            }
+        }
+        
+        async function submitOperation() {
+            const productId = document.getElementById('op_product_id').textContent;
+            const amount = document.getElementById('op_amount').value;
+            const newLocationId = document.getElementById('op_new_location_id').value;
+            const currentOperationType = document.getElementById('operationModal').getAttribute('data-operation-type');
+
+            if (productId === '---' || !amount || parseInt(amount) <= 0) {
+                alert("{{ _('Proszę podać prawidłowy ID produktu oraz ilość.') }}");
+                return;
+            }
+
+            let endpoint = '';
+            let payload = { product_id: parseInt(productId), amount: parseInt(amount) };
+
+            if (currentOperationType === 'receive') {
+                endpoint = '/api/stock/receive';
+                
+                // Sprawdź, czy lokalizacja została zmieniona (nowa lokalizacja musi być wybrana, jeśli inna)
+                const product = inventoryData.find(p => String(p.id) === productId);
+                const isLocationChanged = product && newLocationId && (String(product.location.id) !== newLocationId);
+
+                if (newLocationId && isLocationChanged) {
+                    // Jeśli lokalizacja zmieniona, najpierw zaktualizuj lokalizację
+                    try {
+                        const locUpdateResponse = await fetch('/api/product/update_location', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ product_id: parseInt(productId), location_id: parseInt(newLocationId) })
+                        });
+                        const locUpdateResult = await locUpdateResponse.json();
+                        if (!locUpdateResult.success) {
+                             alert(`{{ _('Błąd aktualizacji lokalizacji przed przyjęciem:') }} ${locUpdateResult.message}`);
+                             return;
+                        }
+                    } catch (e) {
+                        alert(`{{ _('Błąd komunikacji podczas aktualizacji lokalizacji:') }} ${e.message}`);
+                        return;
+                    }
+                }
+                
+            } else if (currentOperationType === 'issue') {
+                endpoint = '/api/stock/issue';
+            } else {
+                return; 
+            }
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                handleApiResponse(result);
+            } catch (error) {
+                console.error('Błąd operacji magazynowej:', error);
+                alert(JS_MESSAGES.error_communication);
+            }
+        }
+        
+        // --- MODAL KODU QR ---
+        
+        async function openQrModal(id, name, itemNumber) {
+            document.getElementById('qrProductName').textContent = `${name} (${itemNumber})`;
+            document.getElementById('qrCodeData').textContent = id; 
+            document.getElementById('qrImage').src = `/api/generate_qr?data=${id}`;
+            document.getElementById('qrModal').style.display = 'flex';
+        }
+
+        // --- UNIWERSALNY SKANER QR (POPRAWIONA IMPLEMENTACJA) ---
+
+        /**
+         * Zamyka modal skanera i, jeśli required === true, próbuje ponownie otworzyć modal operacji.
+         * @param {boolean} reopenModal Otwórz ponownie poprzedni modal (używane przy Anuluj/Wróć).
+         */
+        function closeScannerModal(reopenModal = false) {
+            document.getElementById('universalScannerModal').style.display = 'none';
+            if (globalQrCodeReader) {
+                globalQrCodeReader.clear().catch(err => console.error("Błąd zatrzymania skanera:", err));
+                globalQrCodeReader = null;
+            }
+            if (reopenModal && (currentScannerMode === 'productOperationScanner' || currentScannerMode === 'locationScanner')) {
+                 const opType = document.getElementById('operationModal').getAttribute('data-operation-type');
+                 if (opType) {
+                    document.getElementById('operationModal').style.display = 'flex';
+                 }
+            } else if (reopenModal && currentScannerMode === 'newProductScanner') {
+                document.getElementById('newProductModal').style.display = 'flex';
+            }
+
+            currentScannerMode = null;
+        }
+
+        function openScannerModal(mode) {
+            closeModal('operationModal');
+            closeModal('newProductModal');
+
+            document.getElementById('universalScannerModal').style.display = 'flex';
+            document.getElementById('scanner-status').textContent = JS_MESSAGES.scanner_scanning;
+            document.getElementById('scanner-status').className = 'status-ready';
+            document.getElementById('decodedTextOutput').textContent = '---';
+            document.getElementById('scan-result-info').innerHTML = '';
+            
+            currentScannerMode = mode;
+            startUniversalScanner();
+        }
+
+        function startUniversalScanner() {
+            if (globalQrCodeReader) {
+                globalQrCodeReader.clear().catch(err => console.error("Błąd ponownego uruchomienia skanera:", err));
+            }
+            
+            // Resetujemy div skanera
+            document.getElementById("qrReader").innerHTML = '';
+            globalQrCodeReader = new Html5Qrcode("qrReader");
+            
+            const qrCodeSuccessCallback = async (decodedText, decodedResult) => {
+                // Natychmiastowe zatrzymanie skanera po sukcesie
+                if (globalQrCodeReader) {
+                    globalQrCodeReader.stop().catch(err => console.error("Błąd zatrzymania skanera:", err));
+                }
+                
+                document.getElementById('decodedTextOutput').textContent = decodedText;
+                
+                // Użycie timeout, aby dać czas na zatrzymanie kamery na niektórych urządzeniach
+                setTimeout(async () => {
+                    if (currentScannerMode === 'newProductScanner') {
+                        document.getElementById('np_item_number').value = decodedText;
+                        document.getElementById('scanner-status').textContent = JS_MESSAGES.product_scanned_filled;
+                        closeModal('universalScannerModal');
+                        openNewProductModal(true); // Wróć do modalu nowego produktu
+                        
+                    } else if (currentScannerMode === 'locationScanner') {
+                        await handleScannedLocation(decodedText);
+                        closeModal('universalScannerModal');
+                        // Wróć do modalu operacji (jeśli był otwarty)
+                        const opType = document.getElementById('operationModal').getAttribute('data-operation-type');
+                        if (opType) {
+                            openOperationModal(opType, document.getElementById('op_item_number').value, true);
+                        }
+                        
+                    } else if (currentScannerMode === 'productOperationScanner' || currentScannerMode === 'productScanner') {
+                         // Wyszukaj i wypełnij dane (używając albo indeksu, albo ID)
+                        document.getElementById('op_item_number').value = decodedText;
+                        const product = await autoFillProductData(decodedText, 'operationModal');
+                        
+                        closeModal('universalScannerModal');
+                        
+                        // Po zeskanowaniu produktu otwórz modal operacji (zawsze receive, jeśli skanowano z dashbordu)
+                        if (currentScannerMode === 'productScanner') {
+                            openOperationModal('receive', decodedText, true);
+                        } else {
+                            // Jeśli skanowano z modalu operacji (productOperationScanner)
+                            document.getElementById('operationModal').style.display = 'flex';
+                        }
+                    }
+                }, 300);
+            };
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 }, disableFlip: false };
+
+            globalQrCodeReader.start({ facingMode: "environment" }, config, qrCodeSuccessCallback) 
+                .catch(err => {
+                    console.error("Błąd startu skanera:", err);
+                    document.getElementById('scanner-status').textContent = JS_MESSAGES.error_scanner_start;
+                    document.getElementById('scanner-status').className = 'status-error';
+                    // Po błędzie startu, pozwól użytkownikowi wrócić do poprzedniego modalu
+                    document.getElementById('universalScannerModal').style.display = 'none';
+                    const opType = document.getElementById('operationModal').getAttribute('data-operation-type');
+                    if (opType) {
+                        document.getElementById('operationModal').style.display = 'flex';
+                    }
+                });
+        }
+        
+        async function handleScannedLocation(locationName) {
+            // Ponownie ładujemy dane lokalizacji, aby mieć aktualne ID
+            const locations = await loadDropdownData('locations', 'op_new_location_id'); 
+            // Zakładamy, że kod QR zawiera Pełną Nazwę Lokalizacji
+            const location = locations.find(loc => loc.name === locationName); 
+            const statusInfo = document.getElementById('scan-result-info');
+            
+            if (location) {
+                // Ustawienie ID w selekcie
+                document.getElementById('op_new_location_id').value = location.id;
+                statusInfo.innerHTML = `${JS_MESSAGES.location_found} <strong>${location.name}</strong>`;
+                document.getElementById('scanner-status').className = 'status-ready';
+            } else {
+                document.getElementById('op_new_location_id').value = ''; 
+                statusInfo.innerHTML = `${JS_MESSAGES.location_not_found} <strong>${locationName}</strong>`;
+                document.getElementById('scanner-status').className = 'status-error';
+            }
+        }
+
+    </script>
+</body>
+</html>

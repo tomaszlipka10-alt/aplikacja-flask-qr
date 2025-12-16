@@ -1,0 +1,179 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-12-11 14:14+0100\n"
+"PO-Revision-Date: 2025-12-11 14:15+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+#: app.py:84
+msgid "Proszę się zalogować, aby uzyskać dostęp do tej strony."
+msgstr "Please log in to access this page."
+
+#: app.py:173 templates/login.html:36
+msgid "Logowanie do Systemu Magazynowego"
+msgstr "Warehouse System Login"
+
+#: app.py:175 templates/index.html:128
+msgid "Stan Magazynowy"
+msgstr "Inventory Stock"
+
+#: app.py:176 templates/index.html:129
+msgid "Rejestr Audytu"
+msgstr "Audit Log"
+
+#: app.py:177 templates/index.html:130 templates/index.html:200
+msgid "Przyjęcie Towaru"
+msgstr "Receive Stock"
+
+#: app.py:178 templates/index.html:131 templates/index.html:220
+msgid "Wydanie Towaru"
+msgstr "Issue Stock"
+
+#: app.py:179 templates/index.html:132
+msgid "Dodaj Produkt"
+msgstr "Add Product"
+
+#: app.py:182 templates/index.html:140
+msgid "ID"
+msgstr "ID"
+
+#: app.py:183 templates/index.html:141
+msgid "Nazwa"
+msgstr "Name"
+
+#: app.py:184 templates/index.html:142
+msgid "Indeks"
+msgstr "Item Number"
+
+#: app.py:185 templates/index.html:143
+msgid "Stan"
+msgstr "Stock"
+
+#: app.py:186 templates/index.html:144
+msgid "Min. Poziom"
+msgstr "Min. Level"
+
+#: app.py:187 templates/index.html:145
+msgid "Lokalizacja"
+msgstr "Location"
+
+#: app.py:188 templates/index.html:146
+msgid "Dostawca"
+msgstr "Supplier"
+
+#: app.py:189 templates/index.html:147
+msgid "Jednostka"
+msgstr "Unit"
+
+#: app.py:205 templates/login.html:43
+msgid "Nazwa Użytkownika"
+msgstr "Username"
+
+#: app.py:206 templates/login.html:48
+msgid "Hasło"
+msgstr "Password"
+
+#: app.py:207 templates/login.html:51
+msgid "Zaloguj"
+msgstr "Login"
+
+#: app.py:208 templates/login.html:56
+msgid "Wybierz język:"
+msgstr "Select language:"
+
+#: app.py:216
+msgid "Nieprawidłowa nazwa użytkownika lub hasło."
+msgstr "Invalid username or password."
+
+#: app.py:228 templates/index.html:126
+msgid "Magazyn [{{ current_user.username }}]"
+msgstr "Warehouse [{{ current_user.username }}]"
+
+#: app.py:228 templates/index.html:127
+msgid "Wyloguj"
+msgstr "Logout"
+
+#: app.py:245 app.py:246 app.py:247
+msgid "Brak"
+msgstr "None"
+
+#: app.py:258
+msgid "Brak numeru indeksu lub nazwy produktu."
+msgstr "Missing item number or product name."
+
+#: app.py:261
+msgid "Produkt o podanym numerze indeksu już istnieje."
+msgstr "Product with this item number already exists."
+
+#: app.py:266
+msgid "Nieprawidłowy ID lokalizacji, jednostki lub dostawcy."
+msgstr "Invalid Location, Unit, or Supplier ID."
+
+#: app.py:284
+msgid "Produkt '%(name)s' został pomyślnie dodany do bazy."
+msgstr "Product '%(name)s' successfully added to the database."
+
+#: app.py:298
+msgid "Nieprawidłowy ID produktu lub ilość."
+msgstr "Invalid product ID or amount."
+
+#: app.py:303
+msgid "Produkt o podanym ID nie istnieje."
+msgstr "Product with this ID does not exist."
+
+#: app.py:316
+msgid "Przyjęto %(amount)d %(unit)s produktu: %(name)s. Nowy stan: %(stock)d."
+msgstr "Received %(amount)d %(unit)s of product: %(name)s. New stock: %(stock)d."
+
+#: app.py:318
+msgid "Wystąpił błąd podczas przyjmowania towaru: "
+msgstr "An error occurred during stock receipt: "
+
+#: app.py:334
+msgid "Błąd: Próba wydania %(amount)d, dostępny stan to tylko %(stock)d."
+msgstr "Error: Attempted to issue %(amount)d, but only %(stock)d is available."
+
+#: app.py:349
+msgid "Wydano %(amount)d %(unit)s produktu: %(name)s. Nowy stan: %(stock)d."
+msgstr "Issued %(amount)d %(unit)s of product: %(name)s. New stock: %(stock)d."
+
+#: app.py:351
+msgid "Wystąpił błąd podczas wydawania towaru: "
+msgstr "An error occurred during stock issue: "
+
+#: app.py:365
+msgid "Przyjęcie"
+msgstr "Receipt"
+
+#: app.py:366
+msgid "Wydanie"
+msgstr "Issue"
+
+#: app.py:367
+msgid "Utworzenie Produktu"
+msgstr "Product Creation"
+
+#: app.py:371
+msgid "Nieznany Produkt"
+msgstr "Unknown Product"
+
+#: app.py:372
+msgid "Inne"
+msgstr "Other"
+
+#: app.py:373
+msgid "System"
+msgstr "System"
+

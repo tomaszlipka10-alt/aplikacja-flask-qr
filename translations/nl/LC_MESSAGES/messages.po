@@ -1,0 +1,180 @@
+# Dutch translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-12-11 14:14+0100\n"
+"PO-Revision-Date: 2025-12-11 14:15+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: nl\n"
+"Language-Team: nl <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: app.py:84
+msgid "Proszę się zalogować, aby uzyskać dostęp do tej strony."
+msgstr "Gelieve in te loggen om toegang te krijgen tot deze pagina."
+
+#: app.py:173 templates/login.html:36
+msgid "Logowanie do Systemu Magazynowego"
+msgstr "Inloggen Magazijnsysteem"
+
+#: app.py:175 templates/index.html:128
+msgid "Stan Magazynowy"
+msgstr "Voorraadstatus"
+
+#: app.py:176 templates/index.html:129
+msgid "Rejestr Audytu"
+msgstr "Auditlogboek"
+
+#: app.py:177 templates/index.html:130 templates/index.html:200
+msgid "Przyjęcie Towaru"
+msgstr "Goederenontvangst"
+
+#: app.py:178 templates/index.html:131 templates/index.html:220
+msgid "Wydanie Towaru"
+msgstr "Goederenuitgifte"
+
+#: app.py:179 templates/index.html:132
+msgid "Dodaj Produkt"
+msgstr "Product Toevoegen"
+
+#: app.py:182 templates/index.html:140
+msgid "ID"
+msgstr "ID"
+
+#: app.py:183 templates/index.html:141
+msgid "Nazwa"
+msgstr "Naam"
+
+#: app.py:184 templates/index.html:142
+msgid "Indeks"
+msgstr "Artikelnummer"
+
+#: app.py:185 templates/index.html:143
+msgid "Stan"
+msgstr "Huidige Voorraad"
+
+#: app.py:186 templates/index.html:144
+msgid "Min. Poziom"
+msgstr "Min. Niveau"
+
+#: app.py:187 templates/index.html:145
+msgid "Lokalizacja"
+msgstr "Locatie"
+
+#: app.py:188 templates/index.html:146
+msgid "Dostawca"
+msgstr "Leverancier"
+
+#: app.py:189 templates/index.html:147
+msgid "Jednostka"
+msgstr "Eenheid"
+
+#: app.py:205 templates/login.html:43
+msgid "Nazwa Użytkownika"
+msgstr "Gebruikersnaam"
+
+#: app.py:206 templates/login.html:48
+msgid "Hasło"
+msgstr "Wachtwoord"
+
+#: app.py:207 templates/login.html:51
+msgid "Zaloguj"
+msgstr "Inloggen"
+
+#: app.py:208 templates/login.html:56
+msgid "Wybierz język:"
+msgstr "Selecteer taal:"
+
+#: app.py:216
+msgid "Nieprawidłowa nazwa użytkownika lub hasło."
+msgstr "Ongeldige gebruikersnaam of wachtwoord."
+
+#: app.py:228 templates/index.html:126
+msgid "Magazyn [{{ current_user.username }}]"
+msgstr "Magazijn [{{ current_user.username }}]"
+
+#: app.py:228 templates/index.html:127
+msgid "Wyloguj"
+msgstr "Uitloggen"
+
+#: app.py:245 app.py:246 app.py:247
+msgid "Brak"
+msgstr "Geen"
+
+#: app.py:258
+msgid "Brak numeru indeksu lub nazwy produktu."
+msgstr "Artikelnummer of productnaam ontbreekt."
+
+#: app.py:261
+msgid "Produkt o podanym numerze indeksu już istnieje."
+msgstr "Product met dit artikelnummer bestaat al."
+
+#: app.py:266
+msgid "Nieprawidłowy ID lokalizacji, jednostki lub dostawcy."
+msgstr "Ongeldig ID voor Locatie, Eenheid of Leverancier."
+
+#: app.py:284
+msgid "Produkt '%(name)s' został pomyślnie dodany do bazy."
+msgstr "Product '%(name)s' is succesvol toegevoegd aan de database."
+
+#: app.py:298
+msgid "Nieprawidłowy ID produktu lub ilość."
+msgstr "Ongeldig product-ID of hoeveelheid."
+
+#: app.py:303
+msgid "Produkt o podanym ID nie istnieje."
+msgstr "Product met dit ID bestaat niet."
+
+#: app.py:316
+msgid "Przyjęto %(amount)d %(unit)s produktu: %(name)s. Nowy stan: %(stock)d."
+msgstr "%(amount)d %(unit)s van product: %(name)s ontvangen. Nieuwe voorraad: %(stock)d."
+
+#: app.py:318
+msgid "Wystąpił błąd podczas przyjmowania towaru: "
+msgstr "Er is een fout opgetreden bij de goederenontvangst: "
+
+#: app.py:334
+msgid "Błąd: Próba wydania %(amount)d, dostępny stan to tylko %(stock)d."
+msgstr "Fout: Poging tot uitgifte van %(amount)d, maar slechts %(stock)d beschikbaar."
+
+#: app.py:349
+msgid "Wydano %(amount)d %(unit)s produktu: %(name)s. Nowy stan: %(stock)d."
+msgstr "%(amount)d %(unit)s van product: %(name)s uitgegeven. Nieuwe voorraad: %(stock)d."
+
+#: app.py:351
+msgid "Wystąpił błąd podczas wydawania towaru: "
+msgstr "Er is een fout opgetreden bij de goederenuitgifte: "
+
+#: app.py:365
+msgid "Przyjęcie"
+msgstr "Ontvangst"
+
+#: app.py:366
+msgid "Wydanie"
+msgstr "Uitgifte"
+
+#: app.py:367
+msgid "Utworzenie Produktu"
+msgstr "Productcreatie"
+
+#: app.py:371
+msgid "Nieznany Produkt"
+msgstr "Onbekend Product"
+
+#: app.py:372
+msgid "Inne"
+msgstr "Overig"
+
+#: app.py:373
+msgid "System"
+msgstr "Systeem"
+
