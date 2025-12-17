@@ -172,15 +172,24 @@ def generate_qr(data):
     buffer.seek(0)
     return send_file(buffer, mimetype='image/png')
 
-# --- INICJALIZACJA ---
+# --- INICJALIZACJA BAZY (Działa na Renderze i lokalnie) ---
 
+with app.app_context():
+    db.create_all()
+    # Tworzenie testowego użytkownika i lokalizacji jeśli puste
+    if not User.query.filter_by(username='admin').first():
+        admin_user = User(
+            username='admin', 
+            password=generate_password_hash('admin123'), 
+            full_name='Administrator'
+        )
+        db.session.add(admin_user)
+    
+    if not Location.query.first():
+        db.session.add(Location(name='Magazyn Główny'))
+        
+    db.session.commit()
+
+# Ten blok zostaje tylko dla uruchamiania lokalnego (python app.py)
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        # Tworzenie testowego użytkownika i lokalizacji jeśli puste
-        if not User.query.filter_by(username='admin').first():
-            db.session.add(User(username='admin', password=generate_password_hash('admin123'), full_name='Administrator'))
-        if not Location.query.first():
-            db.session.add(Location(name='Magazyn Główny'))
-        db.session.commit()
     app.run()
