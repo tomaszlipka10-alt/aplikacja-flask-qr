@@ -139,7 +139,9 @@
             
             // Odśwież menu boczne
             document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('active');
+            }
         }
 
         function closeModal(id) { 
@@ -148,7 +150,6 @@
 
         async function openScannerModal(mode) {
             currentScannerMode = mode;
-            // Jeśli otwieramy skaner z modalu operacji, ukrywamy modal operacji na chwilę
             if (mode === 'productOperationScanner') {
                 document.getElementById('operationModal').style.display = 'none';
             }
@@ -181,7 +182,6 @@
 
         function cleanupScannerUI() {
             document.getElementById("qrReader").innerHTML = '';
-            // Jeśli byliśmy w trybie operacji, przywracamy modal operacji
             if (currentScannerMode === 'productOperationScanner') {
                 document.getElementById('operationModal').style.display = 'flex';
             }
@@ -189,7 +189,6 @@
         }
 
         function onScanSuccess(decodedText) {
-            console.log("Zeskanowano:", decodedText);
             document.getElementById('op_item_number').value = decodedText;
             autoFillProductData(decodedText);
             
