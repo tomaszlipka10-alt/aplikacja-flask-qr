@@ -51,7 +51,7 @@
         <div class="header">
             <h2>{{ welcome_title }}</h2>
             <select onchange="window.location.href = '/set_language/' + this.value;">
-                {% for code, name in config['LANGUAGES'].items() %}
+                {% for code, name in config.LANGUAGES.items() %}
                     <option value="{{ code }}" {% if session.get('lang') == code %}selected{% endif %}>{{ name }}</option>
                 {% endfor %}
             </select>
@@ -89,16 +89,20 @@
         <div class="modal-content">
             <span class="close-button" onclick="closeModal('operationModal')">&times;</span>
             <h3 id="operationModalTitle"></h3>
-            <button onclick="openScannerModal('productOperationScanner')" class="btn" style="margin-bottom:10px;">{{ _('Skanuj Produkt') }}</button>
+            <button onclick="openScannerModal('productOperationScanner')" class="btn" style="margin-bottom:10px; background: #28a745;">
+                <i class="fas fa-camera"></i> {{ _('Skanuj Produkt') }}
+            </button>
             <div class="form-group">
                 <label>{{ _('Indeks Produktu') }}</label>
                 <input type="text" id="op_item_number" onchange="autoFillProductData(this.value)">
             </div>
-            <p><strong>{{ _('ID Produktu:') }}</strong> <span id="op_product_id">---</span></p>
-            <p><strong>{{ _('Nazwa Produktu:') }}</strong> <span id="op_product_name">---</span></p>
+            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                <p><strong>{{ _('ID Produktu:') }}</strong> <span id="op_product_id">---</span></p>
+                <p><strong>{{ _('Nazwa Produktu:') }}</strong> <span id="op_product_name">---</span></p>
+            </div>
             <div class="form-group">
                 <label>{{ _('Ilość') }}</label>
-                <input type="number" id="op_amount" min="1">
+                <input type="number" id="op_amount" min="1" value="1">
             </div>
             <button id="op_submit_button" class="btn" onclick="submitOperation()">{{ _('Wykonaj') }}</button>
         </div>
@@ -122,27 +126,45 @@
         let operationType = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('tab-scanner-open').addEventListener('click', () => openScannerModal('productScanner'));
+            const scannerBtn = document.getElementById('tab-scanner-open');
+            if (scannerBtn) {
+                scannerBtn.addEventListener('click', () => openScannerModal('productScanner'));
+            }
             loadInventoryData();
         });
 
         function showView(viewId) {
             document.querySelectorAll('.data-view').forEach(v => v.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
+            
+            // Odśwież menu boczne
+            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
         }
 
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+        }
 
         async function openScannerModal(mode) {
             currentScannerMode = mode;
+            // Jeśli otwieramy skaner z modalu operacji, ukrywamy modal operacji na chwilę
+            if (mode === 'productOperationScanner') {
+                document.getElementById('operationModal').style.display = 'none';
+            }
+            
             document.getElementById('universalScannerModal').style.display = 'flex';
+            
             if (!globalQrCodeReader) {
                 globalQrCodeReader = new Html5Qrcode("qrReader");
             }
+            
             try {
-                await globalQrCodeReader.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess);
+                const config = { fps: 10, qrbox: 250 };
+                await globalQrCodeReader.start({ facingMode: "environment" }, config, onScanSuccess);
                 document.getElementById('scanner-status').textContent = "{{ _('Skanowanie...') }}";
             } catch (err) {
+                console.error(err);
                 alert("{{ _('Błąd kamery. Upewnij się, że używasz HTTPS.') }}");
                 closeScannerModal();
             }
@@ -152,30 +174,56 @@
             document.getElementById('universalScannerModal').style.display = 'none';
             if (globalQrCodeReader && globalQrCodeReader.getState() === 2) {
                 globalQrCodeReader.stop().then(cleanupScannerUI).catch(cleanupScannerUI);
-            } else { cleanupScannerUI(); }
+            } else { 
+                cleanupScannerUI(); 
+            }
         }
 
         function cleanupScannerUI() {
             document.getElementById("qrReader").innerHTML = '';
-            if (currentScannerMode !== 'productScanner') document.getElementById('operationModal').style.display = 'flex';
+            // Jeśli byliśmy w trybie operacji, przywracamy modal operacji
+            if (currentScannerMode === 'productOperationScanner') {
+                document.getElementById('operationModal').style.display = 'flex';
+            }
             currentScannerMode = null;
         }
 
         function onScanSuccess(decodedText) {
-            if (currentScannerMode === 'productScanner' || currentScannerMode === 'productOperationScanner') {
-                document.getElementById('op_item_number').value = decodedText;
-                autoFillProductData(decodedText);
-                if (currentScannerMode === 'productScanner') openOperationModal('receive', decodedText);
+            console.log("Zeskanowano:", decodedText);
+            document.getElementById('op_item_number').value = decodedText;
+            autoFillProductData(decodedText);
+            
+            if (currentScannerMode === 'productScanner') {
+                closeScannerModal();
+                openOperationModal('receive', decodedText);
+            } else {
+                closeScannerModal();
             }
-            closeScannerModal();
         }
 
         async function loadInventoryData() {
-            const res = await fetch('/api/products');
-            const result = await res.json();
-            inventoryData = result.data;
-            const tbody = document.getElementById('inventory-table-body');
-            tbody.innerHTML = result.data.map(p => `<tr><td>${p.id}</td><td>${p.item_number}</td><td>${p.name}</td><td>${p.current_stock}</td><td>${p.location_name}</td><td><button onclick="openOperationModal('issue', '${p.item_number}')">Wydaj</button></td></tr>`).join('');
+            try {
+                const res = await fetch('/api/products');
+                const result = await res.json();
+                inventoryData = result.data;
+                const tbody = document.getElementById('inventory-table-body');
+                tbody.innerHTML = result.data.map(p => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.item_number}</td>
+                        <td>${p.name}</td>
+                        <td>${p.current_stock}</td>
+                        <td>${p.location_name}</td>
+                        <td>
+                            <button onclick="openOperationModal('issue', '${p.item_number}')" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">
+                                {{ _('Wydaj') }}
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Błąd ładowania danych:", err);
+            }
         }
 
         function autoFillProductData(val) {
@@ -183,6 +231,9 @@
             if (p) {
                 document.getElementById('op_product_id').textContent = p.id;
                 document.getElementById('op_product_name').textContent = p.name;
+            } else {
+                document.getElementById('op_product_id').textContent = "---";
+                document.getElementById('op_product_name').textContent = "{{ _('Nie znaleziono produktu') }}";
             }
         }
 
@@ -197,15 +248,24 @@
         async function submitOperation() {
             const id = document.getElementById('op_product_id').textContent;
             const amt = document.getElementById('op_amount').value;
-            if (id === '---' || !amt) return alert("{{ _('Podaj poprawne dane.') }}");
-            const res = await fetch(`/api/stock/${operationType}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product_id: id, amount: amt })
-            });
-            const result = await res.json();
-            alert(result.message);
-            location.reload();
+            if (id === '---' || !amt || amt <= 0) return alert("{{ _('Podaj poprawne dane.') }}");
+            
+            try {
+                const res = await fetch(`/api/stock/${operationType}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: id, amount: amt })
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    alert(result.message);
+                    location.reload();
+                } else {
+                    alert("Błąd: " + result.message);
+                }
+            } catch (err) {
+                alert("{{ _('Wystąpił błąd komunikacji.') }}");
+            }
         }
     </script>
 </body>
