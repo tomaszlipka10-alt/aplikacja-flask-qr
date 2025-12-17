@@ -37,6 +37,13 @@ def get_locale():
     return app.config['BABEL_DEFAULT_LOCALE']
 
 babel.init_app(app, locale_selector=get_locale)
+
+# --- POPRAWKA: WYMUSZENIE UPRAWNIEŃ DO KAMERY (Permissions Policy) ---
+@app.after_request
+def add_header(response):
+    # Informujemy przeglądarkę, że aplikacja ma prawo korzystać z kamery
+    response.headers['Permissions-Policy'] = 'camera=(self)'
+    return response
 # ---------------------------------------------------
 
 # Trasa do zmiany języka
@@ -95,7 +102,6 @@ class Product(db.Model):
 
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    # Używamy UTC
     timestamp = db.Column(db.DateTime, default=lambda: datetime.datetime.now(timezone.utc))
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -106,20 +112,16 @@ class AuditLog(db.Model):
     user = db.relationship('User', backref='logs')
 
 
-# Funkcja ładowania użytkownika dla Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-# FUNKCJA INICJALIZUJĄCA DANE TESTOWE (POPRAWIONA)
 def initialize_db():
     with app.app_context():
         db.create_all()
 
-        # Inicjalizacja Użytkowników
         if not User.query.first():
-            print("Inicjalizacja użytkowników...")
             admin = User(username='admin', full_name='Administrator Systemu')
             admin.set_password('admin123')
             db.session.add(admin)
@@ -128,11 +130,7 @@ def initialize_db():
             user1.set_password('magazyn123')
             db.session.add(user1)
         
-        # Inicjalizacja Słowników (musimy zdefiniować obiekty loc/unit/sup niezależnie od tego, czy są nowe, czy istniejące)
-        
-        # LOKALIZACJE
         if not Location.query.first():
-            print("Inicjalizacja lokalizacji...")
             locA1 = Location(name='A1 - Półka Wysoka')
             locB2 = Location(name='B2 - Regał Niski')
             locC3 = Location(name='C3 - Zewnętrzny Magazyn')
@@ -142,9 +140,7 @@ def initialize_db():
             locB2 = Location.query.filter_by(name='B2 - Regał Niski').first()
             locC3 = Location.query.filter_by(name='C3 - Zewnętrzny Magazyn').first()
 
-        # JEDNOSTKI
         if not Unit.query.first():
-            print("Inicjalizacja jednostek...")
             unitSzt = Unit(name='szt.')
             unitKg = Unit(name='kg')
             unitMb = Unit(name='mb')
@@ -156,35 +152,21 @@ def initialize_db():
             unitMb = Unit.query.filter_by(name='mb').first()
             unitL = Unit.query.filter_by(name='l').first()
 
-        # DOSTAWCY
         if not Supplier.query.first():
-            print("Inicjalizacja dostawców...")
             supABC = Supplier(name='Dostawca Techniczny ABC')
             supMat = Supplier(name='Dostawca Materiałów Budowlanych')
             db.session.add_all([supABC, supMat, Supplier(name='Lokalny Producent Śrub')])
         else:
             supABC = Supplier.query.filter_by(name='Dostawca Techniczny ABC').first()
             supMat = Supplier.query.filter_by(name='Dostawca Materiałów Budowlanych').first()
-            # Nie musimy pobierać wszystkich, wystarczy te użyte w produktach testowych
 
-        # Zatwierdzamy wszystkie zmiany dotyczące słowników (lokalizacje, jednostki, dostawcy, użytkownicy)
         try:
             db.session.commit()
         except Exception as e:
-            # W przypadku błędu (np. race condition w reloaderze), rollback i kontynuuj
             db.session.rollback()
-            print(f"Ostrzeżenie: Nie udało się zatwierdzić wszystkich danych słownikowych: {e}")
-            # Ponowne pobranie, aby upewnić się, że obiekty są w aktualnym stanie sesji
-            locA1 = Location.query.filter_by(name='A1 - Półka Wysoka').first()
-            # itd. - w praktyce wystarczy ponowne uruchomienie
             
-        # PRODUKTY (dodawane tylko raz)
         if not Product.query.first():
-            print("Inicjalizacja przykładowych produktów...")
-            
-            # Musimy upewnić się, że pobierzemy admina (potrzebnego do logów)
             admin_user = User.query.filter_by(username='admin').first()
-            
             prod_list = [
                 Product(item_number='M8-010', name='Śruba M8x10, stal nierdzewna', current_stock=2500, min_stock_level=1500, location=locB2, unit=unitSzt, supplier=supMat),
                 Product(item_number='CAB-ETH-10', name='Kabel Ethernet 10m UTP', current_stock=15, min_stock_level=30, location=locA1, unit=unitSzt, supplier=supABC),
@@ -196,22 +178,12 @@ def initialize_db():
             db.session.add_all(prod_list)
             db.session.commit()
             
-            # Dodawanie logów audytu dla przykładu (działa tylko, jeśli produkty zostały stworzone)
             if admin_user:
-                print("Dodawanie logów audytu dla przykładu...")
                 for prod in prod_list:
                     if prod.current_stock > 0:
-                        log = AuditLog(
-                            product_id=prod.id,
-                            user_id=admin_user.id,
-                            transaction_type='RECEIVE',
-                            change_amount=prod.current_stock
-                        )
+                        log = AuditLog(product_id=prod.id, user_id=admin_user.id, transaction_type='RECEIVE', change_amount=prod.current_stock)
                         db.session.add(log)
                 db.session.commit()
-
-        print("Baza danych gotowa.")
-
 
 # TRASY WIDOKÓW
 @app.route('/')
@@ -219,32 +191,22 @@ def initialize_db():
 def index():
     return render_template('index.html',
                             current_user=current_user,
-                            # Globalne elementy
                             welcome_title=_('Magazyn [%s]') % current_user.username,
                             welcome_action_title=_('CO ROBIMY?'),
                             logout_link=_('Wyloguj'),
                             select_lang_text=_('Wybierz język'),
-                            
-                            # Zakładki/Sidebar
                             tab_inventory=_('Stan Magazynowy'),
                             tab_audit=_('Rejestr Audytu'),
                             tab_search=_('Wyszukiwanie'),
-                            
-                            # Przyciski Akcji/Tytuły Modali
                             action_receive=_('PRZYJĘCIE MAT.'),
                             action_issue=_('WYDANIE MAT.'),
                             action_picking=_('PICKING LISTS'),
                             action_new_product=_('Dodaj Produkt'),
-                            # Tytuły tabeli Stan Magazynowy
                             th_id=_('ID'), th_name=_('Nazwa'), th_item_number=_('Indeks'),
                             th_stock=_('Stan'), th_min_level=_('Min. Poziom'), th_location=_('Lokalizacja'),
                             th_supplier=_('Dostawca'), th_unit=_('Jednostka'),
-                            
-                            # Tytuły tabeli Rejestr Audytu
                             th_time=_('Czas'), th_product=_('Produkt'), th_type=_('Typ'),
                             th_change_amount=_('Ilość Zmiany'), th_user=_('Użytkownik'),
-
-                            # Etykiety Modali
                             item_number_label=_('Indeks/Numer Produktu (Unikalny)'),
                             name_label=_('Nazwa Produktu'),
                             location_id_label=_('Lokalizacja'),
@@ -253,8 +215,6 @@ def index():
                             min_level_label=_('Min. Poziom Zapasu'),
                             product_id_label=_('ID Produktu'),
                             amount_label=_('Ilość'),
-
-                            # Przyciski Modali
                             add_to_db_button=_('Dodaj do Bazy'),
                             receive_button=_('Przyjmij'),
                             issue_button=_('Wydaj')
@@ -287,8 +247,6 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
-
-# --- TRASY API ---
 
 @app.route('/api/products', methods=['GET'])
 @login_required
@@ -347,10 +305,8 @@ def create_product():
         supplier=supplier
     )
     db.session.add(new_product)
+    db.session.flush() 
     
-    db.session.flush() # Uzyskanie ID produktu
-    
-    # Tworzenie logu
     transaction_type = 'CREATE'
     if initial_stock > 0:
         transaction_type = 'RECEIVE'
@@ -364,29 +320,7 @@ def create_product():
     db.session.add(log)
     db.session.commit()
 
-    return jsonify(message=_("Produkt '%(name)s' został pomyślnie dodany do bazy (początkowy stan: %(stock)d).", name=name, stock=initial_stock), success=True), 201
-
-
-@app.route('/api/product/update_location', methods=['POST'])
-@login_required
-def update_product_location():
-    data = request.get_json()
-    product_id = data.get('product_id')
-    location_id = data.get('location_id')
-    
-    product = Product.query.get(product_id)
-    location = Location.query.get(location_id)
-
-    if not product:
-        return jsonify(message=_("Nie znaleziono produktu."), success=False), 404
-    if not location:
-        return jsonify(message=_("Nie znaleziono lokalizacji."), success=False), 404
-
-    product.location_id = location_id
-    db.session.commit()
-    
-    return jsonify(message=_("Lokalizacja produktu %(name)s zmieniona na %(loc)s.", name=product.name, loc=location.name), success=True), 200
-
+    return jsonify(message=_("Produkt '%(name)s' został pomyślnie dodany do bazy.", name=name), success=True), 201
 
 @app.route('/api/stock/receive', methods=['POST'])
 @login_required
@@ -397,31 +331,19 @@ def receive_stock():
 
     try:
         amount = int(amount)
-        if amount <= 0:
-            raise ValueError
+        if amount <= 0: raise ValueError
     except:
-        return jsonify(message=_("Ilość musi być dodatnią liczbą całkowitą."), success=False), 400
+        return jsonify(message=_("Ilość musi być dodatnią liczbą."), success=False), 400
 
     product = Product.query.get(product_id)
     if not product:
-        return jsonify(message=_("Produkt o podanym ID nie istnieje."), success=False), 404
+        return jsonify(message=_("Produkt nie istnieje."), success=False), 404
 
-    try:
-        product.current_stock += amount
-        
-        log = AuditLog(
-            product_id=product.id,
-            user_id=current_user.id,
-            transaction_type='RECEIVE',
-            change_amount=amount
-        )
-        db.session.add(log)
-        db.session.commit()
-        
-        return jsonify(message=_("Przyjęto %(amount)d %(unit)s produktu: %(name)s. Nowy stan: %(stock)d.", amount=amount, unit=product.unit.name, name=product.name, stock=product.current_stock), success=True)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(message=_("Wystąpił błąd podczas przyjmowania towaru: ") + str(e), success=False), 500
+    product.current_stock += amount
+    log = AuditLog(product_id=product.id, user_id=current_user.id, transaction_type='RECEIVE', change_amount=amount)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify(message=_("Przyjęto towar."), success=True)
 
 @app.route('/api/stock/issue', methods=['POST'])
 @login_required
@@ -432,49 +354,29 @@ def issue_stock():
 
     try:
         amount = int(amount)
-        if amount <= 0:
-            raise ValueError
+        if amount <= 0: raise ValueError
     except:
-        return jsonify(message=_("Ilość musi być dodatnią liczbą całkowitą."), success=False), 400
+        return jsonify(message=_("Ilość musi być dodatnią liczbą."), success=False), 400
 
     product = Product.query.get(product_id)
-    if not product:
-        return jsonify(message=_("Produkt o podanym ID nie istnieje."), success=False), 404
+    if not product or product.current_stock < amount:
+        return jsonify(message=_("Błąd: Niewystarczający stan."), success=False), 400
 
-    if product.current_stock < amount:
-        return jsonify(message=_("Błąd: Próba wydania %(amount)d, dostępny stan to tylko %(stock)d.", amount=amount, stock=product.current_stock), success=False), 400
-
-    try:
-        product.current_stock -= amount
-        
-        log = AuditLog(
-            product_id=product.id,
-            user_id=current_user.id,
-            transaction_type='ISSUE',
-            change_amount=-amount
-        )
-        db.session.add(log)
-        db.session.commit()
-        
-        return jsonify(message=_("Wydano %(amount)d %(unit)s produktu: %(name)s. Nowy stan: %(stock)d.", amount=amount, unit=product.unit.name, name=product.name, stock=product.current_stock), success=True)
-    except Exception as e:
-        db.session.rollback()
-        return jsonify(message=_("Wystąpił błąd podczas wydawania towaru: ") + str(e), success=False), 500
+    product.current_stock -= amount
+    log = AuditLog(product_id=product.id, user_id=current_user.id, transaction_type='ISSUE', change_amount=-amount)
+    db.session.add(log)
+    db.session.commit()
+    return jsonify(message=_("Wydano towar."), success=True)
 
 @app.route('/api/audit', methods=['GET'])
 @login_required
 def get_audit_logs():
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
-    type_map = {
-        'RECEIVE': _('Przyjęcie'),
-        'ISSUE': _('Wydanie'),
-        'CREATE': _('Utworzenie Produktu')
-    }
-
+    type_map = {'RECEIVE': _('Przyjęcie'), 'ISSUE': _('Wydanie'), 'CREATE': _('Utworzenie')}
     log_list = [{
         'id': l.id,
-        'timestamp': l.timestamp.replace(tzinfo=timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M:%S'),
-        'product_name': l.product.name if l.product else _('Nieznany Produkt'),
+        'timestamp': l.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+        'product_name': l.product.name if l.product else _('Nieznany'),
         'transaction_type': type_map.get(l.transaction_type, _('Inne')),
         'change_amount': l.change_amount,
         'user_full_name': l.user.full_name if l.user else _('System')
@@ -485,27 +387,16 @@ def get_audit_logs():
 @login_required
 def generate_qr():
     data = request.args.get('data')
-    if not data:
-        return jsonify({'message': _('Brak danych do zakodowania.')}), 400
-
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
+    if not data: return jsonify({'message': _('Brak danych.')}), 400
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(data)
     qr.make(fit=True)
-
     img = qr.make_image(fill_color="black", back_color="white")
-
     buffer = BytesIO()
     img.save(buffer, 'PNG')
     buffer.seek(0)
-    
-    return send_file(buffer, mimetype='image/png', as_attachment=False)
+    return send_file(buffer, mimetype='image/png')
 
-# Trasy pomocnicze (lokalizacje, jednostki, dostawcy)
 @app.route('/api/locations', methods=['GET'])
 @login_required
 def get_locations():
@@ -524,28 +415,20 @@ def get_suppliers():
     suppliers = Supplier.query.all()
     return jsonify(data=[{'id': s.id, 'name': s.name} for s in suppliers])
 
-# Trasa do logowania QR
 @app.route('/api/auth/qr_login', methods=['POST'])
 def qr_login():
     data = request.get_json()
     qr_code_data = data.get('token')
-    
     if not qr_code_data:
-        return jsonify(message=_("Brak danych kodu QR."), success=False), 400
-
-    # Założenie: KOD QR zawiera 'username'
+        return jsonify(message=_("Brak danych."), success=False), 400
     user = User.query.filter_by(username=qr_code_data).first()
-    
     if user:
         login_user(user)
-        return jsonify(message=_("Zalogowano pomyślnie przez kod QR."), success=True)
-    else:
-        return jsonify(message=_("Nie znaleziono użytkownika dla podanego kodu QR."), success=False), 401
-
+        return jsonify(message=_("Zalogowano."), success=True)
+    return jsonify(message=_("Nie znaleziono użytkownika."), success=False), 401
 
 if __name__ == '__main__':
-    # Funkcja initialize_db() teraz bezpiecznie inicjuje dane i obsługuje reloader
     initialize_db()
-        
-    # Uruchomienie publiczne (dla smartfona)
-    app.run(debug=True, host='0.0.0.0')
+    # Uruchomienie na porcie 5000 (standard Rendera lub lokalny)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)

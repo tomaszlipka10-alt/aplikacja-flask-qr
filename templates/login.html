@@ -5,295 +5,151 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ login_title }} - Warehouse Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
     <style>
-        /* Styl bazowy: Jasne tło, jak w index.html */
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            background-color: #f0f2f5; /* Jasne tło */
-            color: #333; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            min-height: 100vh; 
+            margin: 0; padding: 0; background-color: #f0f2f5; 
+            color: #333; display: flex; justify-content: center; 
+            align-items: center; min-height: 100vh; 
         }
-
-        /* Kontener formularza: Styl karty */
         .login-container {
-            background-color: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Delikatny cień, jak na Dashboardzie */
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-            border-top: 5px solid #007bff; /* Akcent kolorystyczny na górze */
-            transition: transform 0.3s;
+            background-color: white; padding: 40px; border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); width: 100%;
+            max-width: 400px; text-align: center; border-top: 5px solid #007bff;
         }
+        h2 { margin-bottom: 25px; color: #007bff; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; }
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 12px; border: 1px solid #ddd;
+            border-radius: 5px; box-sizing: border-box; font-size: 16px;
+        }
+        .btn {
+            width: 100%; padding: 12px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 16px; font-weight: 600; transition: background 0.3s;
+        }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-qr { background-color: #28a745; color: white; margin-top: 15px; }
+        .btn-qr:hover { background-color: #218838; }
+        .error-message { color: #dc3545; margin-bottom: 20px; font-size: 0.9em; }
 
-        /* Nagłówek */
-        .login-container h2 {
-            margin-bottom: 25px;
-            color: #343a40; /* Ciemny kolor nagłówka */
-            font-size: 1.8em;
-        }
-
-        /* Ikona magazynu */
-        .user-icon {
-            font-size: 3em;
-            color: #007bff; /* Ikona w kolorze akcentu */
-            margin-bottom: 20px;
-        }
-
-        /* Grupa pól formularza */
-        .form-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600; /* Lekko pogrubiony tekst */
-            color: #555;
-        }
-
-        /* Pola tekstowe i hasła */
-        .form-group input[type="text"], 
-        .form-group input[type="password"] {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-size: 1em;
-            transition: border-color 0.3s;
-        }
-        
-        .form-group input:focus {
-            border-color: #007bff;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-        }
-
-        /* Przycisk logowania (standardowy) */
-        .login-button {
-            background-color: #007bff; /* Niebieski akcent */
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 1.1em;
-            font-weight: 600;
-            transition: background-color 0.3s, transform 0.1s;
-        }
-
-        .login-button:hover {
-            background-color: #0056b3;
-            transform: translateY(-1px);
-        }
-
-        /* Przycisk Logowania QR */
-        .qr-login-button {
-            background-color: #28a745; /* Zielony dla QR - wyróżnienie */
-            margin-top: 15px;
-        }
-        .qr-login-button:hover {
-             background-color: #1e7e34;
-        }
-
-        /* Wiadomości flash */
-        .flash-message {
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 5px;
-            font-weight: bold;
-            color: white;
-        }
-
-        .flash-error {
-            background-color: #dc3545;
-        }
-
-        .flash-info {
-            background-color: #ffc107;
-        }
-
-        /* Selektor języka */
-        .lang-selector-container {
-            margin-top: 25px;
-        }
-        .lang-selector-container select {
-            background-color: white;
-            color: #333;
-            border: 1px solid #ccc;
-            padding: 8px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            cursor: pointer;
-        }
-
-        /* Style dla modali */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
-        .modal-content { background-color: #fefefe; padding: 30px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%; max-width: 450px; animation: fadeIn 0.3s; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close-button:hover { color: #333; }
+        /* Modal dla skanera */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); }
+        .modal-content { background-color: white; margin: 10% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 10px; position: relative; }
+        .close-button { position: absolute; right: 15px; top: 10px; font-size: 28px; cursor: pointer; color: #aaa; }
     </style>
 </head>
 <body>
 
     <div class="login-container">
-        <i class="fas fa-warehouse user-icon"></i>
-        <h2>{{ login_title }}</h2>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <ul style="list-style: none; padding: 0;">
-                    {% for category, message in messages %}
-                        <li class="flash-message flash-{{ category }}">{{ message }}</li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        {% endwith %}
-
-        <form action="/login" method="POST">
-            <div class="form-group">
-                <label for="username">{{ username_label }}:</label>
-                <input type="text" id="username" name="username" required autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label for="password">{{ password_label }}:</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
-            </div>
-            <button type="submit" class="login-button">{{ login_button }}</button>
-        </form>
+        <h2>{{ login_text }}</h2>
         
-        <button type="button" class="login-button qr-login-button" onclick="openLoginScannerModal()">
-            <i class="fas fa-qrcode"></i> {{ _('Zaloguj przez QR') }}
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="username">{{ username_label }}</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">{{ password_label }}</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ login_button }}</button>
+        </form>
+
+        <button class="btn btn-qr" onclick="openLoginScanner()">
+            <i class="fas fa-qrcode"></i> LOGOWANIE QR
         </button>
 
-        <div class="lang-selector-container">
-            <select id="language_select" onchange="window.location.href = '/set_language/' + this.value + '?next=/login';">
-                <option value="pl" {% if session.get('lang', 'pl') == 'pl' %}selected{% endif %}>Polski</option>
-                <option value="en" {% if session.get('lang') == 'en' %}selected{% endif %}>English</option>
-                <option value="nl" {% if session.get('lang') == 'nl' %}selected{% endif %}>Nederlands</option>
-            </select>
+        <div style="margin-top: 20px; font-size: 0.8em; color: #666;">
+            {{ select_lang_text }}
+            <a href="{{ url_for('set_language', language='pl') }}">PL</a> | 
+            <a href="{{ url_for('set_language', language='en') }}">EN</a> | 
+            <a href="{{ url_for('set_language', language='nl') }}">NL</a>
         </div>
-
     </div>
 
-<div id="loginScannerModal" class="modal">
-    <div class="modal-content" style="max-width: 600px;">
-        <span class="close-button" onclick="closeLoginModal('loginScanner')">&times;</span>
-        <h3>{{ _('Skanowanie do Logowania') }}</h3>
-        
-        <div id="qrLoginReader" style="width: 100%;"></div> 
-        
-        <p id="qrLoginResult" class="mt-3" style="font-weight: bold; margin-top: 15px;">{{ _('Skanowanie kodu QR użytkownika...') }}</p>
-        <div id="qrLoginError" class="flash-message flash-error" style="display: none; margin-top: 10px;"></div>
+    <div id="loginScannerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeLoginModal()">&times;</span>
+            <h3>Skanuj Kod QR Użytkownika</h3>
+            <div id="qr-login-reader" style="width: 100%;"></div>
+            <p id="qrLoginError" style="color:red; display:none;"></p>
+        </div>
     </div>
-</div>
 
-<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+    <script>
+        let qrLoginCodeReader = null;
 
-<script>
-    // Globalny obiekt dla skanera logowania
-    let qrLoginCodeReader = null;
+        async function openLoginScanner() {
+            document.getElementById('loginScannerModal').style.display = 'block';
+            document.getElementById('qrLoginError').style.display = 'none';
 
-    // Funkcja pomocnicza do otwierania/zamykania modala logowania
-    function openLoginModal(modalName) {
-        document.getElementById(modalName + 'Modal').style.display = 'flex';
-    }
-
-    function closeLoginModal(modalName) {
-        document.getElementById(modalName + 'Modal').style.display = 'none';
-        // Zamykanie aktywnego skanera, jeśli istnieje
-        if (qrLoginCodeReader) {
-            qrLoginCodeReader.stop().catch(err => console.error("Błąd zatrzymania skanera logowania:", err));
-        }
-    }
-
-    // Funkcja otwierająca modal skanera logowania
-    function openLoginScannerModal() {
-        openLoginModal('loginScanner');
-        document.getElementById('qrLoginResult').textContent = "{{ _('Skanowanie kodu QR użytkownika...') }}";
-        document.getElementById('qrLoginError').style.display = 'none';
-
-        if (qrLoginCodeReader) {
-            startLoginScanner();
-        } else {
-            startLoginScanner();
-        }
-    }
-
-    // Funkcja uruchamiająca silnik skanera
-    function startLoginScanner() {
-        qrLoginCodeReader = new Html5Qrcode("qrLoginReader");
-
-        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            // Zatrzymujemy skaner
-            qrLoginCodeReader.stop().catch(err => console.error("Błąd zatrzymania skanera:", err));
-            closeLoginModal('loginScanner');
-            
-            // Wysłanie zeskanowanego tokena do API logowania
-            loginWithQrToken(decodedText);
-        };
-
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-        qrLoginCodeReader.start({ facingMode: "user" }, config, qrCodeSuccessCallback) 
-            .catch(err => {
-                const errorElement = document.getElementById('qrLoginError');
-                errorElement.textContent = "{{ _('Błąd: Nie można uruchomić kamery. Upewnij się, że masz uprawnienia.') }}";
-                errorElement.style.display = 'block';
-                document.getElementById('qrLoginResult').textContent = `{{ _('Błąd skanowania.') }}`;
-                console.error("Błąd startu skanera logowania:", err);
-            });
-    }
-
-    // Funkcja wysyłająca token do API (TERAZ WYŚLE RZECZYWISTE ŻĄDANIE)
-    async function loginWithQrToken(token) {
-        try {
-            // Wysłanie tokenu do endpointu API
-            const response = await fetch('/api/auth/qr_login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ token: token })
-            });
-
-            const result = await response.json();
-            
-            if (response.ok && result.success) {
-                // Sukces logowania, przekierowanie na stronę główną
-                window.location.href = '/'; 
-            } else {
-                // Błąd logowania (np. token nieprawidłowy/wygasły)
-                alert("{{ _('Błąd logowania przez QR') }}: " + (result.message || "{{ _('Nieznany błąd.') }}"));
-                window.location.reload(); 
+            if (!qrLoginCodeReader) {
+                qrLoginCodeReader = new Html5Qrcode("qr-login-reader");
             }
 
-        } catch (error) {
-            console.error('Błąd komunikacji z serwerem podczas logowania QR:', error);
-            alert("{{ _('Wystąpił błąd komunikacji z serwerem.') }}");
-        }
-    }
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-    // Zamykanie skanera przy zamknięciu modalu (również na kliknięcie poza contentem)
-    document.getElementById('loginScannerModal').addEventListener('click', function(event) {
-        if (event.target.classList.contains('close-button') || event.target.id === 'loginScannerModal') {
-            if (qrLoginCodeReader) {
-                qrLoginCodeReader.stop().catch(err => console.error("Błąd zatrzymania skanera:", err));
+            try {
+                await qrLoginCodeReader.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    (decodedText) => {
+                        // Po udanym skanowaniu
+                        if (qrLoginCodeReader.getState() === 2) {
+                            qrLoginCodeReader.stop().then(() => {
+                                closeLoginModal();
+                                loginWithQrToken(decodedText);
+                            });
+                        }
+                    }
+                );
+            } catch (err) {
+                document.getElementById('qrLoginError').textContent = "Błąd kamery. Upewnij się, że używasz HTTPS.";
+                document.getElementById('qrLoginError').style.display = 'block';
             }
         }
-    });
 
-</script>
+        function closeLoginModal() {
+            document.getElementById('loginScannerModal').style.display = 'none';
+            // POPRAWKA: Czysty start - sprawdzamy stan przed zatrzymaniem
+            if (qrLoginCodeReader && qrLoginCodeReader.getState() === 2) {
+                qrLoginCodeReader.stop().catch(err => console.warn("Skaner już był wyłączony lub wystąpił błąd:", err));
+            }
+        }
+
+        async function loginWithQrToken(token) {
+            try {
+                const response = await fetch('/api/auth/qr_login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = '/';
+                } else {
+                    alert("Błąd logowania: " + result.message);
+                }
+            } catch (error) {
+                alert("Wystąpił błąd komunikacji z serwerem.");
+            }
+        }
+
+        // Zamknij po kliknięciu poza modalem
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('loginScannerModal')) {
+                closeLoginModal();
+            }
+        }
+    </script>
 </body>
 </html>
