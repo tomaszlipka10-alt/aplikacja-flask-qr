@@ -1,155 +1,70 @@
 <!DOCTYPE html>
-<html lang="{{ session.get('lang', 'pl') }}">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ login_title if login_title else 'Logowanie' }} - Warehouse Management</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Warehouse Management</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-    <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; padding: 0; background-color: #f0f2f5; 
-            color: #333; display: flex; justify-content: center; 
-            align-items: center; min-height: 100vh; 
-        }
-        .login-container {
-            background-color: white; padding: 40px; border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); width: 100%;
-            max-width: 400px; text-align: center; border-top: 5px solid #007bff;
-        }
-        h2 { margin-bottom: 25px; color: #007bff; }
-        .form-group { margin-bottom: 20px; text-align: left; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; }
-        input[type="text"], input[type="password"] {
-            width: 100%; padding: 12px; border: 1px solid #ddd;
-            border-radius: 5px; box-sizing: border-box; font-size: 16px;
-        }
-        .btn {
-            width: 100%; padding: 12px; border: none; border-radius: 5px;
-            cursor: pointer; font-size: 16px; font-weight: 600; transition: background 0.3s;
-        }
-        .btn-primary { background-color: #007bff; color: white; }
-        .btn-primary:hover { background-color: #0056b3; }
-        .btn-qr { background-color: #28a745; color: white; margin-top: 15px; }
-        .btn-qr:hover { background-color: #218838; }
-        .error-message { color: #dc3545; margin-bottom: 20px; font-size: 0.9em; background: #f8d7da; padding: 10px; border-radius: 5px; }
-
-        /* Modal dla skanera */
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; }
-        .modal-content { background-color: white; padding: 20px; width: 90%; max-width: 500px; border-radius: 10px; position: relative; }
-        .close-button { position: absolute; right: 15px; top: 10px; font-size: 28px; cursor: pointer; color: #aaa; }
-    </style>
+  <style>
+    body{
+      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+      margin:0; padding:0; background-color:#f0f2f5; color:#333;
+      display:flex; justify-content:center; align-items:center; min-height:100vh;
+    }
+    .login-container{
+      background:#fff; padding:40px; border-radius:10px;
+      box-shadow:0 4px 10px rgba(0,0,0,.1);
+      width:100%; max-width:400px; text-align:center; border-top:5px solid #007bff;
+    }
+    h2{ margin:0 0 25px; color:#007bff; }
+    .form-group{ margin-bottom:20px; text-align:left; }
+    label{ display:block; margin-bottom:8px; font-weight:600; }
+    input[type="text"], input[type="password"]{
+      width:100%; padding:12px; border:1px solid #ddd; border-radius:5px;
+      box-sizing:border-box; font-size:16px;
+    }
+    .btn{
+      width:100%; padding:12px; border:none; border-radius:5px; cursor:pointer;
+      font-size:16px; font-weight:600; transition:background .3s;
+    }
+    .btn-primary{ background:#007bff; color:#fff; }
+    .btn-primary:hover{ background:#0056b3; }
+    .error-message{
+      color:#dc3545; margin-bottom:20px; font-size:.9em; background:#f8d7da;
+      padding:10px; border-radius:5px;
+    }
+    .hint{
+      margin-top:18px; font-size:.85em; color:#666;
+      background:#f8f9fa; border:1px solid #eee; padding:10px; border-radius:8px;
+    }
+    code{ background:#fff; padding:2px 6px; border-radius:6px; border:1px solid #eee; }
+  </style>
 </head>
 <body>
+  <div class="login-container">
+    <h2>Login</h2>
 
-    <div class="login-container">
-        <h2>{{ login_text if login_text else 'Logowanie' }}</h2>
-        
-        {% if error %}
-            <div class="error-message">{{ error }}</div>
-        {% endif %}
+    {% if error %}
+      <div class="error-message">{{ error }}</div>
+    {% endif %}
 
-        <form method="POST">
-            <div class="form-group">
-                <label for="username">{{ username_label if username_label else 'Użytkownik' }}</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">{{ password_label if password_label else 'Hasło' }}</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">{{ login_button if login_button else 'Zaloguj się' }}</button>
-        </form>
+    <form method="POST" autocomplete="on">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Sign in</button>
+    </form>
 
-        <button class="btn btn-qr" onclick="openLoginScanner()">
-            <i class="fas fa-qrcode"></i> LOGOWANIE QR
-        </button>
-
-        <div style="margin-top: 20px; font-size: 0.8em; color: #666;">
-            {{ select_lang_text if select_lang_text else 'Wybierz język:' }}
-            <a href="{{ url_for('set_language', lang='pl') }}">PL</a> | 
-            <a href="{{ url_for('set_language', lang='en') }}">EN</a> | 
-            <a href="{{ url_for('set_language', lang='nl') }}">NL</a>
-        </div>
+    <div class="hint">
+      Default admin (created automatically if missing):<br>
+      <code>admin</code> / <code>admin123</code>
     </div>
-
-    <div id="loginScannerModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeLoginModal()">&times;</span>
-            <h3>Skanuj Kod QR Użytkownika</h3>
-            <div id="qr-login-reader" style="width: 100%;"></div>
-            <p id="qrLoginError" style="color:red; display:none; margin-top: 10px; font-size: 0.9em;"></p>
-        </div>
-    </div>
-
-    <script>
-        let qrLoginCodeReader = null;
-
-        async function openLoginScanner() {
-            const modal = document.getElementById('loginScannerModal');
-            modal.style.display = 'flex';
-            document.getElementById('qrLoginError').style.display = 'none';
-
-            if (!qrLoginCodeReader) {
-                qrLoginCodeReader = new Html5Qrcode("qr-login-reader");
-            }
-
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-            try {
-                await qrLoginCodeReader.start(
-                    { facingMode: "environment" }, 
-                    config, 
-                    (decodedText) => {
-                        // Po udanym skanie zatrzymaj kamerę i prześlij token
-                        qrLoginCodeReader.stop().then(() => {
-                            modal.style.display = 'none';
-                            loginWithQrToken(decodedText);
-                        }).catch(err => console.error("Błąd stop skanera:", err));
-                    }
-                );
-            } catch (err) {
-                const errorEl = document.getElementById('qrLoginError');
-                errorEl.textContent = "Błąd kamery. Upewnij się, że udzieliłeś uprawnień i używasz HTTPS.";
-                errorEl.style.display = 'block';
-            }
-        }
-
-        function closeLoginModal() {
-            document.getElementById('loginScannerModal').style.display = 'none';
-            if (qrLoginCodeReader && qrLoginCodeReader.getState() === 2) {
-                qrLoginCodeReader.stop().catch(err => console.warn("Skaner błąd stop:", err));
-            }
-        }
-
-        async function loginWithQrToken(token) {
-            try {
-                const response = await fetch('/api/auth/qr_login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    window.location.href = '/';
-                } else {
-                    alert("Błąd logowania: " + result.message);
-                }
-            } catch (error) {
-                alert("Wystąpił błąd komunikacji z serwerem.");
-            }
-        }
-
-        // Zamykanie modala po kliknięciu poza nim
-        window.onclick = function(event) {
-            const modal = document.getElementById('loginScannerModal');
-            if (event.target == modal) {
-                closeLoginModal();
-            }
-        }
-    </script>
+  </div>
 </body>
 </html>

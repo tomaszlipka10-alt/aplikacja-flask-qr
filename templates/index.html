@@ -1,271 +1,205 @@
 <!DOCTYPE html>
-<html lang="{{ session.get('lang', 'pl') }}">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ welcome_title }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        /* CSS WIDOKU GŁÓWNEGO */
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; display: flex; }
-        .sidebar { width: 250px; background-color: #343a40; color: white; height: 100vh; position: fixed; display: flex; flex-direction: column; padding-top: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); }
-        .sidebar-header { text-align: center; margin-bottom: 30px; }
-        .sidebar-header h1 { font-size: 1.5em; margin: 0; }
-        .sidebar-menu a, .sidebar-actions a { display: block; padding: 15px 20px; text-decoration: none; color: #adb5bd; transition: background 0.3s; cursor: pointer; }
-        .sidebar-menu a:hover, .sidebar-actions a:hover { background-color: #495057; color: white; border-left: 5px solid #007bff; }
-        .main-content { margin-left: 250px; padding: 20px; width: calc(100% - 250px); box-sizing: border-box; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #ddd; }
-        .action-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-        .card { background-color: white; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; border-left: 5px solid #007bff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .data-view { display: none; background-color: white; padding: 20px; border-radius: 8px; }
-        .data-view.active { display: block; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
-        .modal-content { background-color: #fefefe; padding: 30px; border-radius: 10px; width: 90%; max-width: 550px; position: relative; }
-        .close-button { position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; width: 100%; }
-        #qr-preview { text-align: center; margin-top: 20px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ welcome_title or 'Warehouse Dashboard' }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <style>
+    body{ font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; margin:0; padding:0; background:#f0f2f5; display:flex; }
+    .sidebar{ width:250px; background:#343a40; color:#fff; height:100vh; position:fixed; display:flex; flex-direction:column; padding-top:20px; box-shadow:2px 0 5px rgba(0,0,0,.2); }
+    .sidebar-header{ text-align:center; margin-bottom:30px; }
+    .sidebar-header h1{ font-size:1.5em; margin:0; }
+    .sidebar-menu a, .sidebar-actions a{
+      display:block; padding:15px 20px; text-decoration:none; color:#adb5bd;
+      transition:background .3s; cursor:pointer;
+    }
+    .sidebar-menu a:hover, .sidebar-actions a:hover{ background:#495057; color:#fff; border-left:5px solid #007bff; }
+    .main-content{ margin-left:250px; padding:20px; width:calc(100% - 250px); box-sizing:border-box; }
+    .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #ddd; }
+    .action-cards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:20px; }
+    .card{ background:#fff; border-radius:8px; padding:20px; text-align:center; cursor:pointer; border-left:5px solid #007bff; box-shadow:0 4px 8px rgba(0,0,0,.1); }
+    .data-view{ display:none; background:#fff; padding:20px; border-radius:8px; }
+    .data-view.active{ display:block; }
+    table{ width:100%; border-collapse:collapse; }
+    th, td{ padding:12px; text-align:left; border-bottom:1px solid #ddd; }
+    .modal{ display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,.4); justify-content:center; align-items:center; }
+    .modal-content{ background:#fefefe; padding:30px; border-radius:10px; width:90%; max-width:550px; position:relative; }
+    .close-button{ position:absolute; top:10px; right:20px; font-size:28px; cursor:pointer; }
+    .form-group{ margin-bottom:15px; }
+    .form-group label{ display:block; margin-bottom:5px; font-weight:600; }
+    .form-group input{ width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; }
+    .btn{ padding:10px 15px; border:none; border-radius:4px; cursor:pointer; background:#007bff; color:#fff; width:100%; }
+    .btn-secondary{ background:#6c757d; }
+    .btn-danger{ background:#dc3545; }
+    .muted{ color:#6c757d; font-size:.9em; }
+  </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="sidebar-header"><h1>WMS</h1></div>
-        <div class="sidebar-menu">
-            <a onclick="showView('dashboard-view')" class="menu-item active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            <a onclick="showView('inventory-view')" class="menu-item"><i class="fas fa-boxes"></i> {{ tab_inventory }}</a>
-            <a onclick="showView('audit-view')" class="menu-item"><i class="fas fa-history"></i> {{ tab_audit }}</a>
-            <a id="tab-scanner-open" style="color: #ffc107;"><i class="fas fa-qrcode"></i> {{ _('Skanuj Towar') }}</a>
-        </div>
-        <div class="sidebar-actions">
-            <p style="text-align: center; color: #adb5bd;">{{ current_user.full_name }}</p>
-            <a href="/logout" style="color: #f8d7da;"><i class="fas fa-sign-out-alt"></i> {{ logout_link }}</a>
-        </div>
+  <div class="sidebar">
+    <div class="sidebar-header"><h1>WMS</h1></div>
+    <div class="sidebar-menu">
+      <a onclick="showView('dashboard-view')" class="menu-item active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+      <a onclick="showView('inventory-view')" class="menu-item"><i class="fas fa-boxes"></i> Inventory</a>
+      <a onclick="showView('audit-view')" class="menu-item"><i class="fas fa-history"></i> Audit</a>
+    </div>
+    <div class="sidebar-actions">
+      <p style="text-align:center; color:#adb5bd;">{{ current_user.full_name }}</p>
+      <a href="/logout" style="color:#f8d7da;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="header">
+      <h2>{{ welcome_title or 'Warehouse Dashboard' }}</h2>
+      <span class="muted">English-only (translation removed)</span>
     </div>
 
-    <div class="main-content">
-        <div class="header">
-            <h2>{{ welcome_title }}</h2>
-            <select onchange="window.location.href = '/set_language/' + this.value;">
-                {% for code, name in config.LANGUAGES.items() %}
-                    <option value="{{ code }}" {% if session.get('lang') == code %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div id="dashboard-view" class="data-view active">
-            <div class="action-cards">
-                <div class="card" onclick="openOperationModal('receive')"><h4>{{ action_receive }}</h4></div>
-                <div class="card" onclick="openOperationModal('issue')"><h4>{{ action_issue }}</h4></div>
-                <div class="card" onclick="openNewProductModal()"><h4>{{ action_new_product }}</h4></div>
-            </div>
-            <div id="low-stock-alert" style="margin-top: 20px;"></div>
-        </div>
-
-        <div id="inventory-view" class="data-view">
-            <table>
-                <thead>
-                    <tr><th>ID</th><th>Indeks</th><th>Nazwa</th><th>Stan</th><th>Lokalizacja</th><th>Akcje</th></tr>
-                </thead>
-                <tbody id="inventory-table-body"></tbody>
-            </table>
-        </div>
-
-        <div id="audit-view" class="data-view">
-            <table>
-                <thead>
-                    <tr><th>Czas</th><th>Produkt</th><th>Typ</th><th>Ilość</th><th>Użytkownik</th></tr>
-                </thead>
-                <tbody id="audit-table-body"></tbody>
-            </table>
-        </div>
+    <div id="dashboard-view" class="data-view active">
+      <div class="action-cards">
+        <div class="card" onclick="openOperationModal('receive')"><h4>Receive Stock</h4></div>
+        <div class="card" onclick="openOperationModal('issue')"><h4>Issue Stock</h4></div>
+      </div>
+      <div id="low-stock-alert" style="margin-top:20px;"></div>
     </div>
 
-    <div id="operationModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeModal('operationModal')">&times;</span>
-            <h3 id="operationModalTitle"></h3>
-            <button onclick="openScannerModal('productOperationScanner')" class="btn" style="margin-bottom:10px; background: #28a745;">
-                <i class="fas fa-camera"></i> {{ _('Skanuj Produkt') }}
-            </button>
-            <div class="form-group">
-                <label>{{ _('Indeks Produktu') }}</label>
-                <input type="text" id="op_item_number" onchange="autoFillProductData(this.value)">
-            </div>
-            <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-                <p><strong>{{ _('ID Produktu:') }}</strong> <span id="op_product_id">---</span></p>
-                <p><strong>{{ _('Nazwa Produktu:') }}</strong> <span id="op_product_name">---</span></p>
-            </div>
-            <div class="form-group">
-                <label>{{ _('Ilość') }}</label>
-                <input type="number" id="op_amount" min="1" value="1">
-            </div>
-            <button id="op_submit_button" class="btn" onclick="submitOperation()">{{ _('Wykonaj') }}</button>
-        </div>
+    <div id="inventory-view" class="data-view">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Item No.</th><th>Name</th><th>Stock</th><th>Location</th><th>Action</th></tr>
+        </thead>
+        <tbody id="inventory-table-body"></tbody>
+      </table>
     </div>
 
-    <div id="universalScannerModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeScannerModal()">&times;</span>
-            <h3>{{ _('Skaner QR') }}</h3>
-            <div id="qrReader" style="width: 100%;"></div>
-            <div id="scanner-status" style="text-align: center; margin-top: 10px;">{{ _('Inicjalizacja...') }}</div>
-            <button onclick="closeScannerModal()" class="btn" style="margin-top:10px; background:#6c757d;">{{ _('Anuluj') }}</button>
-        </div>
+    <div id="audit-view" class="data-view">
+      <div class="muted">Audit view UI will be added next (API currently logs operations).</div>
     </div>
+  </div>
 
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
-    <script>
-        let inventoryData = [];
-        let globalQrCodeReader = null;
-        let currentScannerMode = null;
-        let operationType = null;
+  <div id="operationModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button" onclick="closeModal('operationModal')">&times;</span>
+      <h3 id="operationModalTitle"></h3>
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const scannerBtn = document.getElementById('tab-scanner-open');
-            if (scannerBtn) {
-                scannerBtn.addEventListener('click', () => openScannerModal('productScanner'));
-            }
-            loadInventoryData();
+      <div class="form-group">
+        <label>Item number (scan later)</label>
+        <input type="text" id="op_item_number" onchange="autoFillProductData(this.value)" placeholder="e.g. 12001105">
+      </div>
+
+      <div style="background:#f8f9fa; padding:10px; border-radius:5px; margin-bottom:15px;">
+        <p><strong>Product ID:</strong> <span id="op_product_id">---</span></p>
+        <p><strong>Product name:</strong> <span id="op_product_name">---</span></p>
+        <p><strong>Location:</strong> <span id="op_product_location">---</span></p>
+        <p><strong>Current stock:</strong> <span id="op_product_stock">---</span></p>
+      </div>
+
+      <div class="form-group">
+        <label>Amount</label>
+        <input type="number" id="op_amount" min="1" value="1">
+      </div>
+
+      <button id="op_submit_button" class="btn" onclick="submitOperation()">Submit</button>
+      <button class="btn btn-secondary" style="margin-top:10px;" onclick="closeModal('operationModal')">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    let inventoryData = [];
+    let operationType = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadInventoryData();
+    });
+
+    function showView(viewId) {
+      document.querySelectorAll('.data-view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+
+      document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+      if (event && event.currentTarget) event.currentTarget.classList.add('active');
+    }
+
+    function closeModal(id){ document.getElementById(id).style.display = 'none'; }
+
+    function openOperationModal(type, itemNumber='') {
+      operationType = type;
+      document.getElementById('operationModalTitle').textContent = (type === 'receive') ? 'Receive stock' : 'Issue stock';
+      document.getElementById('op_item_number').value = itemNumber;
+      if (itemNumber) autoFillProductData(itemNumber);
+      document.getElementById('operationModal').style.display = 'flex';
+    }
+
+    async function loadInventoryData() {
+      try {
+        const res = await fetch('/api/products');
+        const result = await res.json();
+        inventoryData = (result && result.data) ? result.data : [];
+
+        const tbody = document.getElementById('inventory-table-body');
+        tbody.innerHTML = inventoryData.map(p => `
+          <tr>
+            <td>${p.id}</td>
+            <td>${p.item_number}</td>
+            <td>${p.name}</td>
+            <td>${p.current_stock}</td>
+            <td>${p.location_name}</td>
+            <td>
+              <button onclick="openOperationModal('issue', '${p.item_number}')"
+                      class="btn btn-danger" style="width:auto; padding:6px 10px;">
+                Issue
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load inventory:', err);
+      }
+    }
+
+    function autoFillProductData(val) {
+      const p = inventoryData.find(prod => prod.item_number === val);
+      if (p) {
+        document.getElementById('op_product_id').textContent = p.id;
+        document.getElementById('op_product_name').textContent = p.name;
+        document.getElementById('op_product_location').textContent = p.location_name;
+        document.getElementById('op_product_stock').textContent = p.current_stock;
+      } else {
+        document.getElementById('op_product_id').textContent = '---';
+        document.getElementById('op_product_name').textContent = 'Not found';
+        document.getElementById('op_product_location').textContent = '---';
+        document.getElementById('op_product_stock').textContent = '---';
+      }
+    }
+
+    async function submitOperation() {
+      const id = document.getElementById('op_product_id').textContent;
+      const amt = parseInt(document.getElementById('op_amount').value, 10);
+
+      if (id === '---' || !amt || amt <= 0) return alert('Please provide valid data.');
+
+      try {
+        const res = await fetch(`/api/stock/${operationType}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_id: id, amount: amt })
         });
+        const result = await res.json();
 
-        function showView(viewId) {
-            document.querySelectorAll('.data-view').forEach(v => v.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
-            
-            // Odśwież menu boczne
-            document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-            if (event && event.currentTarget) {
-                event.currentTarget.classList.add('active');
-            }
+        if (res.ok) {
+          alert(result.message || 'OK');
+          // refresh inventory in-place instead of full reload
+          await loadInventoryData();
+          closeModal('operationModal');
+        } else {
+          alert('Error: ' + (result.message || 'Request failed.'));
         }
-
-        function closeModal(id) { 
-            document.getElementById(id).style.display = 'none'; 
-        }
-
-        async function openScannerModal(mode) {
-            currentScannerMode = mode;
-            if (mode === 'productOperationScanner') {
-                document.getElementById('operationModal').style.display = 'none';
-            }
-            
-            document.getElementById('universalScannerModal').style.display = 'flex';
-            
-            if (!globalQrCodeReader) {
-                globalQrCodeReader = new Html5Qrcode("qrReader");
-            }
-            
-            try {
-                const config = { fps: 10, qrbox: 250 };
-                await globalQrCodeReader.start({ facingMode: "environment" }, config, onScanSuccess);
-                document.getElementById('scanner-status').textContent = "{{ _('Skanowanie...') }}";
-            } catch (err) {
-                console.error(err);
-                alert("{{ _('Błąd kamery. Upewnij się, że używasz HTTPS.') }}");
-                closeScannerModal();
-            }
-        }
-
-        function closeScannerModal() {
-            document.getElementById('universalScannerModal').style.display = 'none';
-            if (globalQrCodeReader && globalQrCodeReader.getState() === 2) {
-                globalQrCodeReader.stop().then(cleanupScannerUI).catch(cleanupScannerUI);
-            } else { 
-                cleanupScannerUI(); 
-            }
-        }
-
-        function cleanupScannerUI() {
-            document.getElementById("qrReader").innerHTML = '';
-            if (currentScannerMode === 'productOperationScanner') {
-                document.getElementById('operationModal').style.display = 'flex';
-            }
-            currentScannerMode = null;
-        }
-
-        function onScanSuccess(decodedText) {
-            document.getElementById('op_item_number').value = decodedText;
-            autoFillProductData(decodedText);
-            
-            if (currentScannerMode === 'productScanner') {
-                closeScannerModal();
-                openOperationModal('receive', decodedText);
-            } else {
-                closeScannerModal();
-            }
-        }
-
-        async function loadInventoryData() {
-            try {
-                const res = await fetch('/api/products');
-                const result = await res.json();
-                inventoryData = result.data;
-                const tbody = document.getElementById('inventory-table-body');
-                tbody.innerHTML = result.data.map(p => `
-                    <tr>
-                        <td>${p.id}</td>
-                        <td>${p.item_number}</td>
-                        <td>${p.name}</td>
-                        <td>${p.current_stock}</td>
-                        <td>${p.location_name}</td>
-                        <td>
-                            <button onclick="openOperationModal('issue', '${p.item_number}')" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">
-                                {{ _('Wydaj') }}
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (err) {
-                console.error("Błąd ładowania danych:", err);
-            }
-        }
-
-        function autoFillProductData(val) {
-            const p = inventoryData.find(prod => prod.item_number === val);
-            if (p) {
-                document.getElementById('op_product_id').textContent = p.id;
-                document.getElementById('op_product_name').textContent = p.name;
-            } else {
-                document.getElementById('op_product_id').textContent = "---";
-                document.getElementById('op_product_name').textContent = "{{ _('Nie znaleziono produktu') }}";
-            }
-        }
-
-        function openOperationModal(type, ean = '') {
-            operationType = type;
-            document.getElementById('operationModalTitle').textContent = type === 'receive' ? "{{ action_receive }}" : "{{ action_issue }}";
-            document.getElementById('op_item_number').value = ean;
-            if (ean) autoFillProductData(ean);
-            document.getElementById('operationModal').style.display = 'flex';
-        }
-
-        async function submitOperation() {
-            const id = document.getElementById('op_product_id').textContent;
-            const amt = document.getElementById('op_amount').value;
-            if (id === '---' || !amt || amt <= 0) return alert("{{ _('Podaj poprawne dane.') }}");
-            
-            try {
-                const res = await fetch(`/api/stock/${operationType}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ product_id: id, amount: amt })
-                });
-                const result = await res.json();
-                if (res.ok) {
-                    alert(result.message);
-                    location.reload();
-                } else {
-                    alert("Błąd: " + result.message);
-                }
-            } catch (err) {
-                alert("{{ _('Wystąpił błąd komunikacji.') }}");
-            }
-        }
-    </script>
+      } catch (err) {
+        alert('Network error.');
+      }
+    }
+  </script>
 </body>
 </html>
