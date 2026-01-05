@@ -184,8 +184,24 @@ def api_products_post():
     if initial_stock < 0:
         return jsonify({"message": "initial_stock cannot be negative"}), 400
 
-    if Product.query.filter_by(item_number=item_number).first():
-        return jsonify({"message": "Product with this item_number already exists"}), 409
+    # Upsert by item_number: if the product exists, update its fields.
+    existing = Product.query.filter_by(item_number=item_number).first()
+    if existing:
+        existing.name = name
+        existing.location_name = location_name
+        # Only overwrite stock if caller provided it (default is 0 anyway, but keep it explicit)
+        existing.current_stock = initial_stock
+
+        db.session.add(AuditLog(
+            product_id=existing.id,
+            action="update",
+            amount=0,
+            username=current_user.username,
+            note=f"Updated product {item_number} via upsert"
+        ))
+        db.session.commit()
+
+        return jsonify({"message": "Product already existed — updated", "id": existing.id}), 200
 
     p = Product(item_number=item_number, name=name, location_name=location_name, current_stock=initial_stock)
     db.session.add(p)
