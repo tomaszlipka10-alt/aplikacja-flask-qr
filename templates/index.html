@@ -3,34 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ title }}</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <title>{{ welcome_title or 'Warehouse Dashboard' }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; display: flex; }
-    .sidebar { width: 250px; background-color: #343a40; color: white; height: 100vh; position: fixed; display: flex; flex-direction: column; padding-top: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); }
-    .sidebar-header { text-align: center; margin-bottom: 30px; }
-    .sidebar-header h1 { font-size: 1.5em; margin: 0; }
-    .sidebar-menu a, .sidebar-actions a { display: block; padding: 15px 20px; text-decoration: none; color: #adb5bd; transition: background 0.3s; cursor: pointer; }
-    .sidebar-menu a:hover, .sidebar-actions a:hover { background-color: #495057; color: white; border-left: 5px solid #007bff; }
-    .menu-item.active { background-color: #495057; color: white; border-left: 5px solid #007bff; }
-    .main-content { margin-left: 250px; padding: 20px; width: calc(100% - 250px); box-sizing: border-box; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #ddd; }
-    .action-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
-    .card { background-color: white; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; border-left: 5px solid #007bff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .data-view { display: none; background-color: white; padding: 20px; border-radius: 8px; }
-    .data-view.active { display: block; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
-    .modal-content { background-color: #fefefe; padding: 30px; border-radius: 10px; width: 90%; max-width: 550px; position: relative; }
-    .close-button { position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
-    .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-    .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; background: #007bff; color: white; width: 100%; }
-    .btn.secondary { background:#6c757d; }
-    .btn.green { background:#28a745; }
-    .hint { color:#6c757d; font-size: 0.9em; }
+    body{ font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; margin:0; padding:0; background:#f0f2f5; display:flex; }
+    .sidebar{ width:250px; background:#343a40; color:#fff; height:100vh; position:fixed; display:flex; flex-direction:column; padding-top:20px; box-shadow:2px 0 5px rgba(0,0,0,.2); }
+    .sidebar-header{ text-align:center; margin-bottom:30px; }
+    .sidebar-header h1{ font-size:1.5em; margin:0; }
+    .sidebar-menu a, .sidebar-actions a{
+      display:block; padding:15px 20px; text-decoration:none; color:#adb5bd;
+      transition:background .3s; cursor:pointer;
+    }
+    .sidebar-menu a:hover, .sidebar-actions a:hover{ background:#495057; color:#fff; border-left:5px solid #007bff; }
+    .main-content{ margin-left:250px; padding:20px; width:calc(100% - 250px); box-sizing:border-box; }
+    .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; padding-bottom:15px; border-bottom:1px solid #ddd; }
+    .action-cards{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:20px; }
+    .card{ background:#fff; border-radius:8px; padding:20px; text-align:center; cursor:pointer; border-left:5px solid #007bff; box-shadow:0 4px 8px rgba(0,0,0,.1); }
+    .data-view{ display:none; background:#fff; padding:20px; border-radius:8px; }
+    .data-view.active{ display:block; }
+    table{ width:100%; border-collapse:collapse; }
+    th, td{ padding:12px; text-align:left; border-bottom:1px solid #ddd; }
+    .modal{ display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,.4); justify-content:center; align-items:center; }
+    .modal-content{ background:#fefefe; padding:30px; border-radius:10px; width:90%; max-width:550px; position:relative; }
+    .close-button{ position:absolute; top:10px; right:20px; font-size:28px; cursor:pointer; }
+    .form-group{ margin-bottom:15px; }
+    .form-group label{ display:block; margin-bottom:5px; font-weight:600; }
+    .form-group input{ width:100%; padding:10px; border:1px solid #ccc; border-radius:4px; }
+    .btn{ padding:10px 15px; border:none; border-radius:4px; cursor:pointer; background:#007bff; color:#fff; width:100%; }
+    .btn-secondary{ background:#6c757d; }
+    .btn-danger{ background:#dc3545; }
+    .muted{ color:#6c757d; font-size:.9em; }
   </style>
 </head>
 <body>
@@ -38,95 +41,68 @@
   <div class="sidebar">
     <div class="sidebar-header"><h1>WMS</h1></div>
     <div class="sidebar-menu">
-      <a onclick="showView('dashboard-view', this)" class="menu-item active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-      <a onclick="showView('inventory-view', this)" class="menu-item"><i class="fas fa-boxes"></i> Inventory</a>
-      <a onclick="showView('audit-view', this)" class="menu-item"><i class="fas fa-history"></i> Audit</a>
-      <a onclick="openNewProductModal()" class="menu-item" style="color:#ffc107;"><i class="fas fa-plus"></i> Add product</a>
+      <a onclick="showView('dashboard-view')" class="menu-item active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+      <a onclick="showView('inventory-view')" class="menu-item"><i class="fas fa-boxes"></i> Inventory</a>
+      <a onclick="showView('audit-view')" class="menu-item"><i class="fas fa-history"></i> Audit</a>
     </div>
     <div class="sidebar-actions">
-      <p style="text-align: center; color: #adb5bd;">{{ current_user.full_name or current_user.username }}</p>
-      <a href="/logout" style="color: #f8d7da;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+      <p style="text-align:center; color:#adb5bd;">{{ current_user.full_name }}</p>
+      <a href="/logout" style="color:#f8d7da;"><i class="fas fa-sign-out-alt"></i> Logout</a>
     </div>
   </div>
 
   <div class="main-content">
     <div class="header">
-      <h2>{{ title }}</h2>
-      <span class="hint">English-only baseline</span>
+      <h2>{{ welcome_title or 'Warehouse Dashboard' }}</h2>
+      <span class="muted">English-only (translation removed)</span>
     </div>
 
     <div id="dashboard-view" class="data-view active">
       <div class="action-cards">
         <div class="card" onclick="openOperationModal('receive')"><h4>Receive Stock</h4></div>
         <div class="card" onclick="openOperationModal('issue')"><h4>Issue Stock</h4></div>
-        <div class="card" onclick="openNewProductModal()"><h4>Add Product</h4></div>
       </div>
-      <div id="low-stock-alert" style="margin-top: 20px;"></div>
+      <div id="low-stock-alert" style="margin-top:20px;"></div>
     </div>
 
     <div id="inventory-view" class="data-view">
       <table>
         <thead>
-          <tr><th>ID</th><th>Item No.</th><th>Name</th><th>Stock</th><th>Location</th><th>Actions</th></tr>
+          <tr><th>ID</th><th>Item No.</th><th>Name</th><th>Stock</th><th>Location</th><th>Action</th></tr>
         </thead>
         <tbody id="inventory-table-body"></tbody>
       </table>
     </div>
 
     <div id="audit-view" class="data-view">
-      <table>
-        <thead>
-          <tr><th>Time</th><th>Item</th><th>Action</th><th>Qty</th><th>User</th></tr>
-        </thead>
-        <tbody id="audit-table-body"></tbody>
-      </table>
+      <div class="muted">Audit view UI will be added next (API currently logs operations).</div>
     </div>
   </div>
 
-  <!-- Receive/Issue modal -->
   <div id="operationModal" class="modal">
     <div class="modal-content">
       <span class="close-button" onclick="closeModal('operationModal')">&times;</span>
       <h3 id="operationModalTitle"></h3>
+
       <div class="form-group">
-        <label>Item number</label>
-        <input type="text" id="op_item_number" placeholder="e.g. 5901234123457" onchange="autoFillProductData(this.value)">
+        <label>Item number (scan later)</label>
+        <input type="text" id="op_item_number" onchange="autoFillProductData(this.value)" placeholder="e.g. 12001105">
       </div>
-      <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+
+      <div style="background:#f8f9fa; padding:10px; border-radius:5px; margin-bottom:15px;">
         <p><strong>Product ID:</strong> <span id="op_product_id">---</span></p>
-        <p><strong>Name:</strong> <span id="op_product_name">---</span></p>
+        <p><strong>Product name:</strong> <span id="op_product_name">---</span></p>
+        <p><strong>Location:</strong> <span id="op_product_location">---</span></p>
+        <p><strong>Current stock:</strong> <span id="op_product_stock">---</span></p>
       </div>
+
       <div class="form-group">
-        <label>Quantity</label>
+        <label>Amount</label>
         <input type="number" id="op_amount" min="1" value="1">
       </div>
-      <button id="op_submit_button" class="btn" onclick="submitOperation()">Execute</button>
-    </div>
-  </div>
 
-  <!-- New product modal -->
-  <div id="newProductModal" class="modal">
-    <div class="modal-content">
-      <span class="close-button" onclick="closeModal('newProductModal')">&times;</span>
-      <h3>Add Product</h3>
-      <div class="form-group">
-        <label>Item number (QR / barcode)</label>
-        <input type="text" id="np_item_number" placeholder="e.g. 5901234123457">
-      </div>
-      <div class="form-group">
-        <label>Name</label>
-        <input type="text" id="np_name" placeholder="Product name">
-      </div>
-      <div class="form-group">
-        <label>Location</label>
-        <input type="text" id="np_location_name" value="MAG-1" placeholder="e.g. MAG-1">
-      </div>
-      <div class="form-group">
-        <label>Initial stock</label>
-        <input type="number" id="np_stock" min="0" value="0">
-      </div>
-      <button class="btn" onclick="submitNewProduct()">Create</button>
-      <button class="btn secondary" style="margin-top:10px;" onclick="closeModal('newProductModal')">Cancel</button>
+      <button id="op_submit_button" class="btn" onclick="submitOperation()">Submit</button>
+      <button class="btn btn-secondary" style="margin-top:10px;" onclick="closeModal('operationModal')">Cancel</button>
     </div>
   </div>
 
@@ -136,37 +112,31 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       loadInventoryData();
-      loadAudit();
     });
 
-    function showView(viewId, el) {
+    function showView(viewId) {
       document.querySelectorAll('.data-view').forEach(v => v.classList.remove('active'));
       document.getElementById(viewId).classList.add('active');
 
       document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
-      if (el) el.classList.add('active');
-
-      if (viewId === 'inventory-view') loadInventoryData();
-      if (viewId === 'audit-view') loadAudit();
+      if (event && event.currentTarget) event.currentTarget.classList.add('active');
     }
 
-    function closeModal(id) {
-      document.getElementById(id).style.display = 'none';
-    }
+    function closeModal(id){ document.getElementById(id).style.display = 'none'; }
 
-    function openNewProductModal() {
-      document.getElementById('np_item_number').value = '';
-      document.getElementById('np_name').value = '';
-      document.getElementById('np_location_name').value = 'MAG-1';
-      document.getElementById('np_stock').value = 0;
-      document.getElementById('newProductModal').style.display = 'flex';
+    function openOperationModal(type, itemNumber='') {
+      operationType = type;
+      document.getElementById('operationModalTitle').textContent = (type === 'receive') ? 'Receive stock' : 'Issue stock';
+      document.getElementById('op_item_number').value = itemNumber;
+      if (itemNumber) autoFillProductData(itemNumber);
+      document.getElementById('operationModal').style.display = 'flex';
     }
 
     async function loadInventoryData() {
       try {
         const res = await fetch('/api/products');
         const result = await res.json();
-        inventoryData = result.data || [];
+        inventoryData = (result && result.data) ? result.data : [];
 
         const tbody = document.getElementById('inventory-table-body');
         tbody.innerHTML = inventoryData.map(p => `
@@ -175,9 +145,10 @@
             <td>${p.item_number}</td>
             <td>${p.name}</td>
             <td>${p.current_stock}</td>
-            <td>${p.location_name || ''}</td>
+            <td>${p.location_name}</td>
             <td>
-              <button onclick="openOperationModal('issue', '${p.item_number.replaceAll("'","\\'")}')" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;">
+              <button onclick="openOperationModal('issue', '${p.item_number}')"
+                      class="btn btn-danger" style="width:auto; padding:6px 10px;">
                 Issue
               </button>
             </td>
@@ -185,27 +156,6 @@
         `).join('');
       } catch (err) {
         console.error('Failed to load inventory:', err);
-        alert('Failed to load inventory.');
-      }
-    }
-
-    async function loadAudit() {
-      try {
-        const res = await fetch('/api/audit');
-        const result = await res.json();
-        const rows = result.data || [];
-        const tbody = document.getElementById('audit-table-body');
-        tbody.innerHTML = rows.map(r => `
-          <tr>
-            <td>${r.time}</td>
-            <td>${r.item_number} - ${r.product_name}</td>
-            <td>${r.action}</td>
-            <td>${r.amount}</td>
-            <td>${r.username}</td>
-          </tr>
-        `).join('');
-      } catch (err) {
-        console.error('Failed to load audit:', err);
       }
     }
 
@@ -214,28 +164,21 @@
       if (p) {
         document.getElementById('op_product_id').textContent = p.id;
         document.getElementById('op_product_name').textContent = p.name;
+        document.getElementById('op_product_location').textContent = p.location_name;
+        document.getElementById('op_product_stock').textContent = p.current_stock;
       } else {
         document.getElementById('op_product_id').textContent = '---';
         document.getElementById('op_product_name').textContent = 'Not found';
+        document.getElementById('op_product_location').textContent = '---';
+        document.getElementById('op_product_stock').textContent = '---';
       }
-    }
-
-    function openOperationModal(type, itemNumber = '') {
-      operationType = type;
-      document.getElementById('operationModalTitle').textContent = (type === 'receive') ? 'Receive Stock' : 'Issue Stock';
-      document.getElementById('op_item_number').value = itemNumber;
-      document.getElementById('op_amount').value = 1;
-      if (itemNumber) autoFillProductData(itemNumber);
-      document.getElementById('operationModal').style.display = 'flex';
     }
 
     async function submitOperation() {
       const id = document.getElementById('op_product_id').textContent;
-      const amt = Number(document.getElementById('op_amount').value);
+      const amt = parseInt(document.getElementById('op_amount').value, 10);
 
-      if (id === '---' || !Number.isFinite(amt) || amt <= 0) {
-        return alert('Provide correct product and quantity.');
-      }
+      if (id === '---' || !amt || amt <= 0) return alert('Please provide valid data.');
 
       try {
         const res = await fetch(`/api/stock/${operationType}`, {
@@ -246,46 +189,14 @@
         const result = await res.json();
 
         if (res.ok) {
-          alert(result.message || 'Done');
+          alert(result.message || 'OK');
+          // refresh inventory in-place instead of full reload
+          await loadInventoryData();
           closeModal('operationModal');
-          await loadInventoryData();
-          await loadAudit();
         } else {
-          alert('Error: ' + (result.message || 'Request failed'));
+          alert('Error: ' + (result.message || 'Request failed.'));
         }
       } catch (err) {
-        console.error(err);
-        alert('Network error.');
-      }
-    }
-
-    async function submitNewProduct() {
-      const item_number = document.getElementById('np_item_number').value.trim();
-      const name = document.getElementById('np_name').value.trim();
-      const location_name = document.getElementById('np_location_name').value.trim() || 'MAG-1';
-      const initial_stock = Number(document.getElementById('np_stock').value);
-
-      if (!item_number || !name) return alert('Item number and name are required.');
-      if (!Number.isFinite(initial_stock) || initial_stock < 0) return alert('Initial stock must be 0 or more.');
-
-      try {
-        const res = await fetch('/api/products/add', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item_number, name, location_name, initial_stock })
-        });
-        const result = await res.json();
-        if (res.ok) {
-          alert(result.message || 'Product created');
-          closeModal('newProductModal');
-          showView('inventory-view');
-          await loadInventoryData();
-          await loadAudit();
-        } else {
-          alert('Error: ' + (result.message || 'Failed to create product'));
-        }
-      } catch (err) {
-        console.error(err);
         alert('Network error.');
       }
     }
