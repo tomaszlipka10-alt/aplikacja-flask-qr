@@ -1,0 +1,13 @@
+{
+  "exported_at_utc": "2026-01-05T14:55:52.348449Z",
+  "products": [],
+  "audit_log": [],
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "full_name": "Administrator",
+      "is_admin": true
+    }
+  ]
+}
