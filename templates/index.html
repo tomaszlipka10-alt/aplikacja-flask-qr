@@ -44,7 +44,10 @@
       <a class="menu-item active" onclick="showView(event, 'dashboard-view')"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
       <a class="menu-item" onclick="showView(event, 'inventory-view')"><i class="fas fa-boxes"></i> Inventory</a>
       <a class="menu-item" onclick="showView(event, 'audit-view')"><i class="fas fa-history"></i> Audit</a>
-    </div>
+          {% if current_user.username == 'admin' %}
+      <a class=\"menu-item\" onclick=\"openAdminModal()\"><i class=\"fas fa-tools\"></i> Admin / Backup</a>
+      {% endif %}
+</div>
     <div class="sidebar-actions" style="margin-top:auto; padding-bottom:10px;">
       <p style="text-align:center; color:#adb5bd; margin:10px 0 5px 0;">{{ current_user.full_name or current_user.username }}</p>
       <a href="/logout" style="color:#f8d7da;"><i class="fas fa-sign-out-alt"></i> Logout</a>
@@ -155,7 +158,36 @@
 
   <div id="toast" class="toast"></div>
 
-  <script>
+  
+<div id="adminModal" class="modal">
+  <div class="modal-content">
+    <span class="close-button" onclick="closeModal('adminModal')">&times;</span>
+    <h3>Admin / Backup</h3>
+    <p style="margin-top:0; color:#6c757d;">Na darmowym Render bez dysku baza (SQLite) może zniknąć po restarcie/redeployu. Zrób kopię.</p>
+
+    <div style="display:grid; gap:10px; margin-top:15px;">
+      <button class="btn" onclick="downloadBackup()" style="background:#007bff;">
+        <i class="fas fa-download"></i> Pobierz backup (JSON)
+      </button>
+
+      <div style="background:#f8f9fa; padding:12px; border-radius:8px;">
+        <label style="display:block; font-weight:600; margin-bottom:6px;">Import backupu (nadpisuje bazę!)</label>
+        <input type="file" id="backupFile" accept="application/json">
+        <button class="btn" onclick="uploadBackup()" style="margin-top:10px; background:#dc3545;">
+          <i class="fas fa-upload"></i> Importuj
+        </button>
+      </div>
+
+      <button class="btn" onclick="backupToGitHub()" style="background:#24292f;">
+        <i class="fab fa-github"></i> Backup na GitHub (wymaga Secret Files)
+      </button>
+
+      <div id="admin-status" style="text-align:center; color:#6c757d;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
     let inventoryData = [];
     let operationType = null;
 
@@ -183,6 +215,112 @@
     }
 
     function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+
+
+
+function openAdminModal() {
+  document.getElementById('admin-status').textContent = '';
+  document.getElementById('adminModal').style.display = 'flex';
+}
+
+function downloadBackup() {
+  window.location.href = '/admin/export.json';
+}
+
+async function uploadBackup() {
+  const f = document.getElementById('backupFile').files[0];
+  if (!f) return alert('Wybierz plik JSON z backupem.');
+  if (!confirm('Import NADPISZE całą bazę. Kontynuować?')) return;
+
+  const fd = new FormData();
+  fd.append('file', f);
+
+  try {
+    const res = await fetch('/admin/import', { method: 'POST', body: fd });
+    const result = await res.json();
+    if (res.ok && result.success) {
+      alert(result.message || 'Import OK');
+      location.reload();
+    } else {
+      alert('Błąd importu: ' + (result.message || res.status));
+    }
+  } catch (e) {
+    alert('Błąd połączenia: ' + e);
+  }
+}
+
+async function backupToGitHub() {
+  const el = document.getElementById('admin-status');
+  el.textContent = 'Wysyłam backup na GitHub...';
+  try {
+    const res = await fetch('/admin/backup/github', { method: 'POST' });
+    const result = await res.json();
+    if (res.ok && result.success) {
+      el.textContent = result.message || 'Backup OK';
+    } else {
+      el.textContent = '';
+      alert('Błąd: ' + (result.message || res.status));
+    }
+  } catch (e) {
+    el.textContent = '';
+    alert('Błąd połączenia: ' + e);
+  }
+}
+
+
+function openAdminModal() {
+  document.getElementById('admin-status').textContent = '';
+  document.getElementById('adminModal').style.display = 'flex';
+}
+
+function downloadBackup() {
+  window.location.href = '/admin/export.json';
+}
+
+async function uploadBackup() {
+  const f = document.getElementById('backupFile').files[0];
+  if (!f) return alert('Wybierz plik JSON z backupem.');
+  if (!confirm('Import NADPISZE całą bazę. Kontynuować?')) return;
+
+  const fd = new FormData();
+  fd.append('file', f);
+
+  try {
+    const res = await fetch('/admin/import', { method: 'POST', body: fd });
+    const result = await res.json();
+    if (res.ok && result.success) {
+      alert(result.message || 'Import OK');
+      location.reload();
+    } else {
+      alert('Błąd importu: ' + (result.message || res.status));
+    }
+  } catch (e) {
+    alert('Błąd połączenia: ' + e);
+  }
+}
+
+async function backupToGitHub() {
+  const el = document.getElementById('admin-status');
+  el.textContent = 'Wysyłam backup na GitHub...';
+  try {
+    const res = await fetch('/admin/backup/github', { method: 'POST' });
+    const result = await res.json();
+    if (res.ok && result.success) {
+      el.textContent = result.message || 'Backup OK';
+    } else {
+      el.textContent = '';
+      alert('Błąd: ' + (result.message || res.status));
+    }
+  } catch (e) {
+    el.textContent = '';
+    alert('Błąd połączenia: ' + e);
+  }
+}
+
+    //
       document.getElementById(id).style.display = 'none';
     }
 

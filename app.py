@@ -107,6 +107,184 @@ def _is_sqlite() -> bool:
     return app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite")
 
 
+
+# --- ADMIN: Backups (no paid disk) ---
+def _export_payload() -> dict:
+    products = Product.query.order_by(Product.id.asc()).all()
+    audits = AuditLog.query.order_by(AuditLog.id.asc()).all()
+    users = User.query.order_by(User.id.asc()).all()
+
+    return {
+        "schema_version": 1,
+        "exported_at_utc": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "users": [
+            {
+                "id": u.id,
+                "username": u.username,
+                "password": u.password,
+                "full_name": u.full_name,
+            } for u in users
+        ],
+        "products": [
+            {
+                "id": p.id,
+                "item_number": p.item_number,
+                "name": p.name,
+                "current_stock": p.current_stock,
+                "location_name": p.location_name,
+            } for p in products
+        ],
+        "audit_log": [
+            {
+                "id": a.id,
+                "product_id": a.product_id,
+                "action": a.action,
+                "amount": a.amount,
+                "username": a.username,
+                "created_at": (a.created_at.isoformat(timespec="seconds") if getattr(a, "created_at", None) else None),
+            } for a in audits
+        ],
+    }
+
+
+@app.route("/admin/export.json")
+@login_required
+@admin_required
+def admin_export():
+    payload = _export_payload()
+    resp = jsonify(payload)
+    resp.headers["Content-Disposition"] = "attachment; filename=warehouse-backup.json"
+    return resp
+
+
+@app.route("/admin/import", methods=["POST"])
+@login_required
+@admin_required
+def admin_import():
+    # accepts multipart/form-data file=... OR JSON body
+    try:
+        if request.files and "file" in request.files:
+            raw = request.files["file"].read()
+            payload = json.loads(raw.decode("utf-8"))
+        else:
+            payload = request.get_json(force=True)
+
+        if not isinstance(payload, dict):
+            return jsonify({"success": False, "message": "Invalid payload"}), 400
+
+        # Minimal validation
+        for key in ("users", "products", "audit_log"):
+            if key not in payload or not isinstance(payload[key], list):
+                return jsonify({"success": False, "message": f"Missing or invalid key: {key}"}), 400
+
+        # Wipe & restore
+        AuditLog.query.delete()
+        Product.query.delete()
+        User.query.delete()
+        db.session.commit()
+
+        # Restore users (keep IDs if provided)
+        for u in payload["users"]:
+            db.session.add(User(
+                id=u.get("id"),
+                username=u.get("username", ""),
+                password=u.get("password", ""),
+                full_name=u.get("full_name"),
+            ))
+
+        for p in payload["products"]:
+            db.session.add(Product(
+                id=p.get("id"),
+                item_number=p.get("item_number", ""),
+                name=p.get("name", ""),
+                current_stock=int(p.get("current_stock") or 0),
+                location_name=p.get("location_name") or "MAG-1",
+            ))
+
+        for a in payload["audit_log"]:
+            created_at = None
+            try:
+                if a.get("created_at"):
+                    created_at = datetime.fromisoformat(str(a["created_at"]).replace("Z", ""))
+            except Exception:
+                created_at = None
+
+            db.session.add(AuditLog(
+                id=a.get("id"),
+                product_id=a.get("product_id"),
+                action=a.get("action"),
+                amount=a.get("amount"),
+                username=a.get("username"),
+                created_at=created_at,
+            ))
+
+        db.session.commit()
+        return jsonify({"success": True, "message": "Import OK"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Import failed: {e}"}), 500
+
+
+def _github_put_file(owner_repo: str, path: str, content_text: str, message: str, token: str) -> dict:
+    # Create/update file via GitHub Contents API
+    api_url = f"https://api.github.com/repos/{owner_repo}/contents/{path}"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "wms-render-backup",
+    }
+
+    # First: try to get existing file sha
+    sha = None
+    try:
+        req = urllib.request.Request(api_url, headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            existing = json.loads(resp.read().decode("utf-8"))
+            sha = existing.get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+    except Exception:
+        pass
+
+    body = {
+        "message": message,
+        "content": base64.b64encode(content_text.encode("utf-8")).decode("ascii"),
+    }
+    if sha:
+        body["sha"] = sha
+
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(api_url, data=data, headers=headers, method="PUT")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+@app.route("/admin/backup/github", methods=["POST"])
+@login_required
+@admin_required
+def admin_backup_github():
+    token = _read_secret("GITHUB_TOKEN")
+    owner_repo = _read_secret("GITHUB_REPO")  # format: owner/repo
+    backup_path = _read_secret("GITHUB_BACKUP_PATH") or "backups/warehouse-backup.json"
+
+    if not token or not owner_repo:
+        return jsonify({
+            "success": False,
+            "message": "Missing GITHUB_TOKEN or GITHUB_REPO (set as Render env var or Secret File under /etc/secrets/)",
+        }), 400
+
+    payload = _export_payload()
+    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ")
+    message = f"WMS backup {ts}"
+    content_text = json.dumps(payload, ensure_ascii=False, indent=2)
+
+    try:
+        _github_put_file(owner_repo, backup_path, content_text, message, token)
+        return jsonify({"success": True, "message": f"Backup pushed to GitHub: {owner_repo}/{backup_path}"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"GitHub backup failed: {e}"}), 500
+
+
 def ensure_schema() -> None:
     """Utrzymuje kompatybilność przy zmianach modeli bez Alembic.
 
