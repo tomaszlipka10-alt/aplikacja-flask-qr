@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy.exc import OperationalError
 
 # ----------------------------
 # App
@@ -162,16 +163,50 @@ def api_stock(action):
 # ----------------------------
 # Init DB (safe on Render and locally)
 # ----------------------------
-with app.app_context():
-    db.create_all()
+# ----------------------------
+# Init DB (safe on Render and locally)
+# ----------------------------
+def _init_db():
+    """Create tables and a default admin user.
 
-    # Create default admin user if missing
-    if not User.query.filter_by(username="admin").first():
-        db.session.add(
-            User(
-                username="admin",
-                password=generate_password_hash("admin123"),
-                full_name="Administrator",
+    If a stale SQLite database exists (schema mismatch), we rebuild it.
+    """
+    with app.app_context():
+        try:
+            db.create_all()
+            # Touch the users table to detect schema mismatch early
+            User.query.limit(1).all()
+        except OperationalError:
+            # Most common cause on Render: an old SQLite file with different schema.
+            # Rebuild the database.
+            db.session.remove()
+            try:
+                db.drop_all()
+            except Exception:
+                pass
+
+            # If using SQLite, also try deleting the db file.
+            uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+            if uri.startswith("sqlite:///"):
+                db_file = uri.replace("sqlite:///", "", 1)
+                db_path = os.path.join(app.root_path, db_file)
+                if os.path.exists(db_path):
+                    try:
+                        os.remove(db_path)
+                    except OSError:
+                        pass
+
+            db.create_all()
+
+        # Create default admin user if missing
+        if not User.query.filter_by(username="admin").first():
+            db.session.add(
+                User(
+                    username="admin",
+                    password=generate_password_hash("admin123"),
+                    full_name="Administrator",
+                )
             )
-        )
-        db.session.commit()
+            db.session.commit()
+
+_init_db()
