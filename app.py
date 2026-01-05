@@ -90,20 +90,35 @@ def ensure_schema():
             db.session.execute(db.text("ALTER TABLE user ADD COLUMN full_name VARCHAR(100)"))
         db.session.commit()
 
-    # product table: ensure current_stock/location_name exist
+    # product table: ensure core columns exist (schema evolved during iteration)
     cols = _sqlite_column_names("product") if db.session.execute(db.text(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='product'"
     )).fetchone() else set()
 
     if cols:
+        # very old DBs might miss the main fields
+        if "item_number" not in cols:
+            db.session.execute(db.text("ALTER TABLE product ADD COLUMN item_number VARCHAR(80)"))
+        if "name" not in cols:
+            db.session.execute(db.text("ALTER TABLE product ADD COLUMN name VARCHAR(120)"))
         if "current_stock" not in cols:
             db.session.execute(db.text("ALTER TABLE product ADD COLUMN current_stock INTEGER DEFAULT 0"))
         if "location_name" not in cols:
             db.session.execute(db.text("ALTER TABLE product ADD COLUMN location_name VARCHAR(120) DEFAULT 'MAG-1'"))
         db.session.commit()
 
-    # audit_log table may not exist in older versions
-    db.create_all()
+    # audit_log table: add columns that were introduced later
+    cols = _sqlite_column_names("audit_log") if db.session.execute(db.text(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='audit_log'"
+    )).fetchone() else set()
+
+    if cols:
+        if "created_at" not in cols:
+            # SQLite supports CURRENT_TIMESTAMP as default
+            db.session.execute(db.text("ALTER TABLE audit_log ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+        if "note" not in cols:
+            db.session.execute(db.text("ALTER TABLE audit_log ADD COLUMN note VARCHAR(255)"))
+        db.session.commit()
 
     # Ensure admin user exists (safe even with SQLite migrations)
     admin = User.query.filter_by(username="admin").first()
