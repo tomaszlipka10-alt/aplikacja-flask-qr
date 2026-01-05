@@ -495,6 +495,17 @@ async function backupToGitHub() {
     function escapeAttr(str) {
       return String(str ?? '').replace(/['"\\]/g, s => ({'\\':'\\\\',"'":"\\'",'"':'\\"'}[s]));
     }
-  </script>
+  
+// --- expose functions for inline onclick (Safari/Chrome safety) ---
+window.showView = showView;
+window.openOperationModal = openOperationModal;
+window.openNewProductModal = openNewProductModal;
+window.closeModal = closeModal;
+window.openAdminPanel = openAdminPanel;
+window.closeAdminPanel = closeAdminPanel;
+window.triggerBackup = triggerBackup;
+window.triggerRestore = triggerRestore;
+
+</script>
 </body>
 </html>
