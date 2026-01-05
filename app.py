@@ -1,5 +1,6 @@
 import os
 import secrets
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_sqlalchemy import SQLAlchemy
@@ -115,7 +116,9 @@ def ensure_schema():
     if cols:
         if "created_at" not in cols:
             # SQLite supports CURRENT_TIMESTAMP as default
-            db.session.execute(db.text("ALTER TABLE audit_log ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
+            db.session.execute(db.text("ALTER TABLE audit_log ADD COLUMN created_at DATETIME"))
+            # backfill existing rows
+            db.session.execute(db.text("UPDATE audit_log SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
         if "note" not in cols:
             db.session.execute(db.text("ALTER TABLE audit_log ADD COLUMN note VARCHAR(255)"))
         db.session.commit()
