@@ -31,7 +31,14 @@
     th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #eef0f3; font-size:14px; }
     th { color:#667085; font-weight:700; }
     .muted { color:#667085; }
-    .hidden { display:none; }
+    /*
+      IMPORTANT:
+      This app uses elements that can have multiple classes like: "modal-backdrop hidden".
+      Because .modal-backdrop is defined after .hidden in CSS, without !important the
+      later rule (display:flex) would override display:none and the modal would show
+      immediately after login.
+    */
+    .hidden { display:none !important; }
     .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:18px; }
     .modal { background:#fff; width:520px; max-width:100%; border-radius:16px; padding:16px; box-shadow:0 12px 28px rgba(0,0,0,.15);}
     .modal h3 { margin:0 0 10px 0; }
