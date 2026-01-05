@@ -36,17 +36,15 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
-babel = Babel(app)
+babel = Babel()
 
-# Language kept minimal for now (EN-only UI). We still keep session['lang'] so you can re-enable later.
+# Language handling (Flask-Babel v4+ uses locale_selector in init_app)
 app.config["BABEL_DEFAULT_LOCALE"] = "en"
 
-
-@babel.localeselector
 def get_locale():
     return session.get("lang", "en")
 
-
+babel.init_app(app, locale_selector=get_locale)
 # -------------------------
 # Models
 # -------------------------
