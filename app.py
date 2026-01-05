@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_login import (
@@ -59,6 +60,27 @@ db = SQLAlchemy(app)
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
+
+# --------------------
+# Simple admin guard (no roles table yet)
+# --------------------
+def admin_required(fn):
+    """Allow only the admin user to access an endpoint."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not current_user.is_authenticated:
+            # Flask-Login will redirect to login page
+            return login_manager.unauthorized()
+
+        if getattr(current_user, "username", "") != "admin":
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "message": "Forbidden"}), 403
+            return "Forbidden", 403
+
+        return fn(*args, **kwargs)
+
+    return wrapper
+
 
 # --------------------
 # Models
