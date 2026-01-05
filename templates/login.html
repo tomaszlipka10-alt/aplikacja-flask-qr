@@ -1,45 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login - WMS</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
   <style>
-    body { margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f4f6f8; display:flex; min-height:100vh; align-items:center; justify-content:center; }
-    .card { width:92%; max-width:420px; background:#fff; border-radius:14px; padding:22px; box-shadow:0 10px 30px rgba(0,0,0,0.12); }
-    h1 { margin:0 0 12px; font-size:22px; }
-    .muted { color:#6c757d; font-size:13px; margin-bottom:14px; }
-    label { display:block; font-size:13px; font-weight:800; margin:12px 0 6px; }
-    input { width:100%; padding:10px 10px; border:1px solid #d8dde3; border-radius:10px; box-sizing:border-box; font-size:14px; }
-    button { margin-top:16px; width:100%; padding:10px 12px; border:none; border-radius:10px; background:#2d7ef7; color:#fff; font-weight:800; cursor:pointer; }
-    .error { margin-top:12px; background:#ffe9e9; border:1px solid #ffcccc; color:#b42318; padding:10px 12px; border-radius:10px; font-size:13px; }
-    .note { margin-top:12px; color:#6c757d; font-size:12px; }
-    code { background:#f1f3f5; padding:2px 6px; border-radius:6px; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; height:100vh; display:flex; align-items:center; justify-content:center; background:#f0f2f5; }
+    .card { width: 360px; background:#fff; padding: 24px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    h1 { margin: 0 0 14px 0; font-size: 20px; }
+    .row { margin-bottom: 12px; }
+    label { display:block; margin-bottom: 6px; font-weight: 600; }
+    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+    button { width: 100%; padding: 10px; border: none; border-radius: 6px; background:#007bff; color:#fff; cursor:pointer; font-weight: 700; }
+    .error { background:#ffe8e8; border:1px solid #ffb6b6; color:#8a1f1f; padding:10px; border-radius:6px; margin-bottom:12px; }
+    .hint { margin-top: 12px; color:#666; font-size: 13px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>WMS Login</h1>
-    <div class="muted">Use your credentials to access the warehouse dashboard.</div>
-
-    <form method="POST">
-      <label>Username</label>
-      <input name="username" autocomplete="username" required/>
-
-      <label>Password</label>
-      <input name="password" type="password" autocomplete="current-password" required/>
-
-      <button type="submit">Sign in</button>
-    </form>
-
+    <h1>Warehouse Login</h1>
     {% if error %}
       <div class="error">{{ error }}</div>
     {% endif %}
-
-    <div class="note">
-      Default admin (if you did not set env vars): <code>admin / admin123</code><br/>
-      You can set <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> on Render later.
-    </div>
+    <form method="POST">
+      <div class="row">
+        <label>Username</label>
+        <input name="username" autocomplete="username" required />
+      </div>
+      <div class="row">
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit">Login</button>
+    </form>
+    <div class="hint">Default admin: <b>admin</b> / <b>admin123</b> (change later)</div>
   </div>
 </body>
 </html>
