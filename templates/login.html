@@ -1,69 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - Warehouse Management</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - WMS</title>
   <style>
-    body{
-      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-      margin:0; padding:0; background-color:#f0f2f5; color:#333;
-      display:flex; justify-content:center; align-items:center; min-height:100vh;
-    }
-    .login-container{
-      background:#fff; padding:40px; border-radius:10px;
-      box-shadow:0 4px 10px rgba(0,0,0,.1);
-      width:100%; max-width:400px; text-align:center; border-top:5px solid #007bff;
-    }
-    h2{ margin:0 0 25px; color:#007bff; }
-    .form-group{ margin-bottom:20px; text-align:left; }
-    label{ display:block; margin-bottom:8px; font-weight:600; }
-    input[type="text"], input[type="password"]{
-      width:100%; padding:12px; border:1px solid #ddd; border-radius:5px;
-      box-sizing:border-box; font-size:16px;
-    }
-    .btn{
-      width:100%; padding:12px; border:none; border-radius:5px; cursor:pointer;
-      font-size:16px; font-weight:600; transition:background .3s;
-    }
-    .btn-primary{ background:#007bff; color:#fff; }
-    .btn-primary:hover{ background:#0056b3; }
-    .error-message{
-      color:#dc3545; margin-bottom:20px; font-size:.9em; background:#f8d7da;
-      padding:10px; border-radius:5px;
-    }
-    .hint{
-      margin-top:18px; font-size:.85em; color:#666;
-      background:#f8f9fa; border:1px solid #eee; padding:10px; border-radius:8px;
-    }
-    code{ background:#fff; padding:2px 6px; border-radius:6px; border:1px solid #eee; }
+    body { margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#f4f6f8; display:flex; min-height:100vh; align-items:center; justify-content:center; }
+    .card { width:92%; max-width:420px; background:#fff; border-radius:14px; padding:22px; box-shadow:0 10px 30px rgba(0,0,0,0.12); }
+    h1 { margin:0 0 12px; font-size:22px; }
+    .muted { color:#6c757d; font-size:13px; margin-bottom:14px; }
+    label { display:block; font-size:13px; font-weight:800; margin:12px 0 6px; }
+    input { width:100%; padding:10px 10px; border:1px solid #d8dde3; border-radius:10px; box-sizing:border-box; font-size:14px; }
+    button { margin-top:16px; width:100%; padding:10px 12px; border:none; border-radius:10px; background:#2d7ef7; color:#fff; font-weight:800; cursor:pointer; }
+    .error { margin-top:12px; background:#ffe9e9; border:1px solid #ffcccc; color:#b42318; padding:10px 12px; border-radius:10px; font-size:13px; }
+    .note { margin-top:12px; color:#6c757d; font-size:12px; }
+    code { background:#f1f3f5; padding:2px 6px; border-radius:6px; }
   </style>
 </head>
 <body>
-  <div class="login-container">
-    <h2>Login</h2>
+  <div class="card">
+    <h1>WMS Login</h1>
+    <div class="muted">Use your credentials to access the warehouse dashboard.</div>
 
-    {% if error %}
-      <div class="error-message">{{ error }}</div>
-    {% endif %}
+    <form method="POST">
+      <label>Username</label>
+      <input name="username" autocomplete="username" required/>
 
-    <form method="POST" autocomplete="on">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" name="username" required>
-      </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Sign in</button>
+      <label>Password</label>
+      <input name="password" type="password" autocomplete="current-password" required/>
+
+      <button type="submit">Sign in</button>
     </form>
 
-    <div class="hint">
-      Default admin (created automatically if missing):<br>
-      <code>admin</code> / <code>admin123</code>
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <div class="note">
+      Default admin (if you did not set env vars): <code>admin / admin123</code><br/>
+      You can set <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> on Render later.
     </div>
   </div>
 </body>
