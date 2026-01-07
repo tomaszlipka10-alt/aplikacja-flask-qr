@@ -4,370 +4,477 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WMS</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
-    :root { --bg:#071120; --panel:#0b1a33; --panel2:#0a1630; --text:#e9f1ff; --muted:#a8b6d6; --accent:#3b82f6; --danger:#ef4444; }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% 0%, #0f2a57 0%, var(--bg) 55%, #02060f 100%); color:var(--text); }
-    .layout { display:grid; grid-template-columns: 260px 1fr; min-height:100vh; }
-    .sidebar { padding:20px 16px; background: linear-gradient(180deg, rgba(9,19,39,0.85), rgba(6,12,24,0.85)); border-right:1px solid rgba(255,255,255,0.06); }
-    .brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:0.5px; margin-bottom:18px; }
-    .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 5px rgba(59,130,246,0.15); }
-    .nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:var(--text); text-decoration:none; margin:6px 0; }
-    .nav a:hover { background: rgba(255,255,255,0.06); }
-    .nav a.active { background: rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.25); }
-    .userbox { margin-top:16px; padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
-    .userbox small { color:var(--muted); display:block; margin-bottom:6px; }
-    .pill { display:inline-block; font-size:12px; padding:3px 8px; border-radius:999px; background: rgba(255,255,255,0.08); color:var(--muted); margin-left:8px; }
-    .logout { display:inline-flex; align-items:center; gap:8px; margin-top:10px; color:var(--text); text-decoration:none; opacity:0.9; }
-
-    .content { padding:28px 26px; }
-    .header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-    h1 { margin:0; font-size:40px; letter-spacing:-0.5px; }
-    .sub { color:var(--muted); margin-top:6px; }
-    .btn { border:0; cursor:pointer; border-radius:12px; padding:10px 14px; font-weight:700; color:#fff; background: rgba(255,255,255,0.1); }
-    .btn.primary { background: var(--accent); }
-    .btn.ghost { background: rgba(255,255,255,0.08); color: var(--text); }
-    .btn:disabled { opacity:0.5; cursor:not-allowed; }
-
-    .card { margin-top:18px; padding:16px; border-radius:16px; border:1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
-    .card h2 { margin:0 0 10px 0; font-size:18px; }
-    .grid { display:grid; grid-template-columns: 1fr; gap:14px; }
-
-    table { width:100%; border-collapse:collapse; }
-    th, td { text-align:left; padding:10px 10px; border-bottom:1px solid rgba(255,255,255,0.08); }
-    th { color:var(--muted); font-weight:700; font-size:13px; }
-    td { font-size:14px; }
-
-    .hidden { display:none !important; }
-
-    /* modal */
-    .modal-backdrop { position:fixed; inset:0; background: rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:50; }
-    .modal { width:min(720px, 96vw); border-radius:18px; border:1px solid rgba(255,255,255,0.10); background: linear-gradient(180deg, rgba(12,23,46,0.96), rgba(7,12,26,0.96)); box-shadow: 0 20px 60px rgba(0,0,0,0.45); padding:16px; }
-    .modal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-    .modal-head h3 { margin:0; font-size:18px; }
-    .modal-close { background: transparent; border:0; color:var(--muted); font-size:20px; cursor:pointer; padding:6px 8px; }
-    .form { margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-    .field { display:flex; flex-direction:column; gap:6px; }
-    .field label { font-size:12px; color:var(--muted); }
-    .field input { width:100%; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color:var(--text); outline:none; }
-    .row { display:flex; gap:10px; align-items:center; }
-    .help { font-size:12px; color:var(--muted); margin-top:8px; }
-    .error { color:#ffd1d1; background: rgba(239,68,68,0.14); border:1px solid rgba(239,68,68,0.25); padding:10px; border-radius:12px; margin-top:10px; white-space:pre-wrap; }
-    .ok { color:#d7ffe1; background: rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.25); padding:10px; border-radius:12px; margin-top:10px; white-space:pre-wrap; }
-
-    @media (max-width: 900px){
-      .layout{ grid-template-columns:1fr; }
-      .sidebar{ border-right:0; border-bottom:1px solid rgba(255,255,255,0.06); }
-      .form{ grid-template-columns:1fr; }
+    :root{
+      --bg:#0b1220;--panel:#0f172a;--panel2:#0b1324;--text:#e5e7eb;--muted:#9ca3af;--line:#24324a;--blue:#2563eb;--danger:#ef4444;--ok:#10b981;
     }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 30% 10%, #0f244d 0%, var(--bg) 50%, #070a12 100%);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:260px;background:linear-gradient(180deg,#0b1324,#070a12);border-right:1px solid var(--line);padding:18px 14px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:22px;margin-bottom:16px}
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--blue);box-shadow:0 0 0 5px rgba(37,99,235,.12)}
+    .nav{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .nav button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:12px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;text-align:left}
+    .nav button.active{background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35)}
+    .nav button:hover{background:rgba(255,255,255,.04)}
+    .userbox{margin-top:16px;border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.02)}
+    .userbox .muted{color:var(--muted);font-size:12px}
+    .userbox .name{font-weight:800;margin-top:4px}
+    .userbox .actions{margin-top:10px}
+    .linkbtn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;color:var(--text);opacity:.9;cursor:pointer;padding:0}
+    .main{flex:1;padding:24px 24px 60px 24px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .title h1{margin:0;font-size:34px}
+    .title p{margin:6px 0 0 0;color:var(--muted)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;background:var(--blue);color:white;font-weight:800;padding:10px 14px;border-radius:12px;cursor:pointer}
+    .btn.secondary{background:transparent;border-color:var(--line);color:var(--text)}
+    .btn.danger{background:transparent;border-color:rgba(239,68,68,.6);color:#fecaca}
+    .card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:16px}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+    th{color:var(--muted);font-weight:700}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:12px}
+    .hidden{display:none !important}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .field label{font-weight:700;font-size:13px}
+    .field input,.field textarea{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text)}
+    .field textarea{min-height:70px;resize:vertical}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:999}
+    .modal{width:min(720px,96vw);background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);overflow:hidden}
+    .modal header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .modal header h2{margin:0;font-size:18px}
+    .modal main{padding:16px}
+    .modal footer{padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+    .status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted)}
+    .status.ok{border-color:rgba(16,185,129,.5);color:#d1fae5}
+    .status.err{border-color:rgba(239,68,68,.55);color:#fecaca}
+    video{width:100%;max-height:340px;border-radius:14px;border:1px solid var(--line);background:#000}
   </style>
 </head>
 <body>
-  <div class="layout">
+  <div class="app">
     <aside class="sidebar">
-      <div class="brand"><span class="dot"></span><span>WMS</span></div>
+      <div class="brand"><span class="dot"></span> WMS</div>
       <nav class="nav">
-        <a href="#" id="navDashboard" class="active"><i class="fa-solid fa-gauge"></i> Dashboard</a>
-        <a href="#" id="navInventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
-        <a href="#" id="navAudit"><i class="fa-solid fa-clipboard-list"></i> Audit</a>
-        <a href="#" id="navAdmin"><i class="fa-solid fa-user-gear"></i> Admin</a>
+        <button id="nav-dashboard" class="active" onclick="showView('dashboard')">Dashboard</button>
+        <button id="nav-inventory" onclick="showView('inventory')">Inventory</button>
+        <button id="nav-audit" onclick="showView('audit')">Audit</button>
+        <button id="nav-admin" onclick="showView('admin')">Admin</button>
       </nav>
 
       <div class="userbox">
-        <small>Logged in as</small>
-        <div style="font-weight:800;">{{ current_user.username }}</div>
-        {% if current_user.is_admin %}<span class="pill">admin</span>{% endif %}
-        <div>
-          <a class="logout" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        <div class="muted">Logged in as</div>
+        <div class="name">{{ user.full_name or user.username }}</div>
+        {% if user.is_admin %}<div class="pill" style="margin-top:8px">admin</div>{% endif %}
+        <div class="actions">
+          <a class="linkbtn" href="{{ url_for('logout') }}">Logout</a>
         </div>
       </div>
     </aside>
 
-    <main class="content">
-      <!-- DASHBOARD -->
-      <section id="viewDashboard">
-        <div class="header">
-          <div>
+    <main class="main">
+      <div id="view-dashboard" class="view">
+        <div class="topbar">
+          <div class="title">
             <h1>Warehouse Dashboard</h1>
-            <div class="sub">Tip: add products first (QR + location), then later we'll build Receive/Issue flows.</div>
+            <p>Tip: add products first (with QR + location), then later we'll build Receive/Issue flows.</p>
           </div>
-          <button class="btn primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product</button>
+          <button class="btn" onclick="openNewProductModal()">+ Add Product</button>
         </div>
 
-        <div class="card">
-          <h2>Quick list</h2>
-          <div class="help">This is just to confirm adding works. Full inventory view is in <b>Inventory</b>.</div>
-          <div style="overflow:auto;">
-            <table>
-              <thead>
-                <tr><th>ID</th><th>Item number (QR)</th><th>Name</th><th>Location (QR)</th><th>Stock</th></tr>
-              </thead>
-              <tbody id="dashProducts"></tbody>
-            </table>
+        <div class="grid">
+          <div class="card">
+            <div style="font-weight:800;margin-bottom:10px">Recent products</div>
+            <div style="overflow:auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>SKU</th>
+                    <th>QR</th>
+                    <th>Location</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-products"></tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- INVENTORY -->
-      <section id="viewInventory" class="hidden">
-        <div class="header">
-          <div>
+      <div id="view-inventory" class="view hidden">
+        <div class="topbar">
+          <div class="title">
             <h1>Inventory</h1>
-            <div class="sub">All products stored in database.</div>
+            <p>All products currently in the database.</p>
           </div>
-          <button class="btn primary" id="btnAddProduct2"><i class="fa-solid fa-plus"></i> Add Product</button>
+          <button class="btn secondary" onclick="refreshProducts()">Refresh</button>
         </div>
 
-        <div class="card">
-          <h2>Products</h2>
-          <div style="overflow:auto;">
-            <table>
-              <thead>
-                <tr><th>ID</th><th>Item number (QR)</th><th>Name</th><th>Location (QR)</th><th>Stock</th><th>Created</th></tr>
-              </thead>
-              <tbody id="invProducts"></tbody>
-            </table>
-          </div>
+        <div class="card" style="overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>QR</th>
+                <th>Location</th>
+                <th>Description</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
         </div>
-      </section>
+      </div>
 
-      <!-- AUDIT -->
-      <section id="viewAudit" class="hidden">
-        <div class="header">
-          <div>
+      <div id="view-audit" class="view hidden">
+        <div class="topbar">
+          <div class="title">
             <h1>Audit</h1>
-            <div class="sub">Basic change log (for now: product creates).</div>
+            <p>Placeholder – we will add movement history here later.</p>
           </div>
         </div>
-        <div class="card">
-          <h2>Events</h2>
-          <div class="help">(We can expand later.)</div>
-        </div>
-      </section>
+        <div class="card">Nothing here yet.</div>
+      </div>
 
-      <!-- ADMIN -->
-      <section id="viewAdmin" class="hidden">
-        <div class="header">
-          <div>
+      <div id="view-admin" class="view hidden">
+        <div class="topbar">
+          <div class="title">
             <h1>Admin</h1>
-            <div class="sub">Backup to GitHub should create a commit like “Backup warehouse to GitHub”.</div>
+            <p>Backup to GitHub should create a new commit like “Backup warehouse to GitHub”.</p>
           </div>
         </div>
 
         <div class="card">
-          <h2>Backup</h2>
           <div class="row">
-            <button class="btn primary" id="btnBackup"><i class="fa-brands fa-github"></i> Backup to GitHub</button>
-            <button class="btn ghost" id="btnVerify"><i class="fa-solid fa-circle-info"></i> How to verify on GitHub</button>
+            <button class="btn" onclick="runGitHubBackup()">Backup to GitHub</button>
+            <button class="btn secondary" onclick="showBackupHelp()">How to verify on GitHub</button>
           </div>
-          <div id="backupMsg" class="help" style="margin-top:10px;"></div>
-          <div id="backupResult" class="hidden"></div>
-          <div class="help" style="margin-top:10px;">If backup fails, check Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.</div>
+          <div id="backup-status" class="status" style="margin-top:12px">Ready.</div>
+          <div style="margin-top:10px;color:var(--muted);font-size:13px">
+            If backup fails, check Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.
+          </div>
         </div>
-      </section>
+      </div>
     </main>
   </div>
 
-  <!-- ADD PRODUCT MODAL -->
-  <div class="modal-backdrop" id="modalAddProduct">
+  <!-- Add product modal -->
+  <div id="modal-add-product" class="modal-backdrop hidden" role="dialog" aria-modal="true">
     <div class="modal">
-      <div class="modal-head">
-        <h3>Add product (scan QR or type)</h3>
-        <button class="modal-close" id="closeAddProduct" aria-label="Close">✕</button>
-      </div>
-
-      <div class="form">
-        <div class="field">
-          <label>Item number (product QR)</label>
-          <div class="row">
-            <input id="p_item_number" placeholder="Scan or type…" autocomplete="off" />
-            <button class="btn ghost" type="button" id="focusItem">Scan</button>
+      <header>
+        <h2>Add product</h2>
+        <button class="btn secondary" onclick="closeNewProductModal()">Close</button>
+      </header>
+      <main>
+        <div class="row">
+          <div style="flex:1;min-width:220px" class="field">
+            <label>Name *</label>
+            <input id="p-name" placeholder="e.g. Bearing 6204" />
+          </div>
+          <div style="flex:1;min-width:220px" class="field">
+            <label>SKU</label>
+            <input id="p-sku" placeholder="optional" />
           </div>
         </div>
-        <div class="field">
-          <label>Location (location QR)</label>
-          <div class="row">
-            <input id="p_location" placeholder="Scan or type…" autocomplete="off" />
-            <button class="btn ghost" type="button" id="focusLoc">Scan</button>
+
+        <div class="row">
+          <div style="flex:1;min-width:220px" class="field">
+            <label>Product QR *</label>
+            <div class="row">
+              <input id="p-qr" placeholder="scan or type" style="flex:1" />
+              <button class="btn secondary" type="button" onclick="openScanner('p-qr')">Scan</button>
+            </div>
+          </div>
+          <div style="flex:1;min-width:220px" class="field">
+            <label>Location QR *</label>
+            <div class="row">
+              <input id="p-loc" placeholder="scan or type" style="flex:1" />
+              <button class="btn secondary" type="button" onclick="openScanner('p-loc')">Scan</button>
+            </div>
           </div>
         </div>
-        <div class="field" style="grid-column:1 / -1;">
-          <label>Name</label>
-          <input id="p_name" placeholder="e.g. Cable ties 200mm" autocomplete="off" />
-        </div>
-        <div class="field">
-          <label>Initial stock</label>
-          <input id="p_stock" type="number" min="0" value="0" />
-        </div>
-        <div class="field">
-          <label>&nbsp;</label>
-          <button class="btn primary" id="saveProduct">Save</button>
-        </div>
-      </div>
 
-      <div class="help">Tip: If you use a handheld scanner, click inside the field (or press <b>Scan</b>) and scan — it will type into the input automatically.</div>
-      <div id="addMsg" class="hidden"></div>
+        <div class="field">
+          <label>Description</label>
+          <textarea id="p-desc" placeholder="optional"></textarea>
+        </div>
+
+        <div id="add-status" class="status">Fill fields and click Save.</div>
+      </main>
+      <footer>
+        <button class="btn secondary" onclick="closeNewProductModal()">Cancel</button>
+        <button class="btn" onclick="saveNewProduct()">Save</button>
+      </footer>
     </div>
   </div>
 
-<script>
-  // --- View switch ---
-  function showView(name){
-    const views = {
-      dashboard: document.getElementById('viewDashboard'),
-      inventory: document.getElementById('viewInventory'),
-      audit: document.getElementById('viewAudit'),
-      admin: document.getElementById('viewAdmin'),
-    };
-    Object.values(views).forEach(v => v.classList.add('hidden'));
-    views[name].classList.remove('hidden');
+  <!-- Scanner modal -->
+  <div id="modal-scanner" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h2>Scan QR</h2>
+        <button class="btn secondary" onclick="closeScanner()">Close</button>
+      </header>
+      <main>
+        <div id="scan-support" class="status">Starting camera…</div>
+        <video id="scan-video" autoplay playsinline muted></video>
+      </main>
+      <footer>
+        <button class="btn secondary" onclick="closeScanner()">Cancel</button>
+      </footer>
+    </div>
+  </div>
 
-    const links = {
-      dashboard: document.getElementById('navDashboard'),
-      inventory: document.getElementById('navInventory'),
-      audit: document.getElementById('navAudit'),
-      admin: document.getElementById('navAdmin'),
-    };
-    Object.values(links).forEach(a => a.classList.remove('active'));
-    links[name].classList.add('active');
-  }
-
-  // --- Modal helpers ---
-  function openNewProductModal(){
-    document.getElementById('addMsg').classList.add('hidden');
-    document.getElementById('modalAddProduct').style.display = 'flex';
-    document.getElementById('p_item_number').focus();
-  }
-  function closeNewProductModal(){
-    document.getElementById('modalAddProduct').style.display = 'none';
-  }
-
-  function setMsg(el, kind, text){
-    el.classList.remove('hidden');
-    el.classList.remove('error','ok');
-    el.classList.add(kind);
-    el.textContent = text;
-  }
-
-  async function fetchJson(url, options){
-    const res = await fetch(url, options);
-    let data = null;
-    const ct = res.headers.get('content-type') || '';
-    if (ct.includes('application/json')) data = await res.json();
-    else data = { raw: await res.text() };
-    if (!res.ok) {
-      const msg = (data && (data.error || data.raw)) ? (data.error || data.raw) : `HTTP ${res.status}`;
-      throw new Error(msg);
+  <script>
+    // ------------------------------
+    // View routing
+    // ------------------------------
+    function showView(name){
+      const views = ['dashboard','inventory','audit','admin'];
+      for(const v of views){
+        document.getElementById('view-' + v).classList.toggle('hidden', v !== name);
+        document.getElementById('nav-' + v).classList.toggle('active', v === name);
+      }
+      if(name === 'inventory') refreshProducts();
+      if(name === 'dashboard') refreshProducts();
     }
-    return data;
-  }
 
-  function renderProducts(rows){
-    const dash = document.getElementById('dashProducts');
-    const inv = document.getElementById('invProducts');
-    dash.innerHTML = '';
-    inv.innerHTML = '';
-    for (const p of rows){
-      const tr1 = document.createElement('tr');
-      tr1.innerHTML = `<td>${p.id}</td><td>${escapeHtml(p.item_number)}</td><td>${escapeHtml(p.name || '')}</td><td>${escapeHtml(p.location || '')}</td><td>${p.stock}</td>`;
-      dash.appendChild(tr1);
-
-      const tr2 = document.createElement('tr');
-      tr2.innerHTML = `<td>${p.id}</td><td>${escapeHtml(p.item_number)}</td><td>${escapeHtml(p.name || '')}</td><td>${escapeHtml(p.location || '')}</td><td>${p.stock}</td><td>${escapeHtml(p.created_at || '')}</td>`;
-      inv.appendChild(tr2);
+    // ------------------------------
+    // Products
+    // ------------------------------
+    async function fetchProducts(){
+      const res = await fetch('/api/products', {headers:{'Accept':'application/json'}});
+      if(!res.ok) throw new Error('Failed to fetch products: HTTP ' + res.status);
+      return await res.json();
     }
-  }
 
-  function escapeHtml(str){
-    return String(str ?? '').replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
-  }
-
-  async function loadProducts(){
-    const data = await fetchJson('/api/products');
-    renderProducts(data.products || []);
-  }
-
-  async function saveProduct(){
-    const msg = document.getElementById('addMsg');
-    msg.classList.add('hidden');
-
-    const payload = {
-      item_number: document.getElementById('p_item_number').value.trim(),
-      name: document.getElementById('p_name').value.trim(),
-      location: document.getElementById('p_location').value.trim(),
-      stock: Number(document.getElementById('p_stock').value || 0),
-    };
-
-    try {
-      const data = await fetchJson('/api/products', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      setMsg(msg, 'ok', data.message || 'Saved.');
-      await loadProducts();
-      // clear only after successful save
-      document.getElementById('p_name').value = '';
-      document.getElementById('p_stock').value = '0';
-    } catch (e){
-      setMsg(msg, 'error', String(e.message || e));
+    function fmtDate(iso){
+      if(!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleString();
     }
-  }
 
-  async function backupToGithub(){
-    const out = document.getElementById('backupResult');
-    const msg = document.getElementById('backupMsg');
-    out.classList.add('hidden');
-    msg.textContent = 'Running backup…';
-    try {
-      const data = await fetchJson('/api/admin/backup/github', { method:'POST' });
-      msg.textContent = '';
-      setMsg(out, 'ok', `${data.message}\n${data.path || ''}\n${data.commit_url || ''}`);
-    } catch (e){
-      msg.textContent = '';
-      setMsg(out, 'error', `Backup failed: ${String(e.message || e)}`);
+    async function refreshProducts(){
+      try{
+        const data = await fetchProducts();
+        const rows = data.products || [];
+
+        // Inventory table
+        const tbody = document.getElementById('products-tbody');
+        if(tbody){
+          tbody.innerHTML = '';
+          for(const p of rows){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${p.id}</td>
+              <td>${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(p.sku || '')}</td>
+              <td>${escapeHtml(p.qr_code)}</td>
+              <td>${escapeHtml(p.location)}</td>
+              <td>${escapeHtml(p.description || '')}</td>
+              <td>${escapeHtml(fmtDate(p.created_at))}</td>
+            `;
+            tbody.appendChild(tr);
+          }
+        }
+
+        // Dashboard recent
+        const recent = document.getElementById('recent-products');
+        if(recent){
+          recent.innerHTML = '';
+          const last = rows.slice(0, 8);
+          for(const p of last){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(p.sku || '')}</td>
+              <td>${escapeHtml(p.qr_code)}</td>
+              <td>${escapeHtml(p.location)}</td>
+              <td>${escapeHtml(fmtDate(p.created_at))}</td>
+            `;
+            recent.appendChild(tr);
+          }
+        }
+      }catch(e){
+        console.error(e);
+      }
     }
-  }
 
-  function showVerifyHelp(){
-    alert(
-      'GitHub verification:\n\n1) Open your repo on GitHub\n2) Click “Commits” (above the file list)\n3) After pressing Backup, you should see a new commit like “Backup warehouse to GitHub”.'
-    );
-  }
+    function openNewProductModal(){
+      document.getElementById('modal-add-product').classList.remove('hidden');
+      document.getElementById('add-status').className = 'status';
+      document.getElementById('add-status').textContent = 'Fill fields and click Save.';
+    }
+    function closeNewProductModal(){
+      document.getElementById('modal-add-product').classList.add('hidden');
+    }
 
-  function focusField(id){
-    const el = document.getElementById(id);
-    el.focus();
-    // small hint
-    const msg = document.getElementById('addMsg');
-    setMsg(msg, 'ok', 'Ready to scan — point the scanner at the QR now.');
-    setTimeout(() => msg.classList.add('hidden'), 1200);
-  }
+    async function saveNewProduct(){
+      const name = document.getElementById('p-name').value.trim();
+      const sku = document.getElementById('p-sku').value.trim();
+      const qr = document.getElementById('p-qr').value.trim();
+      const loc = document.getElementById('p-loc').value.trim();
+      const desc = document.getElementById('p-desc').value.trim();
 
-  document.addEventListener('DOMContentLoaded', async () => {
-    // nav
-    document.getElementById('navDashboard').addEventListener('click', (e)=>{ e.preventDefault(); showView('dashboard'); });
-    document.getElementById('navInventory').addEventListener('click', (e)=>{ e.preventDefault(); showView('inventory'); });
-    document.getElementById('navAudit').addEventListener('click', (e)=>{ e.preventDefault(); showView('audit'); });
-    document.getElementById('navAdmin').addEventListener('click', (e)=>{ e.preventDefault(); showView('admin'); });
+      const st = document.getElementById('add-status');
+      if(!name || !qr || !loc){
+        st.className = 'status err';
+        st.textContent = 'Name, Product QR and Location are required.';
+        return;
+      }
 
-    // add product
-    document.getElementById('btnAddProduct').addEventListener('click', openNewProductModal);
-    document.getElementById('btnAddProduct2').addEventListener('click', openNewProductModal);
-    document.getElementById('closeAddProduct').addEventListener('click', closeNewProductModal);
-    document.getElementById('modalAddProduct').addEventListener('click', (e)=>{ if(e.target.id==='modalAddProduct') closeNewProductModal(); });
-    document.getElementById('saveProduct').addEventListener('click', (e)=>{ e.preventDefault(); saveProduct(); });
-    document.getElementById('focusItem').addEventListener('click', ()=> focusField('p_item_number'));
-    document.getElementById('focusLoc').addEventListener('click', ()=> focusField('p_location'));
+      st.className = 'status';
+      st.textContent = 'Saving…';
 
-    // admin
-    document.getElementById('btnBackup').addEventListener('click', backupToGithub);
-    document.getElementById('btnVerify').addEventListener('click', showVerifyHelp);
+      try{
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','Accept':'application/json'},
+          body: JSON.stringify({name, sku, qr_code: qr, location: loc, description: desc})
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok){
+          st.className = 'status err';
+          st.textContent = data.error ? `Error: ${data.error}` : `Error: HTTP ${res.status}`;
+          return;
+        }
+        st.className = 'status ok';
+        st.textContent = 'Saved ✅';
+        // Clear fields
+        document.getElementById('p-name').value = '';
+        document.getElementById('p-sku').value = '';
+        document.getElementById('p-qr').value = '';
+        document.getElementById('p-loc').value = '';
+        document.getElementById('p-desc').value = '';
 
-    // initial load
-    try { await loadProducts(); } catch (e) { /* ignore */ }
-  });
-</script>
+        await refreshProducts();
+      }catch(e){
+        console.error(e);
+        st.className = 'status err';
+        st.textContent = 'Network error while saving.';
+      }
+    }
+
+    // ------------------------------
+    // GitHub backup
+    // ------------------------------
+    async function runGitHubBackup(){
+      const st = document.getElementById('backup-status');
+      st.className = 'status';
+      st.textContent = 'Running backup…';
+      try{
+        const res = await fetch('/api/admin/backup/github', {method:'POST', headers:{'Accept':'application/json'}});
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok){
+          st.className = 'status err';
+          st.textContent = data.error ? `Backup failed: ${data.error}` : `Backup failed: HTTP ${res.status}`;
+          return;
+        }
+        st.className = 'status ok';
+        st.textContent = `Backup OK ✅ Commit: ${data.commit_sha?.slice(0,7) || ''}`;
+      }catch(e){
+        console.error(e);
+        st.className = 'status err';
+        st.textContent = 'Network error while running backup.';
+      }
+    }
+
+    function showBackupHelp(){
+      alert(
+        'GitHub verification:\n\n' +
+        '1) Open your GitHub repo\n' +
+        '2) Click the "Commits" link (above the file list)\n' +
+        '3) After clicking Backup, you should see a new commit like: "Backup warehouse to GitHub"\n\n' +
+        'If there is no new commit, backup did not write to the repo.'
+      );
+    }
+
+    // ------------------------------
+    // QR scanner (BarcodeDetector)
+    // ------------------------------
+    let scanTargetInputId = null;
+    let scanStream = null;
+    let scanLoopTimer = null;
+
+    async function openScanner(inputId){
+      scanTargetInputId = inputId;
+      const modal = document.getElementById('modal-scanner');
+      modal.classList.remove('hidden');
+
+      const support = document.getElementById('scan-support');
+      support.className = 'status';
+
+      if(!('mediaDevices' in navigator) || !navigator.mediaDevices.getUserMedia){
+        support.className = 'status err';
+        support.textContent = 'Camera not available in this browser. Please type the code manually.';
+        return;
+      }
+      if(!('BarcodeDetector' in window)){
+        support.className = 'status err';
+        support.textContent = 'BarcodeDetector API not supported. Please type the code manually.';
+        return;
+      }
+
+      try{
+        scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+        const video = document.getElementById('scan-video');
+        video.srcObject = scanStream;
+
+        const detector = new BarcodeDetector({formats:['qr_code']});
+        support.textContent = 'Point the camera at a QR code…';
+
+        const tick = async () => {
+          try{
+            const codes = await detector.detect(video);
+            if(codes && codes.length){
+              const value = codes[0].rawValue || '';
+              if(value){
+                document.getElementById(scanTargetInputId).value = value;
+                support.className = 'status ok';
+                support.textContent = 'Scanned ✅';
+                closeScanner();
+                return;
+              }
+            }
+          }catch(err){
+            // keep scanning
+          }
+          scanLoopTimer = window.setTimeout(tick, 250);
+        };
+        tick();
+      }catch(err){
+        console.error(err);
+        support.className = 'status err';
+        support.textContent = 'Cannot open camera. Please allow camera permission or type manually.';
+      }
+    }
+
+    function closeScanner(){
+      if(scanLoopTimer) window.clearTimeout(scanLoopTimer);
+      scanLoopTimer = null;
+      const video = document.getElementById('scan-video');
+      if(video) video.srcObject = null;
+      if(scanStream){
+        for(const t of scanStream.getTracks()) t.stop();
+      }
+      scanStream = null;
+      document.getElementById('modal-scanner').classList.add('hidden');
+    }
+
+    function escapeHtml(s){
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+    }
+
+    // Initial load
+    refreshProducts();
+  </script>
 </body>
 </html>
