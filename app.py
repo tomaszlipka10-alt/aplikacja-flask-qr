@@ -246,67 +246,125 @@ def _github_get_json_file(token: str, repo: str, path: str, ref: str = "main") -
         data = json.loads(resp.read().decode("utf-8"))
     if not isinstance(data, dict) or "content" not in data:
         raise ValueError("Unexpected GitHub response (no 'content').")
-    raw = base64.b64decode(data["content"]).decode("utf-8")
-    return json.loads(raw)
+def _export_backup_payload():
+    products = []
+    for p in Product.query.order_by(Product.id.asc()).all():
+        products.append(
+            {
+                "id": p.id,
+                "product_id": p.product_id,
+                "name": p.name,
+                "location": p.location,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+        )
+
+    return {
+        "version": 1,
+        "exported_at": utcnow_iso(),
+        "products": products,
+    }
 
 
-def _import_backup_payload(payload: dict) -> dict:
-    """Replace current DB content with payload from backup (products only for now)."""
-    products = payload.get("products")
-    if products is None and isinstance(payload, list):
-        products = payload
+def _import_backup_payload(payload: dict):
+    products = payload.get("products") or []
     if not isinstance(products, list):
-        raise ValueError("Backup payload missing 'products' list.")
+        raise ValueError("Invalid backup format: products must be a list")
 
-    # Replace products
     Product.query.delete()
     db.session.commit()
 
-    created = 0
     for p in products:
         if not isinstance(p, dict):
             continue
         prod = Product(
-            id=str(p.get("id", "")).strip(),
-            name=str(p.get("name", "")).strip(),
-            quantity=int(p.get("quantity") or 0),
-            location=str(p.get("location", "")).strip(),
+            product_id=(p.get("product_id") or "").strip(),
+            name=(p.get("name") or "").strip(),
+            location=(p.get("location") or "").strip(),
         )
-        if not prod.id:
-            continue
+        pid = p.get("id")
+        try:
+            if pid is not None:
+                prod.id = int(pid)
+        except Exception:
+            pass
         db.session.add(prod)
-        created += 1
 
     db.session.commit()
-    return {"products_restored": created}
 
 
-def _auto_restore_from_github_if_configured() -> None:
-    """If AUTO_RESTORE_ON_BOOT=1 and DB is empty, restore from latest GitHub backup."""
-    if os.getenv("AUTO_RESTORE_ON_BOOT", "0").strip().lower() not in ("1", "true", "yes", "on"):
-        return
-    # Only restore if there are no products yet
-    try:
-    _auto_restore_from_github_if_configured()
-except NameError:
-    # Funkcja nie jest zdefiniowana – nie blokuj startu aplikacji
-    pass
-except Exception as e:
-    print("Auto-restore failed:", e)
+def _github_get_json_file(repo: str, path: str):
+    # Returns (sha, json_dict) or (None, None) if not found
+    r = _github_api_request("GET", f"/repos/{repo}/contents/{path}")
+    if r.status_code == 404:
+        return None, None
+    r.raise_for_status()
+    data = r.json()
+    raw = base64.b64decode(data["content"]).decode("utf-8")
+    return data.get("sha"), json.loads(raw)
 
-    token = os.getenv("GITHUB_TOKEN", "").strip()
-    repo = os.getenv("GITHUB_REPO", "").strip()
-    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
+
+def _github_put_json_file(repo: str, path: str, payload: dict, message: str):
+    sha, _existing = _github_get_json_file(repo, path)
+    content_bytes = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+
+    body = {
+        "message": message,
+        "content": base64.b64encode(content_bytes).decode("utf-8"),
+    }
+    if sha:
+        body["sha"] = sha
+
+    r = _github_api_request("PUT", f"/repos/{repo}/contents/{path}", json=body)
+    r.raise_for_status()
+    return r.json()
+
+
+def _backup_to_github():
+    token = os.getenv("GITHUB_TOKEN")
+    repo = os.getenv("GITHUB_REPO")
+    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json")
     if not token or not repo:
-        return
+        raise RuntimeError("Missing GITHUB_TOKEN or GITHUB_REPO")
+
+    payload = _export_backup_payload()
+    return _github_put_json_file(repo, path, payload, "Backup warehouse to GitHub")
+
+
+def _restore_from_github():
+    token = os.getenv("GITHUB_TOKEN")
+    repo = os.getenv("GITHUB_REPO")
+    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json")
+    if not token or not repo:
+        raise RuntimeError("Missing GITHUB_TOKEN or GITHUB_REPO")
+
+    _sha, payload = _github_get_json_file(repo, path)
+    if payload is None:
+        raise RuntimeError("Backup file not found on GitHub")
+
+    _import_backup_payload(payload)
+    return True
+
+
+def _auto_restore_from_github_if_configured():
+    # Runs on startup if AUTO_RESTORE_GITHUB=1 and DB is empty
+    if os.getenv("AUTO_RESTORE_GITHUB", "0") != "1":
+        return False
 
     try:
-        payload = _github_get_json_file(token, repo, path, ref="main")
-        _import_backup_payload(payload)
-        app.logger.info("Auto-restore from GitHub completed.")
-    except Exception as e:
-        app.logger.warning(f"Auto-restore from GitHub failed: {e}")
+        count = Product.query.count()
+    except Exception:
+        count = 0
 
+    if count > 0:
+        return False
+
+    try:
+        _restore_from_github()
+        return True
+    except Exception as e:
+        print(f"[AUTO_RESTORE] restore failed: {e}")
+        return False
 @app.post("/api/admin/backup/github")
 @login_required
 @admin_required
