@@ -119,6 +119,7 @@ def ensure_schema_and_admin() -> None:
 
 with app.app_context():
     ensure_schema_and_admin()
+    _auto_restore_from_github_if_configured()
 
 
 @app.get("/health")
@@ -230,6 +231,80 @@ def _github_get_file_sha(repo: str, path: str, token: str):
         raise
 
 
+
+def _github_get_json_file(token: str, repo: str, path: str, ref: str = "main") -> dict:
+    """Download a JSON file from GitHub repo contents API."""
+    import base64
+    url = f"https://api.github.com/repos/{repo}/contents/{path}?ref={ref}"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "Render-Flask-WMS",
+    }
+    req = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    if not isinstance(data, dict) or "content" not in data:
+        raise ValueError("Unexpected GitHub response (no 'content').")
+    raw = base64.b64decode(data["content"]).decode("utf-8")
+    return json.loads(raw)
+
+
+def _import_backup_payload(payload: dict) -> dict:
+    """Replace current DB content with payload from backup (products only for now)."""
+    products = payload.get("products")
+    if products is None and isinstance(payload, list):
+        products = payload
+    if not isinstance(products, list):
+        raise ValueError("Backup payload missing 'products' list.")
+
+    # Replace products
+    Product.query.delete()
+    db.session.commit()
+
+    created = 0
+    for p in products:
+        if not isinstance(p, dict):
+            continue
+        prod = Product(
+            id=str(p.get("id", "")).strip(),
+            name=str(p.get("name", "")).strip(),
+            quantity=int(p.get("quantity") or 0),
+            location=str(p.get("location", "")).strip(),
+        )
+        if not prod.id:
+            continue
+        db.session.add(prod)
+        created += 1
+
+    db.session.commit()
+    return {"products_restored": created}
+
+
+def _auto_restore_from_github_if_configured() -> None:
+    """If AUTO_RESTORE_ON_BOOT=1 and DB is empty, restore from latest GitHub backup."""
+    if os.getenv("AUTO_RESTORE_ON_BOOT", "0").strip().lower() not in ("1", "true", "yes", "on"):
+        return
+    # Only restore if there are no products yet
+    try:
+        if Product.query.count() > 0:
+            return
+    except Exception:
+        return
+
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "").strip()
+    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
+    if not token or not repo:
+        return
+
+    try:
+        payload = _github_get_json_file(token, repo, path, ref="main")
+        _import_backup_payload(payload)
+        app.logger.info("Auto-restore from GitHub completed.")
+    except Exception as e:
+        app.logger.warning(f"Auto-restore from GitHub failed: {e}")
+
 @app.post("/api/admin/backup/github")
 @login_required
 @admin_required
@@ -299,6 +374,28 @@ def api_admin_backup_github():
             detail = str(e)
         return jsonify({"ok": False, "error": f"GitHub API error: {e.code}", "detail": detail}), 502
 
+
+
+@app.post("/api/admin/restore/github")
+@admin_required
+def admin_restore_github():
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "").strip()
+    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
+    if not token:
+        return jsonify(error="Missing GITHUB_TOKEN"), 400
+    if not repo:
+        return jsonify(error="Missing GITHUB_REPO"), 400
+
+    try:
+        payload = _github_get_json_file(token, repo, path, ref="main")
+        info = _import_backup_payload(payload)
+        return jsonify(ok=True, **info)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="ignore") if hasattr(e, "read") else ""
+        return jsonify(error=f"HTTP {e.code} {body[:200]}"), 500
+    except Exception as e:
+        return jsonify(error=str(e)), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "10000"))

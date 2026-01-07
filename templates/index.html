@@ -3,678 +3,495 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BTVenloStorage</title>
+  <title>WMS</title>
   <style>
     :root{
-      --bg: #ffffff;
-      --card: #ffffff;
-      --text: #0b1b3a;
-      --muted: #5b6a88;
-      --border: rgba(17, 41, 84, .12);
-      --blue-700: #1d4ed8;
-      --blue-600: #2563eb;
-      --blue-500: #3b82f6;
-      --blue-100: #eaf2ff;
-      --sidebar: #0f2a5f;
-      --sidebar2:#123372;
-      --shadow: 0 10px 30px rgba(10, 25, 60, .10);
-      --radius: 16px;
+      --bg:#0b1220;--panel:#0f172a;--panel2:#0b1324;--text:#e5e7eb;--muted:#9ca3af;--line:#24324a;--blue:#2563eb;--danger:#ef4444;--ok:#10b981;
     }
-
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color:var(--text);
-      background: var(--bg);
-    }
-
-    .app{display:flex; min-height:100vh;}
-
-    /* Sidebar (always visible, icon-only) */
-    .sidebar{
-      position:sticky;
-      top:0;
-      height:100vh;
-      width:72px;
-      flex: 0 0 72px;
-      background: linear-gradient(180deg, var(--sidebar), var(--sidebar2));
-      color:#fff;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      padding:10px 8px;
-      gap:10px;
-    }
-
-    .nav{
-      width:100%;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      margin-top:6px;
-      flex: 1;
-      align-items:center;
-    }
-
-    .navbtn{
-      width:52px;
-      height:52px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      user-select:none;
-      font-size:22px;
-      transition: transform .05s ease, background .15s ease;
-    }
-    .navbtn:active{transform:scale(.98)}
-    .navbtn:hover{background: rgba(255,255,255,.10)}
-    .navbtn.active{background: rgba(59,130,246,.26); border-color: rgba(255,255,255,.22)}
-
-    .navbottom{width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; padding-bottom:6px;}
-
-    /* Main */
-    .main{flex:1; min-width:0;}
-
-    .topbar{
-      position:sticky;
-      top:0;
-      z-index:10;
-      background: rgba(255,255,255,.92);
-      backdrop-filter: blur(10px);
-      border-bottom:1px solid var(--border);
-    }
-
-    .topbar-inner{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:14px 16px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-weight:800;
-      letter-spacing:.2px;
-      font-size:20px;
-    }
-
-    .brand-dot{
-      width:12px;height:12px;border-radius:999px;
-      background: var(--blue-600);
-      box-shadow: 0 0 0 5px rgba(37,99,235,.18);
-    }
-
-    .actions{display:flex; gap:10px; align-items:center;}
-
-    .btn{
-      border:1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      padding:10px 12px;
-      border-radius: 12px;
-      cursor:pointer;
-      font-weight:600;
-    }
-    .btn:hover{background: #f7faff}
-
-    .btn.primary{
-      background: var(--blue-600);
-      border-color: rgba(37,99,235,.35);
-      color:#fff;
-    }
-    .btn.primary:hover{background: var(--blue-700)}
-
-    .container{
-      max-width:1100px;
-      margin: 0 auto;
-      padding:16px;
-    }
-
-    .hint{color:var(--muted); margin: 6px 0 14px; font-size:14px}
-
-    .grid{
-     job word:0;
-    }
-
-    .card{
-      background: var(--card);
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding:16px;
-    }
-
-    .card h2{margin:0 0 6px; font-size:18px}
-
-    .pillgrid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:12px;
-    }
-
-    .pill{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 14px;
-      border:1px solid var(--border);
-      border-radius: 14px;
-      background: #fff;
-      cursor:pointer;
-      font-weight:700;
-    }
-    .pill:hover{background: var(--blue-100)}
-
-    .pill .left{display:flex; align-items:center; gap:10px}
-    .pill .ic{width:32px;height:32px;border-radius:12px;background: var(--blue-100); display:flex;align-items:center;justify-content:center; font-size:18px}
-
-    .small{font-size:13px; color:var(--muted)}
-
-    /* Modal */
-    .modal-backdrop{
-      position:fixed;
-      inset:0;
-      background: rgba(10,25,60,.35);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index:50;
-      padding:16px;
-    }
-    .modal{
-      width: min(560px, 100%);
-      background:#fff;
-      border-radius: 18px;
-      border:1px solid var(--border);
-      box-shadow: 0 20px 60px rgba(0,0,0,.18);
-      overflow:hidden;
-    }
-    .modal-header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 16px;
-      border-bottom:1px solid var(--border);
-      background: #fbfdff;
-    }
-    .modal-title{font-weight:800}
-    .modal-body{padding:16px}
-    .row{display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:12px}
-    label{font-size:12px; color:var(--muted); font-weight:700}
-    input{
-      width:100%;
-      padding:12px 12px;
-      border-radius: 12px;
-      border:1px solid var(--border);
-      outline:none;
-      font-size:14px;
-    }
-    input:focus{border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 4px rgba(37,99,235,.12)}
-
-    .scanrow{display:flex; gap:10px}
-    .scanrow input{flex:1}
-    .scanbtn{white-space:nowrap}
-
-    .modal-footer{display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--border); background:#fbfdff}
-
-    .alert{margin-top:10px; padding:10px 12px; border-radius: 12px; border:1px solid var(--border); background:#f7fbff; color: var(--text); font-size:13px; display:none}
-    .alert.bad{background:#fff5f5; border-color: rgba(220,38,38,.25); color:#7a1a1a}
-    .alert.ok{background:#f0fff6; border-color: rgba(22,163,74,.25); color:#0f5132}
-
-    /* Scanner */
-    .scanner{
-      display:none;
-      margin-top:12px;
-      border:1px solid var(--border);
-      border-radius: 14px;
-      overflow:hidden;
-      background:#000;
-    }
-    video{width:100%; height:auto; display:block}
-
-    /* Responsive tweaks */
-    @media (max-width: 520px){
-      .topbar-inner{padding:12px}
-      .container{padding:12px}
-      .brand{font-size:18px}
-      .btn{padding:10px 10px}
-      .sidebar{width:64px; flex-basis:64px}
-      .navbtn{width:48px;height:48px;border-radius:14px}
-    }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 30% 10%, #0f244d 0%, var(--bg) 50%, #070a12 100%);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:260px;background:linear-gradient(180deg,#0b1324,#070a12);border-right:1px solid var(--line);padding:18px 14px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:22px;margin-bottom:16px}
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--blue);box-shadow:0 0 0 5px rgba(37,99,235,.12)}
+    .nav{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .nav button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:12px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;text-align:left}
+    .nav button.active{background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35)}
+    .nav button:hover{background:rgba(255,255,255,.04)}
+    .userbox{margin-top:16px;border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.02)}
+    .userbox .muted{color:var(--muted);font-size:12px}
+    .userbox .name{font-weight:800;margin-top:4px}
+    .userbox .actions{margin-top:10px}
+    .linkbtn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;color:var(--text);opacity:.9;cursor:pointer;padding:0}
+    .main{flex:1;padding:24px 24px 60px 24px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+    .title h1{margin:0;font-size:34px}
+    .title p{margin:6px 0 0 0;color:var(--muted)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;background:var(--blue);color:white;font-weight:800;padding:10px 14px;border-radius:12px;cursor:pointer}
+    .btn.secondary{background:transparent;border-color:var(--line);color:var(--text)}
+    .btn.danger{background:transparent;border-color:rgba(239,68,68,.6);color:#fecaca}
+    .card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:16px}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+    th{color:var(--muted);font-weight:700}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:12px}
+    .hidden{display:none !important}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+    .field label{font-weight:700;font-size:13px}
+    .field input,.field textarea{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text)}
+    .field textarea{min-height:70px;resize:vertical}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:999}
+    .modal{width:min(720px,96vw);background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);overflow:hidden}
+    .modal header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .modal header h2{margin:0;font-size:18px}
+    .modal main{padding:16px}
+    .modal footer{padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+    .status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted)}
+    .status.ok{border-color:rgba(16,185,129,.5);color:#d1fae5}
+    .status.err{border-color:rgba(239,68,68,.55);color:#fecaca}
+    video{width:100%;max-height:340px;border-radius:14px;border:1px solid var(--line);background:#000}
   </style>
 </head>
 <body>
-<div class="app">
-  <aside class="sidebar">
-    <div class="nav" aria-label="Primary">
-      <button class="navbtn active" id="nav-dashboard" title="Dashboard" onclick="showView('dashboard')">🏠</button>
-      <button class="navbtn" id="nav-inventory" title="Inventory" onclick="showView('inventory')">📦</button>
-      <button class="navbtn" id="nav-audit" title="Audit" onclick="showView('audit')">✅</button>
-      <button class="navbtn" id="nav-admin" title="Admin" onclick="showView('admin')">⚙️</button>
-    </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="dot"></span> WMS</div>
+      <nav class="nav">
+        <button id="nav-dashboard" class="active" onclick="showView('dashboard')">Dashboard</button>
+        <button id="nav-inventory" onclick="showView('inventory')">Inventory</button>
+        <button id="nav-audit" onclick="showView('audit')">Audit</button>
+        <button id="nav-admin" onclick="showView('admin')">Admin</button>
+      </nav>
 
-    <div class="navbottom">
-      <button class="navbtn" title="Logout" onclick="logout()">🚪</button>
-    </div>
-  </aside>
-
-  <main class="main">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="brand" aria-label="App name">
-          <span class="brand-dot" aria-hidden="true"></span>
-          <span id="pageTitle">BTVenloStorage</span>
-        </div>
+      <div class="userbox">
+        <div class="muted">Logged in as</div>
+        <div class="name">{{ user.full_name or user.username }}</div>
+        {% if user.is_admin %}<div class="pill" style="margin-top:8px">admin</div>{% endif %}
         <div class="actions">
-          <button class="btn primary" id="btnAddProductTop" onclick="openAddProductModal()">+ Add Product</button>
+          <a class="linkbtn" href="{{ url_for('logout') }}">Logout</a>
         </div>
       </div>
-    </header>
+    </aside>
 
-    <div class="container">
-      <div class="hint" id="pageHint">Tip: add products first (ID + name + qty + location). Receive/Issue i picking dodamy później.</div>
+    <main class="main">
+      <div id="view-dashboard" class="view">
+        <div class="topbar">
+          <div class="title">
+            <h1>Warehouse Dashboard</h1>
+            <p>Tip: add products first (with QR + location), then later we'll build Receive/Issue flows.</p>
+          </div>
+          <button class="btn" onclick="openNewProductModal()">+ Add Product</button>
+        </div>
 
-      <!-- DASHBOARD -->
-      <section id="view-dashboard" class="view">
-        <div class="card">
-          <h2>Dashboard</h2>
-          <div class="small">Wybierz akcję:</div>
-          <div class="pillgrid" style="margin-top:12px">
-            <div class="pill" onclick="openAddProductModal()">
-              <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
-              <div class="small">ID + name + qty + location</div>
-            </div>
-            <div class="pill" onclick="comingSoon('Przyjęcie materiału (Receive)')">
-              <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
-              <div class="small">Wkrótce</div>
-            </div>
-            <div class="pill" onclick="comingSoon('Wydanie materiału (Issue)')">
-              <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
-              <div class="small">Wkrótce</div>
-            </div>
-            <div class="pill" onclick="comingSoon('Picking lists')">
-              <div class="left"><div class="ic">📋</div><div>Picking lists</div></div>
-              <div class="small">Wkrótce</div>
+        <div class="grid">
+          <div class="card">
+            <div style="font-weight:800;margin-bottom:10px">Recent products</div>
+            <div style="overflow:auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>SKU</th>
+                    <th>QR</th>
+                    <th>Location</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-products"></tbody>
+              </table>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- INVENTORY -->
-      <section id="view-inventory" class="view" style="display:none">
-        <div class="card">
-          <h2>Inventory</h2>
-          <div class="small">Produkty w bazie:</div>
-          <div style="overflow:auto; margin-top:12px">
-            <table style="width:100%; border-collapse:collapse; font-size:14px">
-              <thead>
-                <tr style="text-align:left; color:var(--muted)">
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
-                </tr>
-              </thead>
-              <tbody id="productsBody"></tbody>
-            </table>
+      <div id="view-inventory" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>Inventory</h1>
+            <p>All products currently in the database.</p>
           </div>
-          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">Brak produktów.</div>
+          <button class="btn secondary" onclick="refreshProducts()">Refresh</button>
         </div>
-      </section>
 
-      <!-- AUDIT -->
-      <section id="view-audit" class="view" style="display:none">
-        <div class="card">
-          <h2>Audit</h2>
-          <div class="small">Na razie: podgląd logów/akcji dodamy w kolejnych krokach.</div>
+        <div class="card" style="overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>SKU</th>
+                <th>QR</th>
+                <th>Location</th>
+                <th>Description</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
         </div>
-      </section>
+      </div>
 
-      <!-- ADMIN -->
-      <section id="view-admin" class="view" style="display:none">
-        <div class="card">
-          <h2>Admin</h2>
-          <div class="small">Backup do GitHub tworzy commit w repo.</div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
-            <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
-            <button class="btn" onclick="showGitHubVerify()">How to verify on GitHub</button>
+      <div id="view-audit" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>Audit</h1>
+            <p>Placeholder – we will add movement history here later.</p>
           </div>
-          <div class="small" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
-          <div class="alert" id="adminAlert"></div>
         </div>
-      </section>
-    </div>
+        <div class="card">Nothing here yet.</div>
+      </div>
 
-    <!-- ADD PRODUCT MODAL (Dashboard) -->
-    <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
-      <div class="modal">
-        <div class="modal-header">
-          <div class="modal-title">Add Product</div>
-          <button class="btn" onclick="closeAddProductModal()">✕</button>
+      <div id="view-admin" class="view hidden">
+        <div class="topbar">
+          <div class="title">
+            <h1>Admin</h1>
+            <p>Backup to GitHub should create a new commit like “Backup warehouse to GitHub”.</p>
+          </div>
         </div>
-        <div class="modal-body">
 
+        <div class="card">
           <div class="row">
-            <div>
-              <label>Product ID (manual or QR)</label>
-              <div class="scanrow">
-                <input id="p_id" placeholder="e.g. 100234" />
-                <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
-              </div>
-              <div class="small">QR może zawierać: <b>ID|NAME</b> albo JSON {"id":"...","name":"..."}.</div>
-            </div>
-
-            <div>
-              <label>Product Name (manual or from QR)</label>
-              <input id="p_name" placeholder="e.g. Screw M6" />
-            </div>
-
-            <div>
-              <label>Quantity</label>
-              <input id="p_qty" type="number" min="0" step="1" placeholder="e.g. 10" />
-            </div>
-
-            <div>
-              <label>Location (manual or QR)</label>
-              <div class="scanrow">
-                <input id="p_loc" placeholder="e.g. A-01-02" />
-                <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
-              </div>
-            </div>
+            <button class="btn" onclick="runGitHubBackup()">Backup to GitHub</button>
+            <button class="btn secondary" onclick="showBackupHelp()">How to verify on GitHub</button>
           </div>
-
-          <div class="scanner" id="scannerBox">
-            <video id="video" playsinline></video>
+          <div id="backup-status" class="status" style="margin-top:12px">Ready.</div>
+          <div style="margin-top:10px;color:var(--muted);font-size:13px">
+            If backup fails, check Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.
           </div>
-
-          <div class="alert" id="addAlert"></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn" onclick="closeAddProductModal()">Cancel</button>
-          <button class="btn primary" onclick="saveProduct()">Save</button>
         </div>
       </div>
+    </main>
+  </div>
+
+  <!-- Add product modal -->
+  <div id="modal-add-product" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h2>Add product</h2>
+        <button class="btn secondary" onclick="closeNewProductModal()">Close</button>
+      </header>
+      <main>
+        <div class="row">
+          <div style="flex:1;min-width:220px" class="field">
+            <label>Name *</label>
+            <input id="p-name" placeholder="e.g. Bearing 6204" />
+          </div>
+          <div style="flex:1;min-width:220px" class="field">
+            <label>SKU</label>
+            <input id="p-sku" placeholder="optional" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1;min-width:220px" class="field">
+            <label>Product QR *</label>
+            <div class="row">
+              <input id="p-qr" placeholder="scan or type" style="flex:1" />
+              <button class="btn secondary" type="button" onclick="openScanner('p-qr')">Scan</button>
+            </div>
+          </div>
+          <div style="flex:1;min-width:220px" class="field">
+            <label>Location QR *</label>
+            <div class="row">
+              <input id="p-loc" placeholder="scan or type" style="flex:1" />
+              <button class="btn secondary" type="button" onclick="openScanner('p-loc')">Scan</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Description</label>
+          <textarea id="p-desc" placeholder="optional"></textarea>
+        </div>
+
+        <div id="add-status" class="status">Fill fields and click Save.</div>
+      </main>
+      <footer>
+        <button class="btn secondary" onclick="closeNewProductModal()">Cancel</button>
+        <button class="btn" onclick="saveNewProduct()">Save</button>
+      </footer>
     </div>
+  </div>
 
-  </main>
-</div>
+  <!-- Scanner modal -->
+  <div id="modal-scanner" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <header>
+        <h2>Scan QR</h2>
+        <button class="btn secondary" onclick="closeScanner()">Close</button>
+      </header>
+      <main>
+        <div id="scan-support" class="status">Starting camera…</div>
+        <video id="scan-video" autoplay playsinline muted></video>
+      </main>
+      <footer>
+        <button class="btn secondary" onclick="closeScanner()">Cancel</button>
+      </footer>
+    </div>
+  </div>
 
-<script>
-  // ---------- Views ----------
-  function showView(name){
-    const views = ['dashboard','inventory','audit','admin'];
-    for (const v of views){
-      document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
-      document.getElementById('nav-'+v).classList.toggle('active', v===name);
-    }
-
-    // Topbar controls
-    const addBtn = document.getElementById('btnAddProductTop');
-    addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
-
-    // Update hint
-    const hint = document.getElementById('pageHint');
-    if (name === 'dashboard') hint.textContent = 'Wybierz akcję. Add Product dodaje produkt do bazy (ID + name + qty + location).';
-    else if (name === 'inventory') hint.textContent = 'Lista produktów z bazy.';
-    else if (name === 'admin') hint.textContent = 'Administracja (backup itp.).';
-    else hint.textContent = '';
-
-    if (name === 'inventory') loadProducts();
-  }
-
-  // ---------- Logout ----------
-  function logout(){
-    window.location.href = '/logout';
-  }
-
-  // ---------- Dashboard actions ----------
-  function comingSoon(label){
-    alert(label + ' — wkrótce.');
-  }
-
-  // ---------- Add product modal ----------
-  function openAddProductModal(){
-    const bd = document.getElementById('addProductBackdrop');
-    bd.style.display = 'flex';
-    clearAddAlert();
-  }
-
-  function closeAddProductModal(){
-    stopScan();
-    document.getElementById('addProductBackdrop').style.display = 'none';
-  }
-
-  function setAddAlert(msg, type){
-    const el = document.getElementById('addAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
-  function clearAddAlert(){
-    const el = document.getElementById('addAlert');
-    el.style.display = 'none';
-    el.textContent = '';
-    el.className = 'alert';
-  }
-
-  // ---------- Inventory table ----------
-  async function loadProducts(){
-    const body = document.getElementById('productsBody');
-    const empty = document.getElementById('productsEmpty');
-    body.innerHTML = '';
-    empty.style.display = 'none';
-
-    try{
-      const res = await fetch('/api/products');
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      const items = data.products || [];
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
+  <script>
+    // ------------------------------
+    // View routing
+    // ------------------------------
+    function showView(name){
+      const views = ['dashboard','inventory','audit','admin'];
+      for(const v of views){
+        document.getElementById('view-' + v).classList.toggle('hidden', v !== name);
+        document.getElementById('nav-' + v).classList.toggle('active', v === name);
       }
-
-      for(const p of items){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.product_id || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(p.quantity ?? ''))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location || '')}</td>
-        `;
-        body.appendChild(tr);
-      }
-    }catch(e){
-      empty.style.display = 'block';
-      empty.textContent = 'Nie udało się pobrać listy produktów.';
-    }
-  }
-
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
-  }
-
-  // ---------- Save product ----------
-  async function saveProduct(){
-    clearAddAlert();
-    const product_id = document.getElementById('p_id').value.trim();
-    const name = document.getElementById('p_name').value.trim();
-    const quantity = Number(document.getElementById('p_qty').value || 0);
-    const location = document.getElementById('p_loc').value.trim();
-
-    if(!product_id){ setAddAlert('Podaj Product ID (ręcznie lub QR).', 'bad'); return; }
-    if(!name){ setAddAlert('Podaj nazwę produktu.', 'bad'); return; }
-    if(!location){ setAddAlert('Podaj lokację (ręcznie lub QR).', 'bad'); return; }
-
-    try{
-      const res = await fetch('/api/products', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ product_id, name, quantity, location })
-      });
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        setAddAlert(data.error || ('Błąd zapisu (HTTP '+res.status+')'), 'bad');
-        return;
-      }
-
-      setAddAlert('Zapisano ✔', 'ok');
-      // refresh inventory silently
-      loadProducts();
-    }catch(e){
-      setAddAlert('Błąd połączenia podczas zapisu.', 'bad');
-    }
-  }
-
-  // ---------- QR Scan (Product + Location) ----------
-  let scanMode = null; // 'product' | 'location'
-  let stream = null;
-  let detector = null;
-  let scanTimer = null;
-
-  async function startScan(mode){
-    scanMode = mode;
-    clearAddAlert();
-
-    // If BarcodeDetector isn't supported, fallback to manual paste.
-    if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
-      if(pasted) applyScannedValue(pasted);
-      return;
+      if(name === 'inventory') refreshProducts();
+      if(name === 'dashboard') refreshProducts();
     }
 
-    try{
-      detector = new BarcodeDetector({ formats: ['qr_code'] });
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
-      const video = document.getElementById('video');
-      video.srcObject = stream;
-      await video.play();
-
-      document.getElementById('scannerBox').style.display = 'block';
-
-      scanTimer = setInterval(async () => {
-        try{
-          const barcodes = await detector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = barcodes[0].rawValue || '';
-            applyScannedValue(raw);
-            stopScan();
-          }
-        }catch(_){ /* ignore */ }
-      }, 250);
-
-    }catch(e){
-      stopScan();
-      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
-      if(pasted) applyScannedValue(pasted);
-    }
-  }
-
-  function stopScan(){
-    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    document.getElementById('scannerBox').style.display = 'none';
-  }
-
-  function applyScannedValue(raw){
-    const text = (raw || '').trim();
-    if(!text) return;
-
-    if(scanMode === 'location'){
-      document.getElementById('p_loc').value = text;
-      return;
+    // ------------------------------
+    // Products
+    // ------------------------------
+    async function fetchProducts(){
+      const res = await fetch('/api/products', {headers:{'Accept':'application/json'}});
+      if(!res.ok) throw new Error('Failed to fetch products: HTTP ' + res.status);
+      return await res.json();
     }
 
-    // product mode: try JSON then "ID|NAME" then plain
-    try{
-      if(text.startsWith('{') && text.endsWith('}')){
-        const obj = JSON.parse(text);
-        if(obj.id) document.getElementById('p_id').value = String(obj.id);
-        if(obj.name) document.getElementById('p_name').value = String(obj.name);
-        return;
-      }
-    }catch(_){ /* ignore */ }
-
-    if(text.includes('|')){
-      const parts = text.split('|');
-      const id = (parts[0] || '').trim();
-      const nm = (parts.slice(1).join('|') || '').trim();
-      if(id) document.getElementById('p_id').value = id;
-      if(nm) document.getElementById('p_name').value = nm;
-      return;
+    function fmtDate(iso){
+      if(!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleString();
     }
 
-    // fallback: put into ID
-    document.getElementById('p_id').value = text;
-  }
-
-  // ---------- Admin: backup ----------
-  function setAdminAlert(msg, type){
-    const el = document.getElementById('adminAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
-
-  async function backupToGitHub(){
-    // Some earlier versions used different URLs. Try in order.
-    const candidates = [
-      '/api/admin/backup/github',
-      '/api/backup/github',
-      '/admin/backup/github'
-    ];
-
-    setAdminAlert('Backup: start...', '');
-
-    for (const url of candidates){
+    async function refreshProducts(){
       try{
-        const res = await fetch(url, { method:'POST' });
-        const data = await res.json().catch(()=>({}));
-        if(res.ok){
-          setAdminAlert(data.message || 'Backup OK ✔ (commit powinien pojawić się w repo).', 'ok');
-          return;
+        const data = await fetchProducts();
+        const rows = data.products || [];
+
+        // Inventory table
+        const tbody = document.getElementById('products-tbody');
+        if(tbody){
+          tbody.innerHTML = '';
+          for(const p of rows){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${p.id}</td>
+              <td>${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(p.sku || '')}</td>
+              <td>${escapeHtml(p.qr_code)}</td>
+              <td>${escapeHtml(p.location)}</td>
+              <td>${escapeHtml(p.description || '')}</td>
+              <td>${escapeHtml(fmtDate(p.created_at))}</td>
+            `;
+            tbody.appendChild(tr);
+          }
         }
-        // continue only if 404; otherwise show error
-        if(res.status !== 404){
-          setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
-          return;
+
+        // Dashboard recent
+        const recent = document.getElementById('recent-products');
+        if(recent){
+          recent.innerHTML = '';
+          const last = rows.slice(0, 8);
+          for(const p of last){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${escapeHtml(p.name)}</td>
+              <td>${escapeHtml(p.sku || '')}</td>
+              <td>${escapeHtml(p.qr_code)}</td>
+              <td>${escapeHtml(p.location)}</td>
+              <td>${escapeHtml(fmtDate(p.created_at))}</td>
+            `;
+            recent.appendChild(tr);
+          }
         }
-      }catch(_){
-        // try next
+      }catch(e){
+        console.error(e);
       }
     }
 
-    setAdminAlert('Backup endpoint not found (404). Sprawdź czy backend ma endpoint /api/admin/backup/github.', 'bad');
-  }
+    function openNewProductModal(){
+      document.getElementById('modal-add-product').classList.remove('hidden');
+      document.getElementById('add-status').className = 'status';
+      document.getElementById('add-status').textContent = 'Fill fields and click Save.';
+    }
+    function closeNewProductModal(){
+      document.getElementById('modal-add-product').classList.add('hidden');
+    }
 
-  function showGitHubVerify(){
-    alert('GitHub → repo → Commits: po kliknięciu Backup powinien pojawić się nowy commit (np. "Backup warehouse to GitHub").');
-  }
+    async function saveNewProduct(){
+      const name = document.getElementById('p-name').value.trim();
+      const sku = document.getElementById('p-sku').value.trim();
+      const qr = document.getElementById('p-qr').value.trim();
+      const loc = document.getElementById('p-loc').value.trim();
+      const desc = document.getElementById('p-desc').value.trim();
 
-  // Initial
-  showView('dashboard');
-</script>
+      const st = document.getElementById('add-status');
+      if(!name || !qr || !loc){
+        st.className = 'status err';
+        st.textContent = 'Name, Product QR and Location are required.';
+        return;
+      }
+
+      st.className = 'status';
+      st.textContent = 'Saving…';
+
+      try{
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','Accept':'application/json'},
+          body: JSON.stringify({name, sku, qr_code: qr, location: loc, description: desc})
+        });
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok){
+          st.className = 'status err';
+          st.textContent = data.error ? `Error: ${data.error}` : `Error: HTTP ${res.status}`;
+          return;
+        }
+        st.className = 'status ok';
+        st.textContent = 'Saved ✅';
+        // Clear fields
+        document.getElementById('p-name').value = '';
+        document.getElementById('p-sku').value = '';
+        document.getElementById('p-qr').value = '';
+        document.getElementById('p-loc').value = '';
+        document.getElementById('p-desc').value = '';
+
+        await refreshProducts();
+      }catch(e){
+        console.error(e);
+        st.className = 'status err';
+        st.textContent = 'Network error while saving.';
+      }
+    }
+
+    // ------------------------------
+    // GitHub backup
+    // ------------------------------
+    async function runGitHubBackup(){
+      const st = document.getElementById('backup-status');
+      st.className = 'status';
+      st.textContent = 'Running backup…';
+      try{
+        const res = await fetch('/api/admin/backup/github', {method:'POST', headers:{'Accept':'application/json'}});
+        const data = await res.json().catch(() => ({}));
+        if(!res.ok){
+          st.className = 'status err';
+          st.textContent = data.error ? `Backup failed: ${data.error}` : `Backup failed: HTTP ${res.status}`;
+          return;
+        }
+        st.className = 'status ok';
+        st.textContent = `Backup OK ✅ Commit: ${data.commit_sha?.slice(0,7) || ''}`;
+      }catch(e){
+        console.error(e);
+        st.className = 'status err';
+        st.textContent = 'Network error while running backup.';
+      }
+    }
+
+    async function runGitHubRestore() {
+      if (!confirm('Restore from GitHub will REPLACE current products in the database. Continue?')) return;
+      try {
+        const res = await fetch('/api/admin/restore/github', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          alert('Restore failed: ' + (data.error || res.status));
+          return;
+        }
+        alert('Restore OK. Products restored: ' + (data.products_restored ?? ''));
+        await loadProducts();
+      } catch (e) {
+        alert('Restore failed: ' + e);
+      }
+    }
+
+
+    function showBackupHelp(){
+      alert(
+        'GitHub verification:\n\n' +
+        '1) Open your GitHub repo\n' +
+        '2) Click the "Commits" link (above the file list)\n' +
+        '3) After clicking Backup, you should see a new commit like: "Backup warehouse to GitHub"\n\n' +
+        'If there is no new commit, backup did not write to the repo.'
+      );
+    }
+
+    // ------------------------------
+    // QR scanner (BarcodeDetector)
+    // ------------------------------
+    let scanTargetInputId = null;
+    let scanStream = null;
+    let scanLoopTimer = null;
+
+    async function openScanner(inputId){
+      scanTargetInputId = inputId;
+      const modal = document.getElementById('modal-scanner');
+      modal.classList.remove('hidden');
+
+      const support = document.getElementById('scan-support');
+      support.className = 'status';
+
+      if(!('mediaDevices' in navigator) || !navigator.mediaDevices.getUserMedia){
+        support.className = 'status err';
+        support.textContent = 'Camera not available in this browser. Please type the code manually.';
+        return;
+      }
+      if(!('BarcodeDetector' in window)){
+        support.className = 'status err';
+        support.textContent = 'BarcodeDetector API not supported. Please type the code manually.';
+        return;
+      }
+
+      try{
+        scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+        const video = document.getElementById('scan-video');
+        video.srcObject = scanStream;
+
+        const detector = new BarcodeDetector({formats:['qr_code']});
+        support.textContent = 'Point the camera at a QR code…';
+
+        const tick = async () => {
+          try{
+            const codes = await detector.detect(video);
+            if(codes && codes.length){
+              const value = codes[0].rawValue || '';
+              if(value){
+                document.getElementById(scanTargetInputId).value = value;
+                support.className = 'status ok';
+                support.textContent = 'Scanned ✅';
+                closeScanner();
+                return;
+              }
+            }
+          }catch(err){
+            // keep scanning
+          }
+          scanLoopTimer = window.setTimeout(tick, 250);
+        };
+        tick();
+      }catch(err){
+        console.error(err);
+        support.className = 'status err';
+        support.textContent = 'Cannot open camera. Please allow camera permission or type manually.';
+      }
+    }
+
+    function closeScanner(){
+      if(scanLoopTimer) window.clearTimeout(scanLoopTimer);
+      scanLoopTimer = null;
+      const video = document.getElementById('scan-video');
+      if(video) video.srcObject = null;
+      if(scanStream){
+        for(const t of scanStream.getTracks()) t.stop();
+      }
+      scanStream = null;
+      document.getElementById('modal-scanner').classList.add('hidden');
+    }
+
+    function escapeHtml(s){
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+    }
+
+    // Initial load
+    refreshProducts();
+  </script>
 </body>
 </html>
