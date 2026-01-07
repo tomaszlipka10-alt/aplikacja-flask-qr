@@ -1,480 +1,315 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>WMS</title>
   <style>
-    :root{
-      --bg:#0b1220;--panel:#0f172a;--panel2:#0b1324;--text:#e5e7eb;--muted:#9ca3af;--line:#24324a;--blue:#2563eb;--danger:#ef4444;--ok:#10b981;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 30% 10%, #0f244d 0%, var(--bg) 50%, #070a12 100%);color:var(--text)}
-    a{color:inherit;text-decoration:none}
-    .app{display:flex;min-height:100vh}
-    .sidebar{width:260px;background:linear-gradient(180deg,#0b1324,#070a12);border-right:1px solid var(--line);padding:18px 14px}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:22px;margin-bottom:16px}
-    .dot{width:10px;height:10px;border-radius:999px;background:var(--blue);box-shadow:0 0 0 5px rgba(37,99,235,.12)}
-    .nav{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-    .nav button{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:12px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;text-align:left}
-    .nav button.active{background:rgba(37,99,235,.12);border-color:rgba(37,99,235,.35)}
-    .nav button:hover{background:rgba(255,255,255,.04)}
-    .userbox{margin-top:16px;border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.02)}
-    .userbox .muted{color:var(--muted);font-size:12px}
-    .userbox .name{font-weight:800;margin-top:4px}
-    .userbox .actions{margin-top:10px}
-    .linkbtn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:0;color:var(--text);opacity:.9;cursor:pointer;padding:0}
-    .main{flex:1;padding:24px 24px 60px 24px}
-    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
-    .title h1{margin:0;font-size:34px}
-    .title p{margin:6px 0 0 0;color:var(--muted)}
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;background:var(--blue);color:white;font-weight:800;padding:10px 14px;border-radius:12px;cursor:pointer}
-    .btn.secondary{background:transparent;border-color:var(--line);color:var(--text)}
-    .btn.danger{background:transparent;border-color:rgba(239,68,68,.6);color:#fecaca}
-    .card{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:18px;padding:16px}
-    .grid{display:grid;grid-template-columns:1fr;gap:14px}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+    :root{--bg:#0b1220;--panel:#0f1b33;--panel2:#101f3d;--text:#e8eefc;--muted:#a9b6d3;--accent:#2f7dff;--danger:#ff4d4d;}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    body{margin:0;height:100vh;overflow:hidden;background:linear-gradient(180deg,#061024, #070b12);color:var(--text)}
+    .layout{display:flex;height:100vh}
+    .sidebar{width:280px;background:rgba(10,18,34,.9);border-right:1px solid rgba(255,255,255,.06);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;margin-bottom:18px}
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px rgba(47,125,255,.15)}
+    .navbtn{display:flex;align-items:center;gap:10px;width:100%;padding:12px 12px;margin:6px 0;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--text);border-radius:12px;cursor:pointer}
+    .navbtn.active{background:rgba(47,125,255,.15);border-color:rgba(47,125,255,.35)}
+    .me{margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.02)}
+    .muted{color:var(--muted);font-size:13px}
+    .main{flex:1;padding:26px 26px 40px;overflow:auto}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+    h1{margin:0;font-size:34px;letter-spacing:.3px}
+    .tip{margin-top:8px;color:var(--muted)}
+    .primary{background:var(--accent);border:0;color:white;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+    .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-top:14px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.06)}
+    .danger{border-color:rgba(255,77,77,.4)}
+    .err{margin-top:12px;border:1px solid rgba(255,77,77,.5);background:rgba(255,77,77,.08);padding:10px 12px;border-radius:12px;color:#ffd0d0;white-space:pre-wrap}
+    .ok{margin-top:12px;border:1px solid rgba(70,255,120,.35);background:rgba(70,255,120,.08);padding:10px 12px;border-radius:12px;color:#d7ffe5;white-space:pre-wrap}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
     th{color:var(--muted);font-weight:700}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:12px}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+    .modal{width:min(720px,100%);background:var(--panel);border:1px solid rgba(255,255,255,.10);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden}
+    .modal-h{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center}
+    .modal-b{padding:16px}
+    .x{background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer}
+    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:13px}
+    input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:var(--text)}
+    .scanwrap{display:flex;gap:10px}
+    .scanwrap input{flex:1}
+    video{width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:black}
     .hidden{display:none !important}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .field{display:flex;flex-direction:column;gap:6px;margin-top:10px}
-    .field label{font-weight:700;font-size:13px}
-    .field input,.field textarea{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--text)}
-    .field textarea{min-height:70px;resize:vertical}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px;z-index:999}
-    .modal{width:min(720px,96vw);background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 25px 70px rgba(0,0,0,.45);overflow:hidden}
-    .modal header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .modal header h2{margin:0;font-size:18px}
-    .modal main{padding:16px}
-    .modal footer{padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
-    .status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted)}
-    .status.ok{border-color:rgba(16,185,129,.5);color:#d1fae5}
-    .status.err{border-color:rgba(239,68,68,.55);color:#fecaca}
-    video{width:100%;max-height:340px;border-radius:14px;border:1px solid var(--line);background:#000}
   </style>
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand"><span class="dot"></span> WMS</div>
-      <nav class="nav">
-        <button id="nav-dashboard" class="active" onclick="showView('dashboard')">Dashboard</button>
-        <button id="nav-inventory" onclick="showView('inventory')">Inventory</button>
-        <button id="nav-audit" onclick="showView('audit')">Audit</button>
-        <button id="nav-admin" onclick="showView('admin')">Admin</button>
-      </nav>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS</div>
 
-      <div class="userbox">
-        <div class="muted">Logged in as</div>
-        <div class="name">{{ user.full_name or user.username }}</div>
-        {% if user.is_admin %}<div class="pill" style="margin-top:8px">admin</div>{% endif %}
-        <div class="actions">
-          <a class="linkbtn" href="{{ url_for('logout') }}">Logout</a>
-        </div>
+    <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')">Dashboard</button>
+    <button class="navbtn" id="nav-inventory" onclick="showView('inventory')">Inventory</button>
+    <button class="navbtn" id="nav-audit" onclick="showView('audit')">Audit</button>
+    <button class="navbtn" id="nav-admin" onclick="showView('admin')">Admin</button>
+
+    <div class="me">
+      <div class="muted">Logged in as</div>
+      <div style="font-weight:800;margin-top:2px">{{ (user.full_name if user and user.full_name else (user.username if user else 'User')) }}</div>
+      <div class="muted" style="margin-top:8px">
+        <a href="/logout" style="color:var(--text);text-decoration:none">Logout</a>
       </div>
-    </aside>
+    </div>
+  </aside>
 
-    <main class="main">
-      <div id="view-dashboard" class="view">
-        <div class="topbar">
-          <div class="title">
-            <h1>Warehouse Dashboard</h1>
-            <p>Tip: add products first (with QR + location), then later we'll build Receive/Issue flows.</p>
-          </div>
-          <button class="btn" onclick="openNewProductModal()">+ Add Product</button>
-        </div>
-
-        <div class="grid">
-          <div class="card">
-            <div style="font-weight:800;margin-bottom:10px">Recent products</div>
-            <div style="overflow:auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>SKU</th>
-                    <th>QR</th>
-                    <th>Location</th>
-                    <th>Created</th>
-                  </tr>
-                </thead>
-                <tbody id="recent-products"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+  <main class="main">
+    <div class="header">
+      <div>
+        <h1>{{ welcome_title or "Warehouse Dashboard" }}</h1>
+        <div class="tip">Tip: add products first (with QR + location). Receive/Issue wrócimy później.</div>
       </div>
+      <button class="primary" onclick="openNewProductModal()">+ Add Product</button>
+    </div>
 
-      <div id="view-inventory" class="view hidden">
-        <div class="topbar">
-          <div class="title">
-            <h1>Inventory</h1>
-            <p>All products currently in the database.</p>
-          </div>
-          <button class="btn secondary" onclick="refreshProducts()">Refresh</button>
-        </div>
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="card">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Dashboard</div>
+      <div class="muted">Tu dodajesz produkty (QR produktu + QR lokalizacji).</div>
+    </section>
 
-        <div class="card" style="overflow:auto">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>SKU</th>
-                <th>QR</th>
-                <th>Location</th>
-                <th>Description</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody id="products-tbody"></tbody>
-          </table>
-        </div>
+    <!-- INVENTORY -->
+    <section id="view-inventory" class="card hidden">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Inventory</div>
+      <div class="muted">Lista produktów z bazy.</div>
+      <div id="inv-msg" class="muted" style="margin-top:8px"></div>
+      <table>
+        <thead><tr><th>Item #</th><th>Name</th><th>Location</th></tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+    </section>
+
+    <!-- AUDIT placeholder -->
+    <section id="view-audit" class="card hidden">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Audit</div>
+      <div class="muted">Wkrótce.</div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="view-admin" class="card hidden">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Admin</div>
+      <div class="muted">Backup do GitHub tworzy commit w repo.</div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
+        <button class="btn" onclick="verifyOnGitHub()">How to verify on GitHub</button>
       </div>
 
-      <div id="view-audit" class="view hidden">
-        <div class="topbar">
-          <div class="title">
-            <h1>Audit</h1>
-            <p>Placeholder – we will add movement history here later.</p>
-          </div>
-        </div>
-        <div class="card">Nothing here yet.</div>
+      <div id="admin-result"></div>
+      <div class="muted" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
+    </section>
+  </main>
+</div>
+
+<!-- ADD PRODUCT MODAL -->
+<div class="modal-backdrop" id="modal-add">
+  <div class="modal">
+    <div class="modal-h">
+      <div style="font-weight:800">Add product</div>
+      <button class="x" onclick="closeNewProductModal()">×</button>
+    </div>
+    <div class="modal-b">
+      <div class="muted">Możesz wpisać ręcznie albo zeskanować QR (kamera).</div>
+
+      <label>Product QR / Item number</label>
+      <div class="scanwrap">
+        <input id="p-item" placeholder="Scan or type item number"/>
+        <button class="btn" onclick="startScan('p-item')">Scan</button>
       </div>
 
-      <div id="view-admin" class="view hidden">
-        <div class="topbar">
-          <div class="title">
-            <h1>Admin</h1>
-            <p>Backup to GitHub should create a new commit like “Backup warehouse to GitHub”.</p>
-          </div>
-        </div>
+      <label>Name</label>
+      <input id="p-name" placeholder="Product name"/>
 
-        <div class="card">
-          <div class="row">
-            <button class="btn" onclick="runGitHubBackup()">Backup to GitHub</button>
-            <button class="btn secondary" onclick="showBackupHelp()">How to verify on GitHub</button>
-          </div>
-          <div id="backup-status" class="status" style="margin-top:12px">Ready.</div>
-          <div style="margin-top:10px;color:var(--muted);font-size:13px">
-            If backup fails, check Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.
-          </div>
+      <label>Location QR / Location name</label>
+      <div class="scanwrap">
+        <input id="p-loc" placeholder="Scan or type location"/>
+        <button class="btn" onclick="startScan('p-loc')">Scan</button>
+      </div>
+
+      <div class="row" style="margin-top:14px;justify-content:flex-end">
+        <button class="btn" onclick="closeNewProductModal()">Cancel</button>
+        <button class="primary" onclick="saveProduct()">Save</button>
+      </div>
+
+      <div id="add-result"></div>
+
+      <div id="scan-area" class="hidden" style="margin-top:16px">
+        <div class="muted" style="margin-bottom:8px">Scan QR (pozwól na kamerę). Kliknij „Stop”, gdy złapie kod.</div>
+        <video id="scan-video" autoplay playsinline></video>
+        <div class="row" style="margin-top:10px;justify-content:flex-end">
+          <button class="btn danger" onclick="stopScan()">Stop</button>
         </div>
       </div>
-    </main>
-  </div>
-
-  <!-- Add product modal -->
-  <div id="modal-add-product" class="modal-backdrop hidden" role="dialog" aria-modal="true">
-    <div class="modal">
-      <header>
-        <h2>Add product</h2>
-        <button class="btn secondary" onclick="closeNewProductModal()">Close</button>
-      </header>
-      <main>
-        <div class="row">
-          <div style="flex:1;min-width:220px" class="field">
-            <label>Name *</label>
-            <input id="p-name" placeholder="e.g. Bearing 6204" />
-          </div>
-          <div style="flex:1;min-width:220px" class="field">
-            <label>SKU</label>
-            <input id="p-sku" placeholder="optional" />
-          </div>
-        </div>
-
-        <div class="row">
-          <div style="flex:1;min-width:220px" class="field">
-            <label>Product QR *</label>
-            <div class="row">
-              <input id="p-qr" placeholder="scan or type" style="flex:1" />
-              <button class="btn secondary" type="button" onclick="openScanner('p-qr')">Scan</button>
-            </div>
-          </div>
-          <div style="flex:1;min-width:220px" class="field">
-            <label>Location QR *</label>
-            <div class="row">
-              <input id="p-loc" placeholder="scan or type" style="flex:1" />
-              <button class="btn secondary" type="button" onclick="openScanner('p-loc')">Scan</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Description</label>
-          <textarea id="p-desc" placeholder="optional"></textarea>
-        </div>
-
-        <div id="add-status" class="status">Fill fields and click Save.</div>
-      </main>
-      <footer>
-        <button class="btn secondary" onclick="closeNewProductModal()">Cancel</button>
-        <button class="btn" onclick="saveNewProduct()">Save</button>
-      </footer>
     </div>
   </div>
+</div>
 
-  <!-- Scanner modal -->
-  <div id="modal-scanner" class="modal-backdrop hidden" role="dialog" aria-modal="true">
-    <div class="modal">
-      <header>
-        <h2>Scan QR</h2>
-        <button class="btn secondary" onclick="closeScanner()">Close</button>
-      </header>
-      <main>
-        <div id="scan-support" class="status">Starting camera…</div>
-        <video id="scan-video" autoplay playsinline muted></video>
-      </main>
-      <footer>
-        <button class="btn secondary" onclick="closeScanner()">Cancel</button>
-      </footer>
-    </div>
-  </div>
+<script>
+  // --- Simple view switcher ---
+  function showView(name){
+    const views=['dashboard','inventory','audit','admin'];
+    views.forEach(v=>{
+      document.getElementById('view-'+v).classList.toggle('hidden', v!==name);
+      document.getElementById('nav-'+v).classList.toggle('active', v===name);
+    });
+    if(name==='inventory'){ loadInventory(); }
+  }
 
-  <script>
-    // ------------------------------
-    // View routing
-    // ------------------------------
-    function showView(name){
-      const views = ['dashboard','inventory','audit','admin'];
-      for(const v of views){
-        document.getElementById('view-' + v).classList.toggle('hidden', v !== name);
-        document.getElementById('nav-' + v).classList.toggle('active', v === name);
-      }
-      if(name === 'inventory') refreshProducts();
-      if(name === 'dashboard') refreshProducts();
+  // --- Add product modal ---
+  function openNewProductModal(){
+    document.getElementById('add-result').innerHTML='';
+    document.getElementById('modal-add').style.display='flex';
+  }
+  function closeNewProductModal(){
+    stopScan();
+    document.getElementById('modal-add').style.display='none';
+  }
+
+  async function saveProduct(){
+    const item = document.getElementById('p-item').value.trim();
+    const name = document.getElementById('p-name').value.trim();
+    const loc  = document.getElementById('p-loc').value.trim();
+
+    const out = document.getElementById('add-result');
+    out.innerHTML = '';
+
+    if(!item || !name || !loc){
+      out.innerHTML = '<div class="err">Fill: Item number, Name, Location.</div>';
+      return;
     }
 
-    // ------------------------------
-    // Products
-    // ------------------------------
-    async function fetchProducts(){
-      const res = await fetch('/api/products', {headers:{'Accept':'application/json'}});
-      if(!res.ok) throw new Error('Failed to fetch products: HTTP ' + res.status);
-      return await res.json();
-    }
-
-    function fmtDate(iso){
-      if(!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleString();
-    }
-
-    async function refreshProducts(){
-      try{
-        const data = await fetchProducts();
-        const rows = data.products || [];
-
-        // Inventory table
-        const tbody = document.getElementById('products-tbody');
-        if(tbody){
-          tbody.innerHTML = '';
-          for(const p of rows){
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${p.id}</td>
-              <td>${escapeHtml(p.name)}</td>
-              <td>${escapeHtml(p.sku || '')}</td>
-              <td>${escapeHtml(p.qr_code)}</td>
-              <td>${escapeHtml(p.location)}</td>
-              <td>${escapeHtml(p.description || '')}</td>
-              <td>${escapeHtml(fmtDate(p.created_at))}</td>
-            `;
-            tbody.appendChild(tr);
-          }
-        }
-
-        // Dashboard recent
-        const recent = document.getElementById('recent-products');
-        if(recent){
-          recent.innerHTML = '';
-          const last = rows.slice(0, 8);
-          for(const p of last){
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${escapeHtml(p.name)}</td>
-              <td>${escapeHtml(p.sku || '')}</td>
-              <td>${escapeHtml(p.qr_code)}</td>
-              <td>${escapeHtml(p.location)}</td>
-              <td>${escapeHtml(fmtDate(p.created_at))}</td>
-            `;
-            recent.appendChild(tr);
-          }
-        }
-      }catch(e){
-        console.error(e);
-      }
-    }
-
-    function openNewProductModal(){
-      document.getElementById('modal-add-product').classList.remove('hidden');
-      document.getElementById('add-status').className = 'status';
-      document.getElementById('add-status').textContent = 'Fill fields and click Save.';
-    }
-    function closeNewProductModal(){
-      document.getElementById('modal-add-product').classList.add('hidden');
-    }
-
-    async function saveNewProduct(){
-      const name = document.getElementById('p-name').value.trim();
-      const sku = document.getElementById('p-sku').value.trim();
-      const qr = document.getElementById('p-qr').value.trim();
-      const loc = document.getElementById('p-loc').value.trim();
-      const desc = document.getElementById('p-desc').value.trim();
-
-      const st = document.getElementById('add-status');
-      if(!name || !qr || !loc){
-        st.className = 'status err';
-        st.textContent = 'Name, Product QR and Location are required.';
+    try{
+      const r = await fetch('/api/products', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({item_number:item, name:name, location_name:loc})
+      });
+      const data = await r.json().catch(()=>({message:'Invalid response'}));
+      if(!r.ok){
+        out.innerHTML = '<div class="err">'+(data.message || ('HTTP '+r.status))+'</div>';
         return;
       }
-
-      st.className = 'status';
-      st.textContent = 'Saving…';
-
-      try{
-        const res = await fetch('/api/products', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json','Accept':'application/json'},
-          body: JSON.stringify({name, sku, qr_code: qr, location: loc, description: desc})
-        });
-        const data = await res.json().catch(() => ({}));
-        if(!res.ok){
-          st.className = 'status err';
-          st.textContent = data.error ? `Error: ${data.error}` : `Error: HTTP ${res.status}`;
-          return;
-        }
-        st.className = 'status ok';
-        st.textContent = 'Saved ✅';
-        // Clear fields
-        document.getElementById('p-name').value = '';
-        document.getElementById('p-sku').value = '';
-        document.getElementById('p-qr').value = '';
-        document.getElementById('p-loc').value = '';
-        document.getElementById('p-desc').value = '';
-
-        await refreshProducts();
-      }catch(e){
-        console.error(e);
-        st.className = 'status err';
-        st.textContent = 'Network error while saving.';
-      }
+      out.innerHTML = '<div class="ok">'+(data.message || 'Saved')+'</div>';
+      // refresh inventory quickly
+      loadInventory();
+    }catch(e){
+      out.innerHTML = '<div class="err">Error: '+e+'</div>';
     }
+  }
 
-    // ------------------------------
-    // GitHub backup
-    // ------------------------------
-    async function runGitHubBackup(){
-      const st = document.getElementById('backup-status');
-      st.className = 'status';
-      st.textContent = 'Running backup…';
-      try{
-        const res = await fetch('/api/admin/backup/github', {method:'POST', headers:{'Accept':'application/json'}});
-        const data = await res.json().catch(() => ({}));
-        if(!res.ok){
-          st.className = 'status err';
-          st.textContent = data.error ? `Backup failed: ${data.error}` : `Backup failed: HTTP ${res.status}`;
-          return;
-        }
-        st.className = 'status ok';
-        st.textContent = `Backup OK ✅ Commit: ${data.commit_sha?.slice(0,7) || ''}`;
-      }catch(e){
-        console.error(e);
-        st.className = 'status err';
-        st.textContent = 'Network error while running backup.';
-      }
+  // --- Inventory ---
+  async function loadInventory(){
+    const msg = document.getElementById('inv-msg');
+    const body = document.getElementById('inv-body');
+    msg.textContent = 'Loading...';
+    body.innerHTML='';
+    try{
+      const r = await fetch('/api/products');
+      const data = await r.json();
+      msg.textContent = '';
+      (data.products || []).forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = '<td>'+escapeHtml(p.item_number)+'</td><td>'+escapeHtml(p.name)+'</td><td>'+escapeHtml(p.location_name||'')+'</td>';
+        body.appendChild(tr);
+      });
+    }catch(e){
+      msg.textContent = 'Failed to load products: '+e;
     }
+  }
 
-    function showBackupHelp(){
-      alert(
-        'GitHub verification:\n\n' +
-        '1) Open your GitHub repo\n' +
-        '2) Click the "Commits" link (above the file list)\n' +
-        '3) After clicking Backup, you should see a new commit like: "Backup warehouse to GitHub"\n\n' +
-        'If there is no new commit, backup did not write to the repo.'
-      );
-    }
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
 
-    // ------------------------------
-    // QR scanner (BarcodeDetector)
-    // ------------------------------
-    let scanTargetInputId = null;
-    let scanStream = null;
-    let scanLoopTimer = null;
-
-    async function openScanner(inputId){
-      scanTargetInputId = inputId;
-      const modal = document.getElementById('modal-scanner');
-      modal.classList.remove('hidden');
-
-      const support = document.getElementById('scan-support');
-      support.className = 'status';
-
-      if(!('mediaDevices' in navigator) || !navigator.mediaDevices.getUserMedia){
-        support.className = 'status err';
-        support.textContent = 'Camera not available in this browser. Please type the code manually.';
+  // --- Admin backup ---
+  async function backupToGitHub(){
+    const out = document.getElementById('admin-result');
+    out.innerHTML='';
+    try{
+      const r = await fetch('/api/admin/backup/github', { method:'POST' });
+      const data = await r.json().catch(()=>({message:'Invalid response'}));
+      if(!r.ok){
+        out.innerHTML = '<div class="err">Backup failed: '+(data.message || ('HTTP '+r.status))+'</div>';
         return;
       }
-      if(!('BarcodeDetector' in window)){
-        support.className = 'status err';
-        support.textContent = 'BarcodeDetector API not supported. Please type the code manually.';
-        return;
-      }
+      out.innerHTML = '<div class="ok">'+(data.message || 'Backup saved')+'\nPath: '+(data.path||'')+'\nCommit: '+(data.commit||'')+'</div>';
+    }catch(e){
+      out.innerHTML = '<div class="err">Backup failed: '+e+'</div>';
+    }
+  }
 
-      try{
-        scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-        const video = document.getElementById('scan-video');
-        video.srcObject = scanStream;
+  function verifyOnGitHub(){
+    alert("GitHub test: wejdź do repo -> zakładka 'Commits' (historia).\nPo kliknięciu Backup powinien być nowy commit typu 'Backup warehouse to GitHub ...'.");
+  }
 
-        const detector = new BarcodeDetector({formats:['qr_code']});
-        support.textContent = 'Point the camera at a QR code…';
+  // --- QR scan ---
+  let scanStream = null;
+  let scanTargetId = null;
+  let scanLoop = null;
 
-        const tick = async () => {
-          try{
-            const codes = await detector.detect(video);
-            if(codes && codes.length){
-              const value = codes[0].rawValue || '';
-              if(value){
-                document.getElementById(scanTargetInputId).value = value;
-                support.className = 'status ok';
-                support.textContent = 'Scanned ✅';
-                closeScanner();
-                return;
-              }
-            }
-          }catch(err){
-            // keep scanning
-          }
-          scanLoopTimer = window.setTimeout(tick, 250);
-        };
-        tick();
-      }catch(err){
-        console.error(err);
-        support.className = 'status err';
-        support.textContent = 'Cannot open camera. Please allow camera permission or type manually.';
-      }
+  async function startScan(targetInputId){
+    scanTargetId = targetInputId;
+
+    // Prefer BarcodeDetector if available
+    const hasBarcodeDetector = ('BarcodeDetector' in window);
+    if(!hasBarcodeDetector){
+      alert("Twoja przeglądarka nie wspiera BarcodeDetector.\nMożesz wkleić wartość z czytnika (np. skaner USB) do pola.");
+      return;
     }
 
-    function closeScanner(){
-      if(scanLoopTimer) window.clearTimeout(scanLoopTimer);
-      scanLoopTimer = null;
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
       const video = document.getElementById('scan-video');
-      if(video) video.srcObject = null;
-      if(scanStream){
-        for(const t of scanStream.getTracks()) t.stop();
-      }
+      video.srcObject = scanStream;
+      document.getElementById('scan-area').classList.remove('hidden');
+
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+
+      scanLoop = async () => {
+        if(!scanStream) return;
+        try{
+          const barcodes = await detector.detect(video);
+          if(barcodes && barcodes.length){
+            const raw = (barcodes[0].rawValue || '').trim();
+            if(raw){
+              document.getElementById(scanTargetId).value = raw;
+              stopScan();
+              return;
+            }
+          }
+        }catch(e){
+          // ignore a frame errors
+        }
+        requestAnimationFrame(scanLoop);
+      };
+      requestAnimationFrame(scanLoop);
+    }catch(e){
+      alert("Nie udało się uruchomić kamery: " + e);
+      stopScan();
+    }
+  }
+
+  function stopScan(){
+    if(scanStream){
+      scanStream.getTracks().forEach(t=>t.stop());
       scanStream = null;
-      document.getElementById('modal-scanner').classList.add('hidden');
     }
+    document.getElementById('scan-area').classList.add('hidden');
+  }
 
-    function escapeHtml(s){
-      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
-    }
-
-    // Initial load
-    refreshProducts();
-  </script>
+  // default
+  showView('dashboard');
+</script>
 </body>
 </html>
