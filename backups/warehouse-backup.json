@@ -1,13 +1,18 @@
 {
-  "exported_at_utc": "2026-01-07T07:24:26.007793Z",
-  "products": [],
-  "audit_log": [],
-  "users": [
+  "generated_at": "2026-01-07T11:03:31.948784Z",
+  "products": [
     {
-      "id": 1,
-      "username": "admin",
-      "full_name": "Administrator",
-      "is_admin": true
+      "item_number": "cfas",
+      "name": "csacas",
+      "location": "csacas",
+      "created_at": "2026-01-07T11:03:23.126134"
+    }
+  ],
+  "audit": [
+    {
+      "action": "product_add",
+      "details": "cfas | csacas | csacas",
+      "created_at": "2026-01-07T11:03:23.141092"
     }
   ]
 }
