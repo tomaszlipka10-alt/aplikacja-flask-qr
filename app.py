@@ -287,10 +287,12 @@ def _auto_restore_from_github_if_configured() -> None:
         return
     # Only restore if there are no products yet
     try:
-        if Product.query.count() > 0:
-            return
-    except Exception:
-        return
+    _auto_restore_from_github_if_configured()
+except NameError:
+    # Funkcja nie jest zdefiniowana – nie blokuj startu aplikacji
+    pass
+except Exception as e:
+    print("Auto-restore failed:", e)
 
     token = os.getenv("GITHUB_TOKEN", "").strip()
     repo = os.getenv("GITHUB_REPO", "").strip()
