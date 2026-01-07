@@ -57,7 +57,122 @@
     .scanwrap input{flex:1}
     video{width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:black}
     .hidden{display:none !important}
-  </style>
+  
+/* === UI tweaks: icon-only thin sidebar + lighter blue theme === */
+:root{
+  --bg0:#eaf3ff;
+  --bg1:#cfe6ff;
+  --panel:#ffffff;
+  --panel2:#f5f9ff;
+  --text:#0b1a33;
+  --muted:#4a6285;
+  --blue:#1f6feb;
+  --blue2:#0b4fb3;
+  --border:rgba(11,26,51,.10);
+  --shadow:0 10px 30px rgba(11,26,51,.10);
+}
+
+body{
+  background: radial-gradient(1200px 600px at 20% 0%, var(--bg1), transparent 60%),
+              radial-gradient(900px 500px at 90% 20%, #b7d8ff, transparent 55%),
+              linear-gradient(180deg, var(--bg0), #ffffff 70%);
+  color: var(--text);
+}
+
+.sidebar{
+  width:72px !important;
+  min-width:72px !important;
+  background: linear-gradient(180deg, #f6fbff, #eef6ff);
+  border-right:1px solid var(--border);
+}
+
+.brand{
+  padding:14px 10px !important;
+  justify-content:center !important;
+}
+
+.brand .logo-dot{
+  background: var(--blue) !important;
+  box-shadow: 0 0 0 6px rgba(31,111,235,.12);
+}
+
+.nav{
+  gap:10px !important;
+  padding:10px !important;
+}
+
+.nav-link{
+  justify-content:center !important;
+  padding:14px 0 !important;
+  border:1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 0 6px 16px rgba(11,26,51,.06);
+}
+
+.nav-link.active{
+  background: linear-gradient(180deg, #e8f2ff, #ffffff) !important;
+  border-color: rgba(31,111,235,.25) !important;
+}
+
+.nav-link i{
+  font-size:18px !important;
+  margin:0 !important;
+}
+
+.userbox{
+  margin-top:auto !important;
+  background: transparent !important;
+  border: none !important;
+  padding:10px !important;
+}
+
+.userbox .who,
+.userbox .user-name{
+  display:none !important;
+}
+
+.logout-link{
+  display:flex !important;
+  justify-content:center !important;
+  padding:14px 0 !important;
+  border:1px solid var(--border);
+  background: var(--panel);
+  box-shadow: 0 6px 16px rgba(11,26,51,.06);
+  margin-top:10px !important;
+}
+
+.main{
+  padding:18px 18px 28px !important;
+}
+
+.header h1{
+  margin:0 !important;
+  font-size:28px !important;
+  letter-spacing:.2px;
+}
+
+.card{
+  background: var(--panel) !important;
+  border:1px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.btn-primary{
+  background: linear-gradient(180deg, var(--blue), var(--blue2)) !important;
+  color:#fff !important;
+}
+
+.btn{
+  border:1px solid var(--border) !important;
+}
+
+/* mobile: keep sidebar visible but compact */
+@media (max-width: 720px){
+  .sidebar{ width:64px !important; min-width:64px !important; }
+  .main{ padding:14px !important; }
+}
+
+</style>
 </head>
 <body>
 <div class="layout">
@@ -81,7 +196,7 @@
   <main class="main">
     <div class="header">
       <div>
-        <h1>{{ welcome_title or "Warehouse Dashboard" }}</h1>
+        <h1>{{ welcome_title or "BTVenloStorage" }}</h1>
         <div class="tip">Tip: add products first (with QR + location). Receive/Issue wrócimy później.</div>
       </div>
       <button class="primary" onclick="openNewProductModal()">+ Add Product</button>
