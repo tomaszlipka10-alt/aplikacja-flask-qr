@@ -1,873 +1,315 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>WMS</title>
-
-  <!-- Optional icons (if blocked by browser tracking prevention, app still works) -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-
   <style>
-    :root{
-      --bg:#0f172a;
-      --panel:#111827;
-      --card:#0b1220;
-      --text:#e5e7eb;
-      --muted:#9ca3af;
-      --accent:#2563eb;
-      --accent2:#0ea5e9;
-      --danger:#ef4444;
-      --ok:#22c55e;
-      --border: rgba(255,255,255,.08);
-      --shadow: 0 20px 60px rgba(0,0,0,.35);
-      --radius: 16px;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color:var(--text);
-      background: linear-gradient(120deg, #0b1020, #0b1220 35%, #0a1c2b);
-      min-height:100vh;
-    }
-    .app{
-      display:grid;
-      grid-template-columns: 280px 1fr;
-      min-height:100vh;
-    }
-    .sidebar{
-      background: rgba(17,24,39,.9);
-      border-right: 1px solid var(--border);
-      padding: 22px 16px;
-      backdrop-filter: blur(8px);
-    }
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-weight:800;
-      letter-spacing:.5px;
-      font-size: 22px;
-      margin: 4px 8px 18px;
-    }
-    .brand .dot{
-      width:10px;height:10px;border-radius:999px;background:var(--accent2);
-      box-shadow: 0 0 0 6px rgba(14,165,233,.12);
-    }
-    .nav{
-      margin-top:10px;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-    }
-    .nav button{
-      width:100%;
-      border:1px solid transparent;
-      background: transparent;
-      color: var(--text);
-      text-align:left;
-      padding: 12px 12px;
-      border-radius: 12px;
-      cursor:pointer;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-size: 14px;
-    }
-    .nav button:hover{ background: rgba(255,255,255,.06); }
-    .nav button.active{
-      background: rgba(37,99,235,.18);
-      border-color: rgba(37,99,235,.35);
-    }
-    .userbox{
-      margin-top: 18px;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(0,0,0,.18);
-    }
-    .userbox .small{ color:var(--muted); font-size:12px; margin-bottom:6px; }
-    .userbox .name{ font-weight:700; }
-    .userbox .pill{
-      display:inline-block;
-      font-size: 12px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      color: var(--muted);
-      margin-top: 8px;
-    }
-    .userbox a{
-      color: var(--text);
-      text-decoration:none;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      margin-top:10px;
-      opacity:.9;
-    }
-    .userbox a:hover{opacity:1}
-
-    .main{
-      padding: 26px;
-    }
-    .header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:16px;
-      margin-bottom: 16px;
-    }
-    .header h1{
-      margin:0;
-      font-size: 34px;
-      letter-spacing:.2px;
-    }
-    .header .hint{
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .card{
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      background: rgba(0,0,0,.16);
-      box-shadow: var(--shadow);
-      padding: 16px;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 14px;
-      margin-top: 14px;
-    }
-    .col-12{grid-column: span 12;}
-    .col-6{grid-column: span 6;}
-    @media (max-width: 980px){
-      .app{grid-template-columns: 1fr;}
-      .sidebar{position:sticky;top:0;z-index:3}
-      .col-6{grid-column: span 12;}
-    }
-
-    .btn{
-      border:1px solid transparent;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-weight: 700;
-      cursor:pointer;
-      background: rgba(255,255,255,.08);
-      color: var(--text);
-    }
-    .btn:hover{ background: rgba(255,255,255,.12); }
-    .btn.primary{
-      background: var(--accent);
-    }
-    .btn.primary:hover{ filter: brightness(1.05); }
-    .btn.danger{
-      background: rgba(239,68,68,.15);
-      border-color: rgba(239,68,68,.35);
-    }
-    .btn.ok{
-      background: rgba(34,197,94,.15);
-      border-color: rgba(34,197,94,.35);
-    }
-    .btn.small{ padding:8px 10px; border-radius: 10px; font-size: 13px; }
-
-    .view{ display:none; }
-    .view.active{ display:block; }
-
-    table{
-      width:100%;
-      border-collapse: collapse;
-      overflow:hidden;
-      border-radius: 14px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.14);
-    }
-    th, td{
-      padding: 10px 10px;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      vertical-align: top;
-    }
-    th{
-      text-align:left;
-      color: var(--muted);
-      font-weight: 700;
-      background: rgba(255,255,255,.04);
-    }
-
-    /* Modal */
-    .overlay{
-      position:fixed;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      background: rgba(0,0,0,.55);
-      z-index: 9999;
-      padding: 18px;
-    }
-    .overlay.show{ display:flex; }
-    .modal{
-      width: min(860px, 96vw);
-      border:1px solid var(--border);
-      border-radius: 18px;
-      background: rgba(17,24,39,.96);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .modal .top{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      padding: 14px 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .modal .top h3{ margin:0; font-size: 16px; }
-    .modal .body{
-      padding: 14px;
-    }
-    .row{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    @media (max-width: 780px){
-      .row{ grid-template-columns: 1fr; }
-    }
-    .field label{
-      display:block;
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    .field input, .field textarea, .field select{
-      width:100%;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      color: var(--text);
-      padding: 10px 10px;
-      border-radius: 12px;
-      outline:none;
-    }
-    .field textarea{ min-height: 90px; resize: vertical; }
-    .modal .actions{
-      display:flex;
-      gap: 10px;
-      justify-content:flex-end;
-      padding: 14px;
-      border-top: 1px solid var(--border);
-      background: rgba(0,0,0,.12);
-    }
-    .notice{
-      margin-top: 10px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-    .toast{
-      margin-top: 10px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: rgba(0,0,0,.18);
-      display:none;
-      font-size: 13px;
-    }
-    .toast.show{ display:block; }
-    .toast.ok{ border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.12); }
-    .toast.err{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.12); }
-
-    /* Scanner */
-    .scannerBox{
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(0,0,0,.18);
-      padding: 12px;
-    }
-    video{
-      width:100%;
-      border-radius: 12px;
-      background: #000;
-      border: 1px solid var(--border);
-    }
+    :root{--bg:#0b1220;--panel:#0f1b33;--panel2:#101f3d;--text:#e8eefc;--muted:#a9b6d3;--accent:#2f7dff;--danger:#ff4d4d;}
+    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    body{margin:0;background:linear-gradient(180deg,#061024, #070b12);color:var(--text)}
+    .layout{display:flex;min-height:100vh}
+    .sidebar{width:280px;background:rgba(10,18,34,.9);border-right:1px solid rgba(255,255,255,.06);padding:18px 14px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;margin-bottom:18px}
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px rgba(47,125,255,.15)}
+    .navbtn{display:flex;align-items:center;gap:10px;width:100%;padding:12px 12px;margin:6px 0;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--text);border-radius:12px;cursor:pointer}
+    .navbtn.active{background:rgba(47,125,255,.15);border-color:rgba(47,125,255,.35)}
+    .me{margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.02)}
+    .muted{color:var(--muted);font-size:13px}
+    .main{flex:1;padding:26px 26px 40px}
+    .header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+    h1{margin:0;font-size:34px;letter-spacing:.3px}
+    .tip{margin-top:8px;color:var(--muted)}
+    .primary{background:var(--accent);border:0;color:white;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
+    .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-top:14px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.06)}
+    .danger{border-color:rgba(255,77,77,.4)}
+    .err{margin-top:12px;border:1px solid rgba(255,77,77,.5);background:rgba(255,77,77,.08);padding:10px 12px;border-radius:12px;color:#ffd0d0;white-space:pre-wrap}
+    .ok{margin-top:12px;border:1px solid rgba(70,255,120,.35);background:rgba(70,255,120,.08);padding:10px 12px;border-radius:12px;color:#d7ffe5;white-space:pre-wrap}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+    th{color:var(--muted);font-weight:700}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
+    .modal{width:min(720px,100%);background:var(--panel);border:1px solid rgba(255,255,255,.10);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden}
+    .modal-h{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center}
+    .modal-b{padding:16px}
+    .x{background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer}
+    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:13px}
+    input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:var(--text)}
+    .scanwrap{display:flex;gap:10px}
+    .scanwrap input{flex:1}
+    video{width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:black}
+    .hidden{display:none !important}
   </style>
 </head>
-
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand"><span class="dot"></span> WMS</div>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="dot"></span> WMS</div>
 
-      <div class="nav">
-        <button id="nav-dashboard" class="active" onclick="showView('dashboard')"><i class="fa-solid fa-gauge"></i> Dashboard</button>
-        <button id="nav-inventory" onclick="showView('inventory')"><i class="fa-solid fa-boxes-stacked"></i> Inventory</button>
-        <button id="nav-audit" onclick="showView('audit')"><i class="fa-solid fa-clipboard-check"></i> Audit</button>
-        <button id="nav-admin" onclick="showView('admin')"><i class="fa-solid fa-user-shield"></i> Admin</button>
+    <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')">Dashboard</button>
+    <button class="navbtn" id="nav-inventory" onclick="showView('inventory')">Inventory</button>
+    <button class="navbtn" id="nav-audit" onclick="showView('audit')">Audit</button>
+    <button class="navbtn" id="nav-admin" onclick="showView('admin')">Admin</button>
+
+    <div class="me">
+      <div class="muted">Logged in as</div>
+      <div style="font-weight:800;margin-top:2px">{{ (user.full_name if user and user.full_name else (user.username if user else 'User')) }}</div>
+      <div class="muted" style="margin-top:8px">
+        <a href="/logout" style="color:var(--text);text-decoration:none">Logout</a>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div>
+        <h1>{{ welcome_title or "Warehouse Dashboard" }}</h1>
+        <div class="tip">Tip: add products first (with QR + location). Receive/Issue wrócimy później.</div>
+      </div>
+      <button class="primary" onclick="openNewProductModal()">+ Add Product</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="card">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Dashboard</div>
+      <div class="muted">Tu dodajesz produkty (QR produktu + QR lokalizacji).</div>
+    </section>
+
+    <!-- INVENTORY -->
+    <section id="view-inventory" class="card hidden">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Inventory</div>
+      <div class="muted">Lista produktów z bazy.</div>
+      <div id="inv-msg" class="muted" style="margin-top:8px"></div>
+      <table>
+        <thead><tr><th>Item #</th><th>Name</th><th>Location</th></tr></thead>
+        <tbody id="inv-body"></tbody>
+      </table>
+    </section>
+
+    <!-- AUDIT placeholder -->
+    <section id="view-audit" class="card hidden">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Audit</div>
+      <div class="muted">Wkrótce.</div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="view-admin" class="card hidden">
+      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Admin</div>
+      <div class="muted">Backup do GitHub tworzy commit w repo.</div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
+        <button class="btn" onclick="verifyOnGitHub()">How to verify on GitHub</button>
       </div>
 
-      <div class="userbox">
-        <div class="small">Logged in as</div>
-        <div class="name">{{ current_user.full_name or current_user.username }}</div>
-        {% if current_user.is_admin %}
-          <div class="pill">admin</div>
-        {% endif %}
-        <div>
-          <a href="/logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-        </div>
-      </div>
-    </aside>
+      <div id="admin-result"></div>
+      <div class="muted" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
+    </section>
+  </main>
+</div>
 
-    <main class="main">
-      <div class="header">
-        <div>
-          <h1>{{ welcome_title or "Warehouse Dashboard" }}</h1>
-          <div class="hint">Tip: add products first (with QR + location), then later we’ll build Receive/Issue flows.</div>
-        </div>
-        <div>
-          <!-- Add Product is now on Dashboard (as you requested) -->
-          <button class="btn primary" onclick="openNewProductModal()"><i class="fa-solid fa-plus"></i> Add Product</button>
-        </div>
+<!-- ADD PRODUCT MODAL -->
+<div class="modal-backdrop" id="modal-add">
+  <div class="modal">
+    <div class="modal-h">
+      <div style="font-weight:800">Add product</div>
+      <button class="x" onclick="closeNewProductModal()">×</button>
+    </div>
+    <div class="modal-b">
+      <div class="muted">Możesz wpisać ręcznie albo zeskanować QR (kamera).</div>
+
+      <label>Product QR / Item number</label>
+      <div class="scanwrap">
+        <input id="p-item" placeholder="Scan or type item number"/>
+        <button class="btn" onclick="startScan('p-item')">Scan</button>
       </div>
 
-      <!-- DASHBOARD -->
-      <section id="view-dashboard" class="view active">
-        <div class="grid">
-          <div class="col-12">
-            <div class="card">
-              <h3 style="margin:0 0 8px 0;">Quick actions</h3>
-              <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <button class="btn primary" onclick="openNewProductModal()"><i class="fa-solid fa-qrcode"></i> Add Product (scan QR)</button>
-                <button class="btn" onclick="showView('inventory')"><i class="fa-solid fa-boxes-stacked"></i> Go to Inventory</button>
-                <button class="btn" onclick="showView('admin')"><i class="fa-solid fa-user-shield"></i> Admin / Backups</button>
-              </div>
-              <div class="notice">
-                Receive/Issue are intentionally removed for now (as requested). We’ll re-add later when base “Add Product + QR + Location” is stable.
-              </div>
-            </div>
-          </div>
+      <label>Name</label>
+      <input id="p-name" placeholder="Product name"/>
 
-          <div class="col-12">
-            <div class="card">
-              <h3 style="margin:0 0 10px 0;">Inventory snapshot</h3>
-              <div class="notice">Below is a quick list (first items). Full list in Inventory tab.</div>
-              <div style="margin-top:12px; overflow:auto;">
-                <table>
-                  <thead>
-                    <tr>
-                      <th style="min-width:120px;">SKU</th>
-                      <th style="min-width:180px;">Name</th>
-                      <th style="min-width:140px;">Product QR</th>
-                      <th style="min-width:140px;">Location QR</th>
-                      <th style="min-width:90px;">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboardTableBody">
-                    <tr><td colspan="5" style="color:var(--muted);">Loading…</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- INVENTORY -->
-      <section id="view-inventory" class="view">
-        <div class="grid">
-          <div class="col-12">
-            <div class="card">
-              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                <h3 style="margin:0;">Inventory</h3>
-                <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                  <input id="searchInput" placeholder="Search (SKU / name / QR / location)…"
-                         oninput="renderProducts()"
-                         style="min-width:280px; border:1px solid var(--border); background:rgba(0,0,0,.18); color:var(--text); padding:10px 10px; border-radius:12px;"/>
-                  <button class="btn primary" onclick="openNewProductModal()"><i class="fa-solid fa-plus"></i> Add Product</button>
-                  <button class="btn" onclick="refreshProducts()"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                </div>
-              </div>
-
-              <div id="inventoryToast" class="toast"></div>
-
-              <div style="margin-top:12px; overflow:auto;">
-                <table>
-                  <thead>
-                    <tr>
-                      <th style="min-width:120px;">SKU</th>
-                      <th style="min-width:220px;">Name</th>
-                      <th style="min-width:140px;">Product QR</th>
-                      <th style="min-width:140px;">Location QR</th>
-                      <th style="min-width:90px;">Qty</th>
-                      <th style="min-width:140px;">Updated</th>
-                    </tr>
-                  </thead>
-                  <tbody id="inventoryTableBody">
-                    <tr><td colspan="6" style="color:var(--muted);">Loading…</td></tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="notice">If your browser blocks the FontAwesome CDN, icons may not show, but everything still works.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- AUDIT -->
-      <section id="view-audit" class="view">
-        <div class="grid">
-          <div class="col-12">
-            <div class="card">
-              <h3 style="margin:0 0 10px 0;">Audit</h3>
-              <div class="notice">We’ll fill this later (history of operations). For now it’s just a placeholder.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ADMIN -->
-      <section id="view-admin" class="view">
-        <div class="grid">
-          <div class="col-12">
-            <div class="card">
-              <h3 style="margin:0 0 10px 0;">Admin</h3>
-
-              <div class="notice">
-                Backup to GitHub should create a new commit like “Backup warehouse to GitHub”.
-              </div>
-
-              <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-                <button class="btn ok" onclick="runGithubBackup()"><i class="fa-brands fa-github"></i> Backup to GitHub</button>
-                <button class="btn" onclick="openBackupInfo()"><i class="fa-solid fa-circle-info"></i> How to verify on GitHub</button>
-              </div>
-
-              <div id="adminToast" class="toast"></div>
-
-              <div class="notice" style="margin-top:12px;">
-                If backup fails, check Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ADD PRODUCT MODAL -->
-      <div id="productModalOverlay" class="overlay" role="dialog" aria-modal="true">
-        <div class="modal">
-          <div class="top">
-            <h3>Add product</h3>
-            <button class="btn small" onclick="closeNewProductModal()"><i class="fa-solid fa-xmark"></i> Close</button>
-          </div>
-          <div class="body">
-            <div class="row">
-              <div class="field">
-                <label>SKU</label>
-                <input id="p_sku" placeholder="e.g. ABC-123" />
-              </div>
-              <div class="field">
-                <label>Name</label>
-                <input id="p_name" placeholder="Product name" />
-              </div>
-            </div>
-
-            <div class="row" style="margin-top:12px;">
-              <div class="field">
-                <label>Product QR (text)</label>
-                <input id="p_qr" placeholder="scan or type product QR" />
-                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-                  <button class="btn small" onclick="openScanner('product')"><i class="fa-solid fa-camera"></i> Scan product QR</button>
-                  <button class="btn small" onclick="clearField('p_qr')"><i class="fa-solid fa-eraser"></i> Clear</button>
-                </div>
-              </div>
-              <div class="field">
-                <label>Location QR (text)</label>
-                <input id="p_loc" placeholder="scan or type location QR" />
-                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-                  <button class="btn small" onclick="openScanner('location')"><i class="fa-solid fa-camera"></i> Scan location QR</button>
-                  <button class="btn small" onclick="clearField('p_loc')"><i class="fa-solid fa-eraser"></i> Clear</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="row" style="margin-top:12px;">
-              <div class="field">
-                <label>Quantity</label>
-                <input id="p_qty" type="number" value="0" min="0" />
-              </div>
-              <div class="field">
-                <label>Unit (optional)</label>
-                <input id="p_unit" placeholder="pcs / kg / box…" />
-              </div>
-            </div>
-
-            <div class="field" style="margin-top:12px;">
-              <label>Description (optional)</label>
-              <textarea id="p_desc" placeholder="Any notes…"></textarea>
-            </div>
-
-            <div id="productToast" class="toast"></div>
-          </div>
-          <div class="actions">
-            <button class="btn" onclick="closeNewProductModal()">Cancel</button>
-            <button class="btn primary" onclick="submitNewProduct()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
-          </div>
-        </div>
+      <label>Location QR / Location name</label>
+      <div class="scanwrap">
+        <input id="p-loc" placeholder="Scan or type location"/>
+        <button class="btn" onclick="startScan('p-loc')">Scan</button>
       </div>
 
-      <!-- SCANNER MODAL -->
-      <div id="scannerOverlay" class="overlay" role="dialog" aria-modal="true">
-        <div class="modal">
-          <div class="top">
-            <h3 id="scannerTitle">Scan QR</h3>
-            <button class="btn small" onclick="closeScanner()"><i class="fa-solid fa-xmark"></i> Close</button>
-          </div>
-          <div class="body">
-            <div class="scannerBox">
-              <video id="scannerVideo" playsinline></video>
-              <div class="notice" style="margin-top:10px;">
-                Works best on HTTPS with a device camera. If BarcodeDetector isn’t supported, you can still type the QR value manually.
-              </div>
-              <div id="scannerToast" class="toast"></div>
-            </div>
-          </div>
-          <div class="actions">
-            <button class="btn" onclick="closeScanner()">Cancel</button>
-            <button class="btn primary" onclick="startScanner()"><i class="fa-solid fa-play"></i> Start scan</button>
-          </div>
-        </div>
+      <div class="row" style="margin-top:14px;justify-content:flex-end">
+        <button class="btn" onclick="closeNewProductModal()">Cancel</button>
+        <button class="primary" onclick="saveProduct()">Save</button>
       </div>
 
-    </main>
+      <div id="add-result"></div>
+
+      <div id="scan-area" class="hidden" style="margin-top:16px">
+        <div class="muted" style="margin-bottom:8px">Scan QR (pozwól na kamerę). Kliknij „Stop”, gdy złapie kod.</div>
+        <video id="scan-video" autoplay playsinline></video>
+        <div class="row" style="margin-top:10px;justify-content:flex-end">
+          <button class="btn danger" onclick="stopScan()">Stop</button>
+        </div>
+      </div>
+    </div>
   </div>
+</div>
 
-  <script>
-    // ---------------------------
-    // Views / Navigation
-    // ---------------------------
-    function showView(name){
-      const views = ['dashboard','inventory','audit','admin'];
-      for(const v of views){
-        const el = document.getElementById('view-' + v);
-        const nav = document.getElementById('nav-' + v);
-        if(el) el.classList.toggle('active', v === name);
-        if(nav) nav.classList.toggle('active', v === name);
-      }
-      if(name === 'inventory'){ refreshProducts(); }
-      if(name === 'dashboard'){ refreshProducts(); }
+<script>
+  // --- Simple view switcher ---
+  function showView(name){
+    const views=['dashboard','inventory','audit','admin'];
+    views.forEach(v=>{
+      document.getElementById('view-'+v).classList.toggle('hidden', v!==name);
+      document.getElementById('nav-'+v).classList.toggle('active', v===name);
+    });
+    if(name==='inventory'){ loadInventory(); }
+  }
+
+  // --- Add product modal ---
+  function openNewProductModal(){
+    document.getElementById('add-result').innerHTML='';
+    document.getElementById('modal-add').style.display='flex';
+  }
+  function closeNewProductModal(){
+    stopScan();
+    document.getElementById('modal-add').style.display='none';
+  }
+
+  async function saveProduct(){
+    const item = document.getElementById('p-item').value.trim();
+    const name = document.getElementById('p-name').value.trim();
+    const loc  = document.getElementById('p-loc').value.trim();
+
+    const out = document.getElementById('add-result');
+    out.innerHTML = '';
+
+    if(!item || !name || !loc){
+      out.innerHTML = '<div class="err">Fill: Item number, Name, Location.</div>';
+      return;
     }
 
-    // ---------------------------
-    // Toast helpers
-    // ---------------------------
-    function setToast(id, msg, type){
-      const el = document.getElementById(id);
-      if(!el) return;
-      el.className = 'toast show ' + (type || '');
-      el.textContent = msg;
-    }
-    function clearToast(id){
-      const el = document.getElementById(id);
-      if(!el) return;
-      el.className = 'toast';
-      el.textContent = '';
-    }
-    function clearField(id){
-      const el = document.getElementById(id);
-      if(el) el.value = '';
-    }
-
-    // ---------------------------
-    // Products data / rendering
-    // ---------------------------
-    let PRODUCTS = [];
-
-    async function refreshProducts(){
-      try{
-        const res = await fetch('/api/products', { headers: {'Accept':'application/json'}});
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        PRODUCTS = Array.isArray(data) ? data : (data.items || []);
-        renderProducts();
-        renderDashboardSnapshot();
-      }catch(e){
-        setToast('inventoryToast', 'Could not load products: ' + e.message, 'err');
-        // also dashboard
-        const dashBody = document.getElementById('dashboardTableBody');
-        if(dashBody) dashBody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">Could not load products</td></tr>';
-      }
-    }
-
-    function renderDashboardSnapshot(){
-      const dashBody = document.getElementById('dashboardTableBody');
-      if(!dashBody) return;
-
-      if(!PRODUCTS.length){
-        dashBody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);">No products yet. Click “Add Product”.</td></tr>';
-        return;
-      }
-
-      const slice = PRODUCTS.slice(0, 8);
-      dashBody.innerHTML = slice.map(p => `
-        <tr>
-          <td>${escapeHtml(p.sku ?? '')}</td>
-          <td>${escapeHtml(p.name ?? '')}</td>
-          <td>${escapeHtml(p.qr_code ?? p.product_qr ?? '')}</td>
-          <td>${escapeHtml(p.location_code ?? p.location_qr ?? '')}</td>
-          <td>${escapeHtml(String(p.quantity ?? p.qty ?? 0))}</td>
-        </tr>
-      `).join('');
-    }
-
-    function renderProducts(){
-      clearToast('inventoryToast');
-
-      const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
-      const list = !q ? PRODUCTS : PRODUCTS.filter(p => {
-        const hay = [
-          p.sku, p.name, p.qr_code, p.product_qr, p.location_code, p.location_qr
-        ].map(x => (x ?? '').toString().toLowerCase()).join(' | ');
-        return hay.includes(q);
+    try{
+      const r = await fetch('/api/products', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({item_number:item, name:name, location_name:loc})
       });
-
-      const body = document.getElementById('inventoryTableBody');
-      if(!body) return;
-
-      if(!list.length){
-        body.innerHTML = '<tr><td colspan="6" style="color:var(--muted);">No matching products.</td></tr>';
+      const data = await r.json().catch(()=>({message:'Invalid response'}));
+      if(!r.ok){
+        out.innerHTML = '<div class="err">'+(data.message || ('HTTP '+r.status))+'</div>';
         return;
       }
-
-      body.innerHTML = list.map(p => `
-        <tr>
-          <td>${escapeHtml(p.sku ?? '')}</td>
-          <td>${escapeHtml(p.name ?? '')}</td>
-          <td>${escapeHtml(p.qr_code ?? p.product_qr ?? '')}</td>
-          <td>${escapeHtml(p.location_code ?? p.location_qr ?? '')}</td>
-          <td>${escapeHtml(String(p.quantity ?? p.qty ?? 0))}</td>
-          <td>${escapeHtml((p.updated_at ?? p.updated ?? p.created_at ?? '') + '')}</td>
-        </tr>
-      `).join('');
+      out.innerHTML = '<div class="ok">'+(data.message || 'Saved')+'</div>';
+      // refresh inventory quickly
+      loadInventory();
+    }catch(e){
+      out.innerHTML = '<div class="err">Error: '+e+'</div>';
     }
+  }
 
-    function escapeHtml(s){
-      return String(s)
-        .replaceAll('&','&amp;')
-        .replaceAll('<','&lt;')
-        .replaceAll('>','&gt;')
-        .replaceAll('"','&quot;')
-        .replaceAll("'","&#039;");
+  // --- Inventory ---
+  async function loadInventory(){
+    const msg = document.getElementById('inv-msg');
+    const body = document.getElementById('inv-body');
+    msg.textContent = 'Loading...';
+    body.innerHTML='';
+    try{
+      const r = await fetch('/api/products');
+      const data = await r.json();
+      msg.textContent = '';
+      (data.products || []).forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML = '<td>'+escapeHtml(p.item_number)+'</td><td>'+escapeHtml(p.name)+'</td><td>'+escapeHtml(p.location_name||'')+'</td>';
+        body.appendChild(tr);
+      });
+    }catch(e){
+      msg.textContent = 'Failed to load products: '+e;
     }
+  }
 
-    // ---------------------------
-    // Add Product modal
-    // ---------------------------
-    function openNewProductModal(){
-      clearToast('productToast');
-      document.getElementById('productModalOverlay')?.classList.add('show');
-      // do not force clear values; user may want repeated adds
-    }
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
 
-    function closeNewProductModal(){
-      document.getElementById('productModalOverlay')?.classList.remove('show');
-    }
-
-    async function submitNewProduct(){
-      clearToast('productToast');
-
-      const sku  = document.getElementById('p_sku')?.value?.trim();
-      const name = document.getElementById('p_name')?.value?.trim();
-      const qr   = document.getElementById('p_qr')?.value?.trim();
-      const loc  = document.getElementById('p_loc')?.value?.trim();
-      const qty  = Number(document.getElementById('p_qty')?.value ?? 0);
-      const unit = document.getElementById('p_unit')?.value?.trim();
-      const desc = document.getElementById('p_desc')?.value?.trim();
-
-      if(!sku || !name){
-        setToast('productToast', 'SKU and Name are required.', 'err');
+  // --- Admin backup ---
+  async function backupToGitHub(){
+    const out = document.getElementById('admin-result');
+    out.innerHTML='';
+    try{
+      const r = await fetch('/api/admin/backup/github', { method:'POST' });
+      const data = await r.json().catch(()=>({message:'Invalid response'}));
+      if(!r.ok){
+        out.innerHTML = '<div class="err">Backup failed: '+(data.message || ('HTTP '+r.status))+'</div>';
         return;
       }
+      out.innerHTML = '<div class="ok">'+(data.message || 'Backup saved')+'\nPath: '+(data.path||'')+'\nCommit: '+(data.commit||'')+'</div>';
+    }catch(e){
+      out.innerHTML = '<div class="err">Backup failed: '+e+'</div>';
+    }
+  }
 
-      // payload supports multiple backend field names (safe)
-      const payload = {
-        sku,
-        name,
-        qr_code: qr || null,
-        product_qr: qr || null,
-        location_code: loc || null,
-        location_qr: loc || null,
-        quantity: Number.isFinite(qty) ? qty : 0,
-        qty: Number.isFinite(qty) ? qty : 0,
-        unit: unit || null,
-        description: desc || null
-      };
+  function verifyOnGitHub(){
+    alert("GitHub test: wejdź do repo -> zakładka 'Commits' (historia).\nPo kliknięciu Backup powinien być nowy commit typu 'Backup warehouse to GitHub ...'.");
+  }
 
-      try{
-        const res = await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
-          body: JSON.stringify(payload)
-        });
+  // --- QR scan ---
+  let scanStream = null;
+  let scanTargetId = null;
+  let scanLoop = null;
 
-        if(!res.ok){
-          const t = await res.text();
-          throw new Error('HTTP ' + res.status + ' ' + t);
-        }
+  async function startScan(targetInputId){
+    scanTargetId = targetInputId;
 
-        setToast('productToast', 'Saved ✅', 'ok');
-
-        // clear after success
-        document.getElementById('p_sku').value = '';
-        document.getElementById('p_name').value = '';
-        document.getElementById('p_qr').value = '';
-        document.getElementById('p_loc').value = '';
-        document.getElementById('p_qty').value = '0';
-        document.getElementById('p_unit').value = '';
-        document.getElementById('p_desc').value = '';
-
-        await refreshProducts();
-
-        // stay open for quick adding; if you want close:
-        // closeNewProductModal();
-      }catch(e){
-        setToast('productToast', 'Save failed: ' + e.message, 'err');
-      }
+    // Prefer BarcodeDetector if available
+    const hasBarcodeDetector = ('BarcodeDetector' in window);
+    if(!hasBarcodeDetector){
+      alert("Twoja przeglądarka nie wspiera BarcodeDetector.\nMożesz wkleić wartość z czytnika (np. skaner USB) do pola.");
+      return;
     }
 
-    // ---------------------------
-    // Admin backup
-    // ---------------------------
-    async function runGithubBackup(){
-      clearToast('adminToast');
-      try{
-        // endpoint name kept generic; if your backend uses different path,
-        // tell me what it is and I’ll align it.
-        const res = await fetch('/admin/backup_github', {
-          method: 'POST',
-          headers: { 'Accept':'application/json' }
-        });
+    try{
+      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
+      const video = document.getElementById('scan-video');
+      video.srcObject = scanStream;
+      document.getElementById('scan-area').classList.remove('hidden');
 
-        if(!res.ok){
-          const t = await res.text();
-          throw new Error('HTTP ' + res.status + ' ' + t);
-        }
-        // try to parse json (but ok if not)
-        let msg = 'Backup started ✅';
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+
+      scanLoop = async () => {
+        if(!scanStream) return;
         try{
-          const data = await res.json();
-          if(data && (data.message || data.status)) msg = data.message || data.status;
-        }catch(_){}
-
-        setToast('adminToast', msg, 'ok');
-      }catch(e){
-        setToast('adminToast', 'Backup failed: ' + e.message, 'err');
-      }
-    }
-
-    function openBackupInfo(){
-      alert(
-        "GitHub check (fast):\n\n" +
-        "1) Open your repo on GitHub\n" +
-        "2) Click the 'commits' link (history)\n" +
-        "3) After clicking Backup in Admin, you should see a new commit like:\n" +
-        "   'Backup warehouse to GitHub'\n"
-      );
-    }
-
-    // ---------------------------
-    // QR Scanner (BarcodeDetector)
-    // ---------------------------
-    let scanTarget = 'product'; // 'product' | 'location'
-    let scanStream = null;
-    let scanning = false;
-
-    function openScanner(target){
-      scanTarget = target;
-      clearToast('scannerToast');
-      document.getElementById('scannerTitle').textContent =
-        (target === 'product') ? 'Scan product QR' : 'Scan location QR';
-      document.getElementById('scannerOverlay')?.classList.add('show');
-      // do not auto-start; user clicks Start
-    }
-
-    async function startScanner(){
-      clearToast('scannerToast');
-
-      if(!('BarcodeDetector' in window)){
-        setToast('scannerToast', 'BarcodeDetector not supported in this browser. Type QR manually.', 'err');
-        return;
-      }
-
-      try{
-        const detector = new BarcodeDetector({ formats: ['qr_code'] });
-        const video = document.getElementById('scannerVideo');
-
-        scanStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false
-        });
-
-        video.srcObject = scanStream;
-        await video.play();
-
-        scanning = true;
-
-        const tick = async () => {
-          if(!scanning) return;
-          try{
-            const barcodes = await detector.detect(video);
-            if(barcodes && barcodes.length){
-              const val = (barcodes[0].rawValue || '').trim();
-              if(val){
-                if(scanTarget === 'product'){
-                  document.getElementById('p_qr').value = val;
-                }else{
-                  document.getElementById('p_loc').value = val;
-                }
-                setToast('scannerToast', 'Scanned ✅ ' + val, 'ok');
-                // close scanner after success
-                setTimeout(() => closeScanner(), 500);
-                return;
-              }
+          const barcodes = await detector.detect(video);
+          if(barcodes && barcodes.length){
+            const raw = (barcodes[0].rawValue || '').trim();
+            if(raw){
+              document.getElementById(scanTargetId).value = raw;
+              stopScan();
+              return;
             }
-          }catch(e){
-            // detection errors should not crash scanning loop
           }
-          requestAnimationFrame(tick);
-        };
-
-        requestAnimationFrame(tick);
-      }catch(e){
-        setToast('scannerToast', 'Camera error: ' + e.message, 'err');
-      }
+        }catch(e){
+          // ignore a frame errors
+        }
+        requestAnimationFrame(scanLoop);
+      };
+      requestAnimationFrame(scanLoop);
+    }catch(e){
+      alert("Nie udało się uruchomić kamery: " + e);
+      stopScan();
     }
+  }
 
-    function closeScanner(){
-      scanning = false;
-      const video = document.getElementById('scannerVideo');
-      if(video){
-        try{ video.pause(); }catch(_){}
-        video.srcObject = null;
-      }
-      if(scanStream){
-        try{
-          for(const t of scanStream.getTracks()) t.stop();
-        }catch(_){}
-        scanStream = null;
-      }
-      document.getElementById('scannerOverlay')?.classList.remove('show');
+  function stopScan(){
+    if(scanStream){
+      scanStream.getTracks().forEach(t=>t.stop());
+      scanStream = null;
     }
+    document.getElementById('scan-area').classList.add('hidden');
+  }
 
-    // ---------------------------
-    // Init
-    // ---------------------------
-    (function init(){
-      refreshProducts();
-    })();
-  </script>
+  // default
+  showView('dashboard');
+</script>
 </body>
 </html>
