@@ -3,16 +3,30 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>WMS</title>
+  <title>BTVenloStorage</title>
   <style>
     :root{--bg:#0b1220;--panel:#0f1b33;--panel2:#101f3d;--text:#e8eefc;--muted:#a9b6d3;--accent:#2f7dff;--danger:#ff4d4d;}
     *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     body{margin:0;height:100vh;overflow:hidden;background:linear-gradient(180deg,#061024, #070b12);color:var(--text)}
     .layout{display:flex;height:100vh}
-    .sidebar{width:280px;background:rgba(10,18,34,.9);border-right:1px solid rgba(255,255,255,.06);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;margin-bottom:18px}
+    /* Sidebar: thin + icon-only (mobile-first), always visible */
+    .sidebar{width:76px;background:rgba(10,18,34,.9);border-right:1px solid rgba(255,255,255,.06);padding:14px 10px;position:sticky;top:0;height:100vh;overflow:auto}
+    .brand{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:800;font-size:18px;margin-bottom:14px}
     .dot{width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px rgba(47,125,255,.15)}
-    .navbtn{display:flex;align-items:center;gap:10px;width:100%;padding:12px 12px;margin:6px 0;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--text);border-radius:12px;cursor:pointer}
+    .brand .brand-text{display:none}
+    .navbtn{justify-content:center}
+    .navbtn .label{display:none}
+    .navbtn .ico{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;font-size:18px;line-height:1}
+
+    /* On wider screens, show names and expand sidebar */
+    @media (min-width: 900px){
+      .sidebar{width:260px;padding:18px 14px}
+      .brand{justify-content:flex-start;font-size:22px;margin-bottom:18px}
+      .brand .brand-text{display:inline}
+      .navbtn{justify-content:flex-start}
+      .navbtn .label{display:inline}
+    }
+    .navbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 10px;margin:6px 0;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--text);border-radius:12px;cursor:pointer}
     .navbtn.active{background:rgba(47,125,255,.15);border-color:rgba(47,125,255,.35)}
     .me{margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.02)}
     .muted{color:var(--muted);font-size:13px}
@@ -48,12 +62,12 @@
 <body>
 <div class="layout">
   <aside class="sidebar">
-    <div class="brand"><span class="dot"></span> WMS</div>
+    <div class="brand" title="BTVenloStorage"><span class="dot"></span><span class="brand-text">BTVenloStorage</span></div>
 
-    <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')">Dashboard</button>
-    <button class="navbtn" id="nav-inventory" onclick="showView('inventory')">Inventory</button>
-    <button class="navbtn" id="nav-audit" onclick="showView('audit')">Audit</button>
-    <button class="navbtn" id="nav-admin" onclick="showView('admin')">Admin</button>
+    <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')" title="Dashboard" aria-label="Dashboard"><span class="ico">🏠</span><span class="label">Dashboard</span></button>
+    <button class="navbtn" id="nav-inventory" onclick="showView('inventory')" title="Inventory" aria-label="Inventory"><span class="ico">📦</span><span class="label">Inventory</span></button>
+    <button class="navbtn" id="nav-audit" onclick="showView('audit')" title="Audit" aria-label="Audit"><span class="ico">✅</span><span class="label">Audit</span></button>
+    <button class="navbtn" id="nav-admin" onclick="showView('admin')" title="Admin" aria-label="Admin"><span class="ico">⚙️</span><span class="label">Admin</span></button>
 
     <div class="me">
       <div class="muted">Logged in as</div>
