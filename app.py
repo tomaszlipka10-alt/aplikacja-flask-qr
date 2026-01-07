@@ -119,7 +119,7 @@ def ensure_schema_and_admin() -> None:
 
 with app.app_context():
     ensure_schema_and_admin()
-    _auto_restore_from_github_if_configured()
+    (f := globals().get('_auto_restore_from_github_if_configured')) and callable(f) and f()
 
 
 @app.get("/health")
@@ -293,9 +293,9 @@ def _import_backup_payload(payload: dict):
     db.session.commit()
 
 
-def _github_get_json_file(repo: str, path: str):
+def _github_get_json_file(token: str, repo: str, path: str, ref: str = "main"):
     # Returns (sha, json_dict) or (None, None) if not found
-    r = _github_api_request("GET", f"/repos/{repo}/contents/{path}")
+    resp = _github_api_request("GET", url, token=token)
     if r.status_code == 404:
         return None, None
     r.raise_for_status()
