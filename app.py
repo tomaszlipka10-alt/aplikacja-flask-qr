@@ -153,8 +153,12 @@ def health():
 @app.route("/")
 @login_required
 def index():
-    # English-only UI (no translation system)
-    return render_template("index.html", welcome_title="Warehouse Dashboard")
+    return render_template(
+        "index.html",
+        welcome_title="Warehouse Dashboard",
+        user=current_user
+    )
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
