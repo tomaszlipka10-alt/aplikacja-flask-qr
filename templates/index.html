@@ -2,452 +2,372 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>WMS</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
-    body { margin:0; font-family: Arial, sans-serif; background:#f5f6f8; }
-    .layout { display:flex; min-height:100vh; }
-    .sidebar { width:260px; background:#2d333b; color:#fff; padding:24px 18px; box-sizing:border-box; }
-    .brand { font-weight:800; font-size:28px; letter-spacing:1px; margin-bottom:22px; }
-    .nav a { display:flex; align-items:center; gap:10px; color:#cdd6e0; text-decoration:none; padding:10px 10px; border-radius:10px; margin-bottom:8px;}
-    .nav a:hover, .nav a.active { background:#39424d; color:#fff; }
-    .sidebar-actions { margin-top:18px; border-top:1px solid rgba(255,255,255,.08); padding-top:14px; }
-    .logout { margin-top:12px; color:#f3c5c5; text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
-    .content { flex:1; padding:26px; box-sizing:border-box; }
-    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
-    .title { font-size:28px; font-weight:800; }
-    .badge { font-size:12px; padding:6px 10px; background:#e9eef7; border-radius:999px; }
-    .card { background:#fff; border-radius:16px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }
-    .grid { display:grid; gap:14px; grid-template-columns: 1fr 1fr; }
-    .btn { border:0; border-radius:12px; padding:12px 14px; cursor:pointer; font-weight:700; }
-    .btn.primary { background:#0b61ff; color:#fff; }
-    .btn.secondary { background:#eef2ff; }
-    .btn.danger { background:#ffe8e8; color:#b00020; }
-    .btn:disabled { opacity:.6; cursor:not-allowed; }
-    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    input, select { padding:10px 12px; border-radius:10px; border:1px solid #d7dbe2; }
+    :root { --bg:#071120; --panel:#0b1a33; --panel2:#0a1630; --text:#e9f1ff; --muted:#a8b6d6; --accent:#3b82f6; --danger:#ef4444; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: radial-gradient(1200px 600px at 20% 0%, #0f2a57 0%, var(--bg) 55%, #02060f 100%); color:var(--text); }
+    .layout { display:grid; grid-template-columns: 260px 1fr; min-height:100vh; }
+    .sidebar { padding:20px 16px; background: linear-gradient(180deg, rgba(9,19,39,0.85), rgba(6,12,24,0.85)); border-right:1px solid rgba(255,255,255,0.06); }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:0.5px; margin-bottom:18px; }
+    .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 5px rgba(59,130,246,0.15); }
+    .nav a { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:var(--text); text-decoration:none; margin:6px 0; }
+    .nav a:hover { background: rgba(255,255,255,0.06); }
+    .nav a.active { background: rgba(59,130,246,0.18); border:1px solid rgba(59,130,246,0.25); }
+    .userbox { margin-top:16px; padding:12px; border-radius:14px; border:1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
+    .userbox small { color:var(--muted); display:block; margin-bottom:6px; }
+    .pill { display:inline-block; font-size:12px; padding:3px 8px; border-radius:999px; background: rgba(255,255,255,0.08); color:var(--muted); margin-left:8px; }
+    .logout { display:inline-flex; align-items:center; gap:8px; margin-top:10px; color:var(--text); text-decoration:none; opacity:0.9; }
+
+    .content { padding:28px 26px; }
+    .header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    h1 { margin:0; font-size:40px; letter-spacing:-0.5px; }
+    .sub { color:var(--muted); margin-top:6px; }
+    .btn { border:0; cursor:pointer; border-radius:12px; padding:10px 14px; font-weight:700; color:#fff; background: rgba(255,255,255,0.1); }
+    .btn.primary { background: var(--accent); }
+    .btn.ghost { background: rgba(255,255,255,0.08); color: var(--text); }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+    .card { margin-top:18px; padding:16px; border-radius:16px; border:1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); }
+    .card h2 { margin:0 0 10px 0; font-size:18px; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:14px; }
+
     table { width:100%; border-collapse:collapse; }
-    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #eef0f3; font-size:14px; }
-    th { color:#667085; font-weight:700; }
-    .muted { color:#667085; }
-    /*
-      IMPORTANT:
-      This app uses elements that can have multiple classes like: "modal-backdrop hidden".
-      Because .modal-backdrop is defined after .hidden in CSS, without !important the
-      later rule (display:flex) would override display:none and the modal would show
-      immediately after login.
-    */
+    th, td { text-align:left; padding:10px 10px; border-bottom:1px solid rgba(255,255,255,0.08); }
+    th { color:var(--muted); font-weight:700; font-size:13px; }
+    td { font-size:14px; }
+
     .hidden { display:none !important; }
-    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:18px; }
-    .modal { background:#fff; width:520px; max-width:100%; border-radius:16px; padding:16px; box-shadow:0 12px 28px rgba(0,0,0,.15);}
-    .modal h3 { margin:0 0 10px 0; }
-    .toast { margin-top:10px; padding:10px 12px; border-radius:12px; background:#f3f6ff; }
-    .toast.err { background:#ffecec; }
+
+    /* modal */
+    .modal-backdrop { position:fixed; inset:0; background: rgba(0,0,0,0.55); display:none; align-items:center; justify-content:center; padding:18px; z-index:50; }
+    .modal { width:min(720px, 96vw); border-radius:18px; border:1px solid rgba(255,255,255,0.10); background: linear-gradient(180deg, rgba(12,23,46,0.96), rgba(7,12,26,0.96)); box-shadow: 0 20px 60px rgba(0,0,0,0.45); padding:16px; }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .modal-head h3 { margin:0; font-size:18px; }
+    .modal-close { background: transparent; border:0; color:var(--muted); font-size:20px; cursor:pointer; padding:6px 8px; }
+    .form { margin-top:12px; display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field label { font-size:12px; color:var(--muted); }
+    .field input { width:100%; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06); color:var(--text); outline:none; }
+    .row { display:flex; gap:10px; align-items:center; }
+    .help { font-size:12px; color:var(--muted); margin-top:8px; }
+    .error { color:#ffd1d1; background: rgba(239,68,68,0.14); border:1px solid rgba(239,68,68,0.25); padding:10px; border-radius:12px; margin-top:10px; white-space:pre-wrap; }
+    .ok { color:#d7ffe1; background: rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.25); padding:10px; border-radius:12px; margin-top:10px; white-space:pre-wrap; }
+
+    @media (max-width: 900px){
+      .layout{ grid-template-columns:1fr; }
+      .sidebar{ border-right:0; border-bottom:1px solid rgba(255,255,255,0.06); }
+      .form{ grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div class="brand">WMS</div>
+      <div class="brand"><span class="dot"></span><span>WMS</span></div>
       <nav class="nav">
-        <a href="#" data-view="dashboard" class="active"><i class="fa-solid fa-gauge"></i> Dashboard</a>
-        <a href="#" data-view="inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
-        <a href="#" data-view="audit"><i class="fa-solid fa-clipboard-list"></i> Audit</a>
-        <a href="#" data-view="admin"><i class="fa-solid fa-user-shield"></i> Admin</a>
+        <a href="#" id="navDashboard" class="active"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+        <a href="#" id="navInventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
+        <a href="#" id="navAudit"><i class="fa-solid fa-clipboard-list"></i> Audit</a>
+        <a href="#" id="navAdmin"><i class="fa-solid fa-user-gear"></i> Admin</a>
       </nav>
 
-      <div class="sidebar-actions">
-        <div class="muted" style="font-size:12px;">Logged in as</div>
-        <div style="font-weight:700; margin-top:6px;">
-          {{ user.full_name or user.username }}
-          {% if user.is_admin %}<span class="badge" style="margin-left:8px;">admin</span>{% endif %}
+      <div class="userbox">
+        <small>Logged in as</small>
+        <div style="font-weight:800;">{{ current_user.username }}</div>
+        {% if current_user.is_admin %}<span class="pill">admin</span>{% endif %}
+        <div>
+          <a class="logout" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
         </div>
-        <a class="logout" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
       </div>
     </aside>
 
     <main class="content">
-      <div class="topbar">
-        <div class="title" id="pageTitle">Warehouse Dashboard</div>
-        <div class="badge">English-only (translation removed)</div>
-      </div>
-
       <!-- DASHBOARD -->
-      <section id="view-dashboard" class="card">
-        <div class="grid">
-          <button id="btnAddProductDashboard" class="btn primary" onclick="openNewProductModal();">
-            <i class="fa fa-plus"></i> Add Product
-          </button>
-          <button class="btn" onclick="showView('inventory');"><i class="fa fa-boxes"></i> Inventory</button>
-          <button class="btn" onclick="showView('audit');"><i class="fa fa-list"></i> Audit</button>
-          <p class="muted" style="margin-top:12px">
-            Tip: Use <b>Add Product</b> to create items (with QR scanning), then manage them in <b>Inventory</b>.
-          </p>
-</div>
+      <section id="viewDashboard">
+        <div class="header">
+          <div>
+            <h1>Warehouse Dashboard</h1>
+            <div class="sub">Tip: add products first (QR + location), then later we'll build Receive/Issue flows.</div>
+          </div>
+          <button class="btn primary" id="btnAddProduct"><i class="fa-solid fa-plus"></i> Add Product</button>
+        </div>
+
+        <div class="card">
+          <h2>Quick list</h2>
+          <div class="help">This is just to confirm adding works. Full inventory view is in <b>Inventory</b>.</div>
+          <div style="overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Item number (QR)</th><th>Name</th><th>Location (QR)</th><th>Stock</th></tr>
+              </thead>
+              <tbody id="dashProducts"></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
       <!-- INVENTORY -->
-      <section id="view-inventory" class="card hidden">
-        <div class="row" style="justify-content:space-between;">
-          <div class="row">
-<button id="btnRefreshProducts" class="btn secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+      <section id="viewInventory" class="hidden">
+        <div class="header">
+          <div>
+            <h1>Inventory</h1>
+            <div class="sub">All products stored in database.</div>
           </div>
-          <div class="row">
-            <input id="searchBox" placeholder="Search item/name..." />
-          </div>
+          <button class="btn primary" id="btnAddProduct2"><i class="fa-solid fa-plus"></i> Add Product</button>
         </div>
 
-        <div style="margin-top:14px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Item #</th>
-                <th>Name</th>
-                <th>Location</th>
-                <th>Stock</th>
-              </tr>
-            </thead>
-            <tbody id="productsTbody">
-              <tr><td colspan="4" class="muted">Loading...</td></tr>
-            </tbody>
-          </table>
+        <div class="card">
+          <h2>Products</h2>
+          <div style="overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Item number (QR)</th><th>Name</th><th>Location (QR)</th><th>Stock</th><th>Created</th></tr>
+              </thead>
+              <tbody id="invProducts"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       <!-- AUDIT -->
-      <section id="view-audit" class="card hidden">
-        <div class="row" style="justify-content:space-between;">
-          <div class="row">
-            <button id="btnRefreshAudit" class="btn secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+      <section id="viewAudit" class="hidden">
+        <div class="header">
+          <div>
+            <h1>Audit</h1>
+            <div class="sub">Basic change log (for now: product creates).</div>
           </div>
-          <div class="muted">Last 200 operations</div>
         </div>
-
-        <div style="margin-top:14px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Time (UTC)</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Product ID</th>
-                <th>Amount</th>
-              </tr>
-            </thead>
-            <tbody id="auditTbody">
-              <tr><td colspan="5" class="muted">Loading...</td></tr>
-            </tbody>
-          </table>
+        <div class="card">
+          <h2>Events</h2>
+          <div class="help">(We can expand later.)</div>
         </div>
       </section>
 
       <!-- ADMIN -->
-      
+      <section id="viewAdmin" class="hidden">
+        <div class="header">
+          <div>
+            <h1>Admin</h1>
+            <div class="sub">Backup to GitHub should create a commit like “Backup warehouse to GitHub”.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Backup</h2>
+          <div class="row">
+            <button class="btn primary" id="btnBackup"><i class="fa-brands fa-github"></i> Backup to GitHub</button>
+            <button class="btn ghost" id="btnVerify"><i class="fa-solid fa-circle-info"></i> How to verify on GitHub</button>
+          </div>
+          <div id="backupMsg" class="help" style="margin-top:10px;"></div>
+          <div id="backupResult" class="hidden"></div>
+          <div class="help" style="margin-top:10px;">If backup fails, check Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.</div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- MODALS -->
-  <div id="modalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+  <!-- ADD PRODUCT MODAL -->
+  <div class="modal-backdrop" id="modalAddProduct">
     <div class="modal">
-      <h3 id="modalTitle">Modal</h3>
-      <div id="modalBody"></div>
-      <div class="row" style="justify-content:flex-end; margin-top:14px;">
-        <button id="modalCancel" class="btn secondary">Cancel</button>
-        <button id="modalOk" class="btn primary">OK</button>
+      <div class="modal-head">
+        <h3>Add product (scan QR or type)</h3>
+        <button class="modal-close" id="closeAddProduct" aria-label="Close">✕</button>
       </div>
-      <div id="modalMsg" class="toast hidden"></div>
+
+      <div class="form">
+        <div class="field">
+          <label>Item number (product QR)</label>
+          <div class="row">
+            <input id="p_item_number" placeholder="Scan or type…" autocomplete="off" />
+            <button class="btn ghost" type="button" id="focusItem">Scan</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Location (location QR)</label>
+          <div class="row">
+            <input id="p_location" placeholder="Scan or type…" autocomplete="off" />
+            <button class="btn ghost" type="button" id="focusLoc">Scan</button>
+          </div>
+        </div>
+        <div class="field" style="grid-column:1 / -1;">
+          <label>Name</label>
+          <input id="p_name" placeholder="e.g. Cable ties 200mm" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label>Initial stock</label>
+          <input id="p_stock" type="number" min="0" value="0" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn primary" id="saveProduct">Save</button>
+        </div>
+      </div>
+
+      <div class="help">Tip: If you use a handheld scanner, click inside the field (or press <b>Scan</b>) and scan — it will type into the input automatically.</div>
+      <div id="addMsg" class="hidden"></div>
     </div>
   </div>
 
 <script>
-(function () {
-  // --- state ---
-  let PRODUCTS = [];
+  // --- View switch ---
+  function showView(name){
+    const views = {
+      dashboard: document.getElementById('viewDashboard'),
+      inventory: document.getElementById('viewInventory'),
+      audit: document.getElementById('viewAudit'),
+      admin: document.getElementById('viewAdmin'),
+    };
+    Object.values(views).forEach(v => v.classList.add('hidden'));
+    views[name].classList.remove('hidden');
 
-  // --- helpers ---
-  const $ = (id) => document.getElementById(id);
-
-  function showToast(el, msg, isErr) {
-    el.classList.toggle('err', !!isErr);
-    el.textContent = msg;
+    const links = {
+      dashboard: document.getElementById('navDashboard'),
+      inventory: document.getElementById('navInventory'),
+      audit: document.getElementById('navAudit'),
+      admin: document.getElementById('navAdmin'),
+    };
+    Object.values(links).forEach(a => a.classList.remove('active'));
+    links[name].classList.add('active');
   }
 
-  function setActiveView(view) {
-    const titles = {dashboard:'Warehouse Dashboard', inventory:'Inventory', audit:'Audit Log', admin:'Admin'};
-    $('pageTitle').textContent = titles[view] || 'WMS';
-
-    document.querySelectorAll('.nav a').forEach(a => {
-      a.classList.toggle('active', a.dataset.view === view);
-    });
-
-    ['dashboard','inventory','audit','admin'].forEach(v => {
-      const sec = document.getElementById('view-' + v);
-      if (sec) sec.classList.toggle('hidden', v !== view);
-    });
-
-    if (view === 'inventory') loadProducts();
-    if (view === 'audit') loadAudit();
+  // --- Modal helpers ---
+  function openNewProductModal(){
+    document.getElementById('addMsg').classList.add('hidden');
+    document.getElementById('modalAddProduct').style.display = 'flex';
+    document.getElementById('p_item_number').focus();
+  }
+  function closeNewProductModal(){
+    document.getElementById('modalAddProduct').style.display = 'none';
   }
 
-  async function apiGet(url) {
-    const r = await fetch(url, {credentials: 'same-origin'});
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
+  function setMsg(el, kind, text){
+    el.classList.remove('hidden');
+    el.classList.remove('error','ok');
+    el.classList.add(kind);
+    el.textContent = text;
   }
 
-  async function apiPost(url, payload) {
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      credentials: 'same-origin',
-      body: JSON.stringify(payload)
-    });
-    const text = await r.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = {message:text}; }
-    if (!r.ok) throw new Error((data && data.message) ? data.message : ('HTTP ' + r.status));
+  async function fetchJson(url, options){
+    const res = await fetch(url, options);
+    let data = null;
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) data = await res.json();
+    else data = { raw: await res.text() };
+    if (!res.ok) {
+      const msg = (data && (data.error || data.raw)) ? (data.error || data.raw) : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
     return data;
   }
 
-  // --- inventory ---
-  function renderProducts(filterText) {
-    const tbody = $('productsTbody');
-    const q = (filterText || '').trim().toLowerCase();
+  function renderProducts(rows){
+    const dash = document.getElementById('dashProducts');
+    const inv = document.getElementById('invProducts');
+    dash.innerHTML = '';
+    inv.innerHTML = '';
+    for (const p of rows){
+      const tr1 = document.createElement('tr');
+      tr1.innerHTML = `<td>${p.id}</td><td>${escapeHtml(p.item_number)}</td><td>${escapeHtml(p.name || '')}</td><td>${escapeHtml(p.location || '')}</td><td>${p.stock}</td>`;
+      dash.appendChild(tr1);
 
-    const rows = (PRODUCTS || []).filter(p => {
-      if (!q) return true;
-      return (p.item_number || '').toLowerCase().includes(q) || (p.name || '').toLowerCase().includes(q);
-    });
-
-    if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="4" class="muted">No products.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = rows.map(p => (
-      '<tr>' +
-        '<td>' + escapeHtml(p.item_number) + '</td>' +
-        '<td>' + escapeHtml(p.name) + '</td>' +
-        '<td>' + escapeHtml(p.location_name || '') + '</td>' +
-        '<td><b>' + (p.current_stock ?? 0) + '</b></td>' +
-      '</tr>'
-    )).join('');
-  }
-
-  async function loadProducts() {
-    try {
-      const res = await apiGet('/api/products');
-      PRODUCTS = res.data || [];
-      renderProducts($('searchBox').value);
-    } catch (e) {
-      $('productsTbody').innerHTML = '<tr><td colspan="4" class="muted">Error loading products: ' + escapeHtml(String(e)) + '</td></tr>';
+      const tr2 = document.createElement('tr');
+      tr2.innerHTML = `<td>${p.id}</td><td>${escapeHtml(p.item_number)}</td><td>${escapeHtml(p.name || '')}</td><td>${escapeHtml(p.location || '')}</td><td>${p.stock}</td><td>${escapeHtml(p.created_at || '')}</td>`;
+      inv.appendChild(tr2);
     }
   }
 
-  // --- audit ---
-  async function loadAudit() {
-    try {
-      const res = await apiGet('/api/audit');
-      const rows = res.data || [];
-      const tbody = $('auditTbody');
-
-      if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="muted">No audit entries.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = rows.map(r => (
-        '<tr>' +
-          '<td>' + escapeHtml(r.created_at || '') + '</td>' +
-          '<td>' + escapeHtml(r.username || '') + '</td>' +
-          '<td>' + escapeHtml(r.action || '') + '</td>' +
-          '<td>' + (r.product_id ?? '') + '</td>' +
-          '<td>' + (r.amount ?? 0) + '</td>' +
-        '</tr>'
-      )).join('');
-    } catch (e) {
-      $('auditTbody').innerHTML = '<tr><td colspan="5" class="muted">Error loading audit: ' + escapeHtml(String(e)) + '</td></tr>';
-    }
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[s]));
   }
 
-  // --- modals ---
-  function openModal(title, bodyHtml, onOk) {
-    // Reset button state (some modals customize these)
-    $('modalCancel').classList.remove('hidden');
-    $('modalOk').textContent = 'OK';
-    $('modalTitle').textContent = title;
-    $('modalBody').innerHTML = bodyHtml;
-    $('modalMsg').classList.add('hidden');
-    $('modalBackdrop').classList.remove('hidden');
+  async function loadProducts(){
+    const data = await fetchJson('/api/products');
+    renderProducts(data.products || []);
+  }
 
-    const cancel = () => closeModal();
-    $('modalCancel').onclick = cancel;
+  async function saveProduct(){
+    const msg = document.getElementById('addMsg');
+    msg.classList.add('hidden');
 
-    $('modalOk').onclick = async () => {
-      try {
-        $('modalOk').disabled = true;
-        await onOk();
-      } finally {
-        $('modalOk').disabled = false;
-      }
+    const payload = {
+      item_number: document.getElementById('p_item_number').value.trim(),
+      name: document.getElementById('p_name').value.trim(),
+      location: document.getElementById('p_location').value.trim(),
+      stock: Number(document.getElementById('p_stock').value || 0),
     };
-  }
 
-  function closeModal() {
-    $('modalBackdrop').classList.add('hidden');
-    $('modalBody').innerHTML = '';
-    $('modalOk').onclick = null;
-    $('modalCancel').onclick = null;
-  }
-
-  function modalError(msg) {
-    const el = $('modalMsg');
-    el.classList.remove('hidden');
-    el.classList.add('err');
-    el.textContent = msg;
-  }
-
-  // --- actions ---
-  function openNewProductModal() {
-    const body = `
-      <div class="row" style="margin-bottom:10px;">
-        <input id="np_item" placeholder="Item number" style="flex:1;" />
-        <input id="np_loc" placeholder="Location (e.g. MAG-1)" style="width:180px;" />
-      </div>
-      <div class="row">
-        <input id="np_name" placeholder="Product name" style="flex:1;" />
-      </div>
-      <div class="muted" style="margin-top:10px; font-size:13px;">
-        If item number already exists, it will update the product name/location.
-      </div>
-    `;
-    openModal('New product', body, async () => {
-      const item = ($('np_item').value || '').trim();
-      const name = ($('np_name').value || '').trim();
-      const loc = ($('np_loc').value || 'MAG-1').trim();
-
-      try {
-        await apiPost('/api/products', {item_number:item, name:name, location_name:loc});
-        closeModal();
-        await loadProducts();
-      }
-
-  function openAdminModal() {
-    const body = `
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px">
-        <button id="btnExportJson" class="btn"><i class="fa fa-download"></i> Download JSON backup</button>
-        <button id="btnBackupGithub" class="btn primary"><i class="fa fa-cloud-upload-alt"></i> Backup to GitHub</button>
-      </div>
-      <div class="muted">
-        <b>Download JSON backup</b> saves a local file to your computer.<br/>
-        <b>Backup to GitHub</b> writes a backup file to your repo (Render Secret Files: <code>GITHUB_TOKEN</code> + <code>GITHUB_REPO</code>).
-      </div>
-      <div id="adminStatus" style="margin-top:10px"></div>
-    `;
-    openModal("Admin / Backup", body, async () => closeModal());
-    $('modalOk').textContent = 'Close';
-    $('modalCancel').classList.add('hidden');
-  }
- catch (e) {
-        modalError(String(e));
-      }
-    });
-  }
-
-  function openOperationModal(action) {
-    const options = (PRODUCTS || []).map(p => `<option value="${p.id}">${escapeHtml(p.item_number)} — ${escapeHtml(p.name)}</option>`).join('');
-    const body = `
-      <div class="row" style="margin-bottom:10px;">
-        <select id="op_pid" style="flex:1;">
-          ${options || '<option value="">No products</option>'}
-        </select>
-        <input id="op_amt" type="number" min="1" value="1" style="width:120px;" />
-      </div>
-      <div class="muted" style="font-size:13px;">Choose product and amount.</div>
-    `;
-    openModal(action === 'receive' ? 'Receive stock' : 'Issue stock', body, async () => {
-      const pid = $('op_pid').value;
-      const amt = parseInt($('op_amt').value || '0', 10);
-
-      if (!pid) { modalError('No product selected'); return; }
-      if (!amt || amt <= 0) { modalError('Amount must be > 0'); return; }
-
-      try {
-        await apiPost('/api/stock/' + action, {product_id: Number(pid), amount: amt});
-        closeModal();
-        await loadProducts();
-        await loadAudit();
-      } catch (e) {
-        modalError(String(e));
-      }
-    });
-  }
-
-  // --- admin ---
-  async function doBackupGithub() {
-    const status = $('adminStatus');
-    showToast(status, 'Running backup...', false);
     try {
-      const res = await apiPost('/api/admin/backup/github', {});
-      showToast(status, res.message + (res.commit ? (' (commit ' + res.commit.slice(0,7) + ')') : ''), false);
-    } catch (e) {
-      showToast(status, 'Backup error: ' + String(e), true);
+      const data = await fetchJson('/api/products', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      setMsg(msg, 'ok', data.message || 'Saved.');
+      await loadProducts();
+      // clear only after successful save
+      document.getElementById('p_name').value = '';
+      document.getElementById('p_stock').value = '0';
+    } catch (e){
+      setMsg(msg, 'error', String(e.message || e));
     }
   }
 
-  function escapeHtml(s) {
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'","&#039;");
+  async function backupToGithub(){
+    const out = document.getElementById('backupResult');
+    const msg = document.getElementById('backupMsg');
+    out.classList.add('hidden');
+    msg.textContent = 'Running backup…';
+    try {
+      const data = await fetchJson('/api/admin/backup/github', { method:'POST' });
+      msg.textContent = '';
+      setMsg(out, 'ok', `${data.message}\n${data.path || ''}\n${data.commit_url || ''}`);
+    } catch (e){
+      msg.textContent = '';
+      setMsg(out, 'error', `Backup failed: ${String(e.message || e)}`);
+    }
   }
 
-  // --- wire up events (NO inline onclick -> avoids syntax issues) ---
-  document.querySelectorAll('.nav a').forEach(a => {
-    a.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      setActiveView(a.dataset.view);
-    });
+  function showVerifyHelp(){
+    alert(
+      'GitHub verification:\n\n1) Open your repo on GitHub\n2) Click “Commits” (above the file list)\n3) After pressing Backup, you should see a new commit like “Backup warehouse to GitHub”.'
+    );
+  }
+
+  function focusField(id){
+    const el = document.getElementById(id);
+    el.focus();
+    // small hint
+    const msg = document.getElementById('addMsg');
+    setMsg(msg, 'ok', 'Ready to scan — point the scanner at the QR now.');
+    setTimeout(() => msg.classList.add('hidden'), 1200);
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    // nav
+    document.getElementById('navDashboard').addEventListener('click', (e)=>{ e.preventDefault(); showView('dashboard'); });
+    document.getElementById('navInventory').addEventListener('click', (e)=>{ e.preventDefault(); showView('inventory'); });
+    document.getElementById('navAudit').addEventListener('click', (e)=>{ e.preventDefault(); showView('audit'); });
+    document.getElementById('navAdmin').addEventListener('click', (e)=>{ e.preventDefault(); showView('admin'); });
+
+    // add product
+    document.getElementById('btnAddProduct').addEventListener('click', openNewProductModal);
+    document.getElementById('btnAddProduct2').addEventListener('click', openNewProductModal);
+    document.getElementById('closeAddProduct').addEventListener('click', closeNewProductModal);
+    document.getElementById('modalAddProduct').addEventListener('click', (e)=>{ if(e.target.id==='modalAddProduct') closeNewProductModal(); });
+    document.getElementById('saveProduct').addEventListener('click', (e)=>{ e.preventDefault(); saveProduct(); });
+    document.getElementById('focusItem').addEventListener('click', ()=> focusField('p_item_number'));
+    document.getElementById('focusLoc').addEventListener('click', ()=> focusField('p_location'));
+
+    // admin
+    document.getElementById('btnBackup').addEventListener('click', backupToGithub);
+    document.getElementById('btnVerify').addEventListener('click', showVerifyHelp);
+
+    // initial load
+    try { await loadProducts(); } catch (e) { /* ignore */ }
   });
-
-  $('btnReceive').addEventListener('click', async () => { await loadProducts(); openOperationModal('receive'); });
-  $('btnIssue').addEventListener('click', async () => { await loadProducts(); openOperationModal('issue'); });
-
-    // Buttons (some are conditionally present depending on the current view / role)
-    const btnNew = $('btnNewProduct');
-    if (btnNew) btnNew.addEventListener('click', openNewProductModal);
-
-    const btnRefreshProducts = $('btnRefreshProducts');
-    if (btnRefreshProducts) btnRefreshProducts.addEventListener('click', loadProducts);
-
-    const btnRefreshAudit = $('btnRefreshAudit');
-    if (btnRefreshAudit) btnRefreshAudit.addEventListener('click', loadAudit);
-
-    const searchBox = $('searchBox');
-    if (searchBox) searchBox.addEventListener('input', () => renderProducts(searchBox.value));
-
-    // Admin / Backup buttons are rendered inside a modal, so bind with event delegation
-    document.addEventListener('click', (e) => {
-      const exportBtn = e.target.closest('#btnExportJson');
-      if (exportBtn) {
-        e.preventDefault();
-        doExportJson();
-        return;
-      }
-      const backupBtn = e.target.closest('#btnBackupGithub');
-      if (backupBtn) {
-        e.preventDefault();
-        doBackupGithub();
-        return;
-      }
-    });
-
-// initial
-  setActiveView('dashboard');
-})();
 </script>
 </body>
 </html>

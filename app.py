@@ -1,49 +1,43 @@
 import os
-from pathlib import Path
+import json
+import base64
+import urllib.request
+import urllib.error
 from datetime import datetime
+from functools import wraps
+from pathlib import Path
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    login_user,
+    logout_user,
+    current_user,
+    login_required,
+)
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from sqlalchemy import inspect, text
-
 # ----------------------------
-# App
+# App + DB
 # ----------------------------
 app = Flask(__name__)
 
-# IMPORTANT:
-# - On Render, set SECRET_KEY in Environment Variables.
-# - This fallback keeps the app from crashing if it's missing locally.
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
-
-# ----------------------------
-# Database (PostgreSQL on Render / SQLite locally)
-# ----------------------------
-db_url = os.environ.get("DATABASE_URL")
-if db_url:
-    # Render/Heroku-style URLs sometimes use postgres://
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-else:
-    # Render instances are ephemeral. If you don't use a managed DB, store SQLite in a writable path.
-    # On Render you can mount a free persistent disk at /var/data (optional). If not present, we fall back to /tmp.
-    sqlite_dir = Path("/var/data") if Path("/var/data").exists() else Path("/tmp")
-    sqlite_path = sqlite_dir / "warehouse.db"
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{sqlite_path}"
-
+# IMPORTANT: keep DB in /var/data when available (Render persistent disk), else /tmp
+sqlite_path = "/var/data/warehouse.db" if Path("/var/data").exists() else "/tmp/warehouse.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{sqlite_path}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# ----------------------------
-# Extensions
-# ----------------------------
+# Secret key
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+
 db = SQLAlchemy(app)
 
-login_manager = LoginManager(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
 login_manager.login_view = "login"
+
 
 # ----------------------------
 # Models
@@ -51,110 +45,89 @@ login_manager.login_view = "login"
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
-    full_name = db.Column(db.String(100), default="")
+    password_hash = db.Column(db.String(255), nullable=False)
+    full_name = db.Column(db.String(120), nullable=True)
+    role = db.Column(db.String(30), nullable=False, default="user")  # 'admin' or 'user'
+
+    def set_password(self, password: str) -> None:
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    item_number = db.Column(db.String(50), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    current_stock = db.Column(db.Integer, default=0)
-    location_name = db.Column(db.String(100), default="MAG-1")
-    unit = db.Column(db.String(30), default="")
-    notes = db.Column(db.String(255), default="")
-    qr_product = db.Column(db.String(255), default="")
-    qr_location = db.Column(db.String(255), default="")
+    item_number = db.Column(db.String(120), unique=True, nullable=False)
+    name = db.Column(db.String(255), nullable=False)
+    location = db.Column(db.String(120), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer)
-    action = db.Column(db.String(20))  # receive | issue
-    amount = db.Column(db.Integer)
-    username = db.Column(db.String(80))
+    action = db.Column(db.String(80), nullable=False)
+    details = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 
-def admin_required(fn):
-    """Allow only admin user (username == 'admin')."""
-    from functools import wraps
+def ensure_schema() -> None:
+    with app.app_context():
+        db.create_all()
+        # Create default admin if missing
+        if not User.query.filter_by(username="admin").first():
+            u = User(username="admin", full_name="Administrator", role="admin")
+            u.set_password(os.environ.get("ADMIN_PASSWORD", "admin"))
+            db.session.add(u)
+            db.session.commit()
 
-    @wraps(fn)
+
+def audit(action: str, details: str | None = None) -> None:
+    try:
+        db.session.add(AuditLog(action=action, details=details))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+# Ensure schema at import
+ensure_schema()
+
+
+# ----------------------------
+# Auth helpers
+# ----------------------------
+def admin_required(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if not current_user.is_authenticated:
-            return jsonify({"message": "Unauthorized"}), 401
-        if getattr(current_user, "username", None) != "admin":
-            return jsonify({"message": "Forbidden"}), 403
-        return fn(*args, **kwargs)
+            return login_manager.unauthorized()
+        if getattr(current_user, "role", "user") != "admin":
+            return jsonify({"error": "admin_required"}), 403
+        return func(*args, **kwargs)
 
     return wrapper
 
 
-def _sqlite_add_column(table: str, col_name: str, col_def: str) -> None:
-    """Add column in a SQLite-friendly way (no non-constant DEFAULT)."""
-    # NOTE: SQLite cannot add column with DEFAULT CURRENT_TIMESTAMP on older versions.
-    db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_def}"))
-
-
-def ensure_schema() -> None:
-    """Create tables and apply lightweight 'add missing column' migrations.
-
-    This keeps Render deployments stable without a full migrations stack.
-    """
-    db.create_all()
-
-    insp = inspect(db.engine)
-
-    def has_col(table: str, col: str) -> bool:
-        try:
-            return col in {c["name"] for c in insp.get_columns(table)}
-        except Exception:
-            return False
-
-    # user table
-    if insp.has_table("user") and not has_col("user", "password"):
-        _sqlite_add_column("user", "password", "VARCHAR(255)")
-    if insp.has_table("user") and not has_col("user", "full_name"):
-        _sqlite_add_column("user", "full_name", "VARCHAR(100)")
-
-    # product table
-    if insp.has_table("product"):
-        for col, coldef in [
-            ("unit", "VARCHAR(30)"),
-            ("notes", "VARCHAR(255)"),
-            ("qr_product", "VARCHAR(255)"),
-            ("qr_location", "VARCHAR(255)"),
-        ]:
-            if not has_col("product", col):
-                _sqlite_add_column("product", col, coldef)
-
-    # audit_log table
-    if insp.has_table("audit_log") and not has_col("audit_log", "created_at"):
-        _sqlite_add_column("audit_log", "created_at", "DATETIME")
-        # backfill for existing rows
-        db.session.execute(text("UPDATE audit_log SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
-
-    db.session.commit()
-
-
-with app.app_context():
-    ensure_schema()
-
 # ----------------------------
-# Routes
+# Pages
 # ----------------------------
-@app.route("/health")
+@app.get("/health")
 def health():
     return "OK", 200
 
-@app.route("/")
+
+@app.get("/")
 @login_required
 def index():
-    # English-only UI (no translation system)
+    # Pass explicit 'user' to template (avoid jinja undefined issues)
     return render_template("index.html", welcome_title="Warehouse Dashboard", user=current_user)
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -163,263 +136,184 @@ def login():
         password = request.form.get("password") or ""
 
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
+        if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for("index"))
+            next_url = request.args.get("next") or url_for("index")
+            return redirect(next_url)
 
-        return render_template("login.html", error="Invalid username or password.")
+        return render_template("login.html", error="Invalid username or password")
 
     return render_template("login.html")
 
-@app.route("/logout")
+
+@app.get("/logout")
 @login_required
 def logout():
     logout_user()
     return redirect(url_for("login"))
 
+
 # ----------------------------
-# API
+# API: Products
 # ----------------------------
-@app.route("/api/products", methods=["GET"])
+@app.get("/api/products")
 @login_required
-def api_products():
-    products = Product.query.all()
+def api_products_list():
+    products = Product.query.order_by(Product.id.desc()).all()
     return jsonify(
-        {
-            "data": [
-                {
-                    "id": p.id,
-                    "item_number": p.item_number,
-                    "name": p.name,
-                    "current_stock": p.current_stock,
-                    "location_name": p.location_name,
-                    "unit": p.unit,
-                    "notes": p.notes,
-                    "qr_product": p.qr_product,
-                    "qr_location": p.qr_location,
-                }
-                for p in products
-            ]
-        }
+        [
+            {
+                "id": p.id,
+                "item_number": p.item_number,
+                "name": p.name,
+                "location": p.location,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in products
+        ]
     )
 
 
-@app.route("/api/products", methods=["POST"])
+@app.post("/api/products")
 @login_required
-def api_products_create():
-    """Create or update a product (upsert by item_number).
-
-    You can type values manually or scan QR codes on the UI.
-    """
-    payload = request.get_json(silent=True) or {}
-
-    item_number = (payload.get("item_number") or "").strip()
-    name = (payload.get("name") or "").strip()
-    location_name = (payload.get("location_name") or "").strip()
-    unit = (payload.get("unit") or "").strip()
-    notes = (payload.get("notes") or "").strip()
-    qr_product = (payload.get("qr_product") or "").strip()
-    qr_location = (payload.get("qr_location") or "").strip()
-
-    # If item/location are not provided, allow using scanned QR strings.
-    if not item_number and qr_product:
-        item_number = qr_product
-    if not location_name and qr_location:
-        location_name = qr_location
+def api_products_add():
+    data = request.get_json(silent=True) or {}
+    item_number = (data.get("item_number") or "").strip()
+    name = (data.get("name") or "").strip()
+    location = (data.get("location") or "").strip() or None
 
     if not item_number:
-        return jsonify({"message": "item_number is required (or scan product QR)."}), 400
+        return jsonify({"error": "item_number_required"}), 400
     if not name:
-        return jsonify({"message": "name is required."}), 400
-    if not location_name:
-        location_name = "MAG-1"
+        return jsonify({"error": "name_required"}), 400
 
-    existing = Product.query.filter_by(item_number=item_number).first()
-    if existing:
-        existing.name = name
-        existing.location_name = location_name
-        existing.unit = unit
-        existing.notes = notes
-        existing.qr_product = qr_product or existing.qr_product
-        existing.qr_location = qr_location or existing.qr_location
-        db.session.add(existing)
-        db.session.commit()
-        return jsonify({"message": "Updated", "id": existing.id}), 200
+    if Product.query.filter_by(item_number=item_number).first():
+        return jsonify({"error": "item_number_exists"}), 409
 
-    p = Product(
-        item_number=item_number,
-        name=name,
-        location_name=location_name,
-        unit=unit,
-        notes=notes,
-        qr_product=qr_product,
-        qr_location=qr_location,
-    )
+    p = Product(item_number=item_number, name=name, location=location)
     db.session.add(p)
     db.session.commit()
-    return jsonify({"message": "Created", "id": p.id}), 201
 
-@app.route("/api/stock/<action>", methods=["POST"])
+    audit("product_add", f"{item_number} | {name} | {location or ''}")
+
+    return jsonify({"ok": True, "id": p.id})
+
+
+# ----------------------------
+# API: Audit
+# ----------------------------
+@app.get("/api/audit")
 @login_required
-def api_stock(action):
-    data = request.get_json(silent=True) or {}
-    product_id = data.get("product_id")
-    amount_raw = data.get("amount")
-
-    try:
-        amount = int(amount_raw)
-    except (TypeError, ValueError):
-        return jsonify({"message": "Invalid amount."}), 400
-
-    if amount <= 0:
-        return jsonify({"message": "Amount must be greater than 0."}), 400
-
-    product = Product.query.get(product_id)
-    if not product:
-        return jsonify({"message": "Product not found."}), 404
-
-    if action == "receive":
-        product.current_stock += amount
-    elif action == "issue":
-        if product.current_stock < amount:
-            return jsonify({"message": "Not enough stock."}), 400
-        product.current_stock -= amount
-    else:
-        return jsonify({"message": "Unknown action."}), 400
-
-    db.session.add(
-        AuditLog(
-            product_id=product.id,
-            action=action,
-            amount=amount,
-            username=current_user.username,
-        )
+def api_audit_list():
+    logs = AuditLog.query.order_by(AuditLog.id.desc()).limit(200).all()
+    return jsonify(
+        [
+            {
+                "id": a.id,
+                "action": a.action,
+                "details": a.details,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in logs
+        ]
     )
-    db.session.commit()
 
-    return jsonify({"message": "Operation completed."})
 
 # ----------------------------
-# Init DB (safe on Render and locally)
+# API: Admin backup to GitHub
 # ----------------------------
-with app.app_context():
-    db.create_all()
-
-    # Create default admin user if missing
-    if not User.query.filter_by(username="admin").first():
-        db.session.add(
-            User(
-                username="admin",
-                password=generate_password_hash("admin123"),
-                full_name="Administrator",
-            )
-        )
-        db.session.commit()
-
-# -------------------------
-# Backup to GitHub (free, no disk)
-# -------------------------
-import base64
-import json
-import urllib.request
-import urllib.error
-
-def _export_payload():
-    """Export minimal warehouse data to JSON (extend later)."""
-    products = []
-    for p in Product.query.order_by(Product.id.asc()).all():
-        products.append({
-            "id": p.id,
-            "name": p.name,
-            "sku": p.sku,
-            "qr_code": p.qr_code,
-            "location_qr": p.location_qr,
-            "notes": p.notes,
-            "created_at": p.created_at.isoformat() if getattr(p, "created_at", None) else None,
-        })
-    return {
-        "schema": "wms-backup-v1",
-        "exported_at": datetime.utcnow().isoformat() + "Z",
-        "products": products,
-    }
-
-def _github_api_request(method, url, token, payload=None):
-    data = None
-    if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", "token %s" % token)
-    req.add_header("Accept", "application/vnd.github+json")
-    req.add_header("User-Agent", "wms-render-backup")
-    if data is not None:
-        req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            body = resp.read().decode("utf-8")
-            return resp.status, json.loads(body) if body else {}
-    except urllib.error.HTTPError as e:
-        try:
-            body = e.read().decode("utf-8")
-            return e.code, json.loads(body) if body else {"message": str(e)}
-        except Exception:
-            return e.code, {"message": str(e)}
-    except Exception as e:
-        return 0, {"message": str(e)}
-
-def _github_put_file(repo, path, token, content_bytes, message):
-    url = "https://api.github.com/repos/%s/contents/%s" % (repo, path)
-
-    # check existing sha (update vs create)
-    status, data = _github_api_request("GET", url, token)
-    sha = None
-    if status == 200 and isinstance(data, dict):
-        sha = data.get("sha")
-
-    payload = {
-        "message": message,
-        "content": base64.b64encode(content_bytes).decode("utf-8"),
-    }
-    if sha:
-        payload["sha"] = sha
-
-    status2, data2 = _github_api_request("PUT", url, token, payload=payload)
-    return status2, data2
-
-def _do_backup_to_github():
-    token = os.getenv("GITHUB_TOKEN", "").strip()
-    repo = os.getenv("GITHUB_REPO", "").strip()
-    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
-
-    if not token or not repo:
-        return False, "Missing GITHUB_TOKEN or GITHUB_REPO in Render environment/secrets.", None
-
-    payload = _export_payload()
-    content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-
-    msg = "Backup warehouse to GitHub (%s)" % payload["exported_at"]
-    status, resp = _github_put_file(repo, path, token, content, msg)
-
-    if status in (200, 201):
-        commit_sha = None
-        html_url = None
-        if isinstance(resp, dict):
-            commit_sha = (resp.get("commit") or {}).get("sha")
-            html_url = (resp.get("content") or {}).get("html_url")
-        return True, "Backup created on GitHub.", {"status": status, "commit_sha": commit_sha, "file_url": html_url, "path": path}
-    else:
-        return False, "Backup failed (GitHub API %s): %s" % (status, (resp.get("message") if isinstance(resp, dict) else "unknown error")), {"status": status, "details": resp, "path": path}
-
-@app.post("/admin/backup/github")
-@login_required
-@admin_required
-def admin_backup_github():
-    ok, msg, meta = _do_backup_to_github()
-    code = 200 if ok else 400
-    return jsonify({"ok": ok, "message": msg, "meta": meta}), code
-
-# Alias used by the UI (kept for backwards compatibility)
 @app.post("/api/admin/backup/github")
 @login_required
 @admin_required
-def api_admin_backup_github():
-    return admin_backup_github()
+def api_backup_github():
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPO")  # e.g. user/repo
+    path = os.environ.get("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json")
+
+    if not token or not repo:
+        return (
+            jsonify(
+                {
+                    "error": "missing_github_env",
+                    "hint": "Set GITHUB_TOKEN and GITHUB_REPO in Render (Environment/Secret Files).",
+                }
+            ),
+            400,
+        )
+
+    payload = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "products": [
+            {
+                "item_number": p.item_number,
+                "name": p.name,
+                "location": p.location,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in Product.query.order_by(Product.id.asc()).all()
+        ],
+        "audit": [
+            {
+                "action": a.action,
+                "details": a.details,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in AuditLog.query.order_by(AuditLog.id.asc()).all()
+        ],
+    }
+
+    content_bytes = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+    content_b64 = base64.b64encode(content_bytes).decode("ascii")
+
+    api_url = f"https://api.github.com/repos/{repo}/contents/{path}"
+
+    def _request(method: str, url: str, body: dict | None = None):
+        data = None
+        if body is not None:
+            data = json.dumps(body).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Authorization", f"token {token}")
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("User-Agent", "wms-backup")
+        if data is not None:
+            req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                return resp.status, json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            try:
+                err = e.read().decode("utf-8")
+            except Exception:
+                err = str(e)
+            return e.code, {"error": "http_error", "status": e.code, "body": err}
+
+    # Check if file exists to get sha
+    status, existing = _request("GET", api_url)
+    sha = None
+    if status == 200 and isinstance(existing, dict):
+        sha = existing.get("sha")
+
+    put_body = {
+        "message": "Backup warehouse to GitHub",
+        "content": content_b64,
+    }
+    if sha:
+        put_body["sha"] = sha
+
+    status2, result = _request("PUT", api_url, put_body)
+    if status2 not in (200, 201):
+        return jsonify({"error": "backup_failed", "details": result}), 500
+
+    audit("backup_github", f"{repo}/{path}")
+
+    commit_url = None
+    try:
+        commit_url = result.get("commit", {}).get("html_url")
+    except Exception:
+        commit_url = None
+
+    return jsonify({"ok": True, "path": path, "commit_url": commit_url})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "10000")), debug=True)
