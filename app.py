@@ -153,12 +153,8 @@ def health():
 @app.route("/")
 @login_required
 def index():
-    return render_template(
-        "index.html",
-        welcome_title="Warehouse Dashboard",
-        user=current_user
-    )
-
+    # English-only UI (no translation system)
+    return render_template("index.html", welcome_title="Warehouse Dashboard", user=current_user)
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -319,3 +315,111 @@ with app.app_context():
             )
         )
         db.session.commit()
+
+# -------------------------
+# Backup to GitHub (free, no disk)
+# -------------------------
+import base64
+import json
+import urllib.request
+import urllib.error
+
+def _export_payload():
+    """Export minimal warehouse data to JSON (extend later)."""
+    products = []
+    for p in Product.query.order_by(Product.id.asc()).all():
+        products.append({
+            "id": p.id,
+            "name": p.name,
+            "sku": p.sku,
+            "qr_code": p.qr_code,
+            "location_qr": p.location_qr,
+            "notes": p.notes,
+            "created_at": p.created_at.isoformat() if getattr(p, "created_at", None) else None,
+        })
+    return {
+        "schema": "wms-backup-v1",
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "products": products,
+    }
+
+def _github_api_request(method, url, token, payload=None):
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("Authorization", "token %s" % token)
+    req.add_header("Accept", "application/vnd.github+json")
+    req.add_header("User-Agent", "wms-render-backup")
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            body = resp.read().decode("utf-8")
+            return resp.status, json.loads(body) if body else {}
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+            return e.code, json.loads(body) if body else {"message": str(e)}
+        except Exception:
+            return e.code, {"message": str(e)}
+    except Exception as e:
+        return 0, {"message": str(e)}
+
+def _github_put_file(repo, path, token, content_bytes, message):
+    url = "https://api.github.com/repos/%s/contents/%s" % (repo, path)
+
+    # check existing sha (update vs create)
+    status, data = _github_api_request("GET", url, token)
+    sha = None
+    if status == 200 and isinstance(data, dict):
+        sha = data.get("sha")
+
+    payload = {
+        "message": message,
+        "content": base64.b64encode(content_bytes).decode("utf-8"),
+    }
+    if sha:
+        payload["sha"] = sha
+
+    status2, data2 = _github_api_request("PUT", url, token, payload=payload)
+    return status2, data2
+
+def _do_backup_to_github():
+    token = os.getenv("GITHUB_TOKEN", "").strip()
+    repo = os.getenv("GITHUB_REPO", "").strip()
+    path = os.getenv("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
+
+    if not token or not repo:
+        return False, "Missing GITHUB_TOKEN or GITHUB_REPO in Render environment/secrets.", None
+
+    payload = _export_payload()
+    content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+
+    msg = "Backup warehouse to GitHub (%s)" % payload["exported_at"]
+    status, resp = _github_put_file(repo, path, token, content, msg)
+
+    if status in (200, 201):
+        commit_sha = None
+        html_url = None
+        if isinstance(resp, dict):
+            commit_sha = (resp.get("commit") or {}).get("sha")
+            html_url = (resp.get("content") or {}).get("html_url")
+        return True, "Backup created on GitHub.", {"status": status, "commit_sha": commit_sha, "file_url": html_url, "path": path}
+    else:
+        return False, "Backup failed (GitHub API %s): %s" % (status, (resp.get("message") if isinstance(resp, dict) else "unknown error")), {"status": status, "details": resp, "path": path}
+
+@app.post("/admin/backup/github")
+@login_required
+@admin_required
+def admin_backup_github():
+    ok, msg, meta = _do_backup_to_github()
+    code = 200 if ok else 400
+    return jsonify({"ok": ok, "message": msg, "meta": meta}), code
+
+# Alias used by the UI (kept for backwards compatibility)
+@app.post("/api/admin/backup/github")
+@login_required
+@admin_required
+def api_admin_backup_github():
+    return admin_backup_github()

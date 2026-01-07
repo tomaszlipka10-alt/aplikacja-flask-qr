@@ -1,315 +1,453 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>WMS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
   <style>
-    :root{--bg:#0b1220;--panel:#0f1b33;--panel2:#101f3d;--text:#e8eefc;--muted:#a9b6d3;--accent:#2f7dff;--danger:#ff4d4d;}
-    *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-    body{margin:0;background:linear-gradient(180deg,#061024, #070b12);color:var(--text)}
-    .layout{display:flex;min-height:100vh}
-    .sidebar{width:280px;background:rgba(10,18,34,.9);border-right:1px solid rgba(255,255,255,.06);padding:18px 14px}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:22px;margin-bottom:18px}
-    .dot{width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 0 4px rgba(47,125,255,.15)}
-    .navbtn{display:flex;align-items:center;gap:10px;width:100%;padding:12px 12px;margin:6px 0;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02);color:var(--text);border-radius:12px;cursor:pointer}
-    .navbtn.active{background:rgba(47,125,255,.15);border-color:rgba(47,125,255,.35)}
-    .me{margin-top:14px;padding:12px;border:1px solid rgba(255,255,255,.06);border-radius:14px;background:rgba(255,255,255,.02)}
-    .muted{color:var(--muted);font-size:13px}
-    .main{flex:1;padding:26px 26px 40px}
-    .header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
-    h1{margin:0;font-size:34px;letter-spacing:.3px}
-    .tip{margin-top:8px;color:var(--muted)}
-    .primary{background:var(--accent);border:0;color:white;padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer}
-    .card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-top:14px}
-    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-    .btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
-    .btn:hover{background:rgba(255,255,255,.06)}
-    .danger{border-color:rgba(255,77,77,.4)}
-    .err{margin-top:12px;border:1px solid rgba(255,77,77,.5);background:rgba(255,77,77,.08);padding:10px 12px;border-radius:12px;color:#ffd0d0;white-space:pre-wrap}
-    .ok{margin-top:12px;border:1px solid rgba(70,255,120,.35);background:rgba(70,255,120,.08);padding:10px 12px;border-radius:12px;color:#d7ffe5;white-space:pre-wrap}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
-    th{color:var(--muted);font-weight:700}
-    /* modal */
-    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:50}
-    .modal{width:min(720px,100%);background:var(--panel);border:1px solid rgba(255,255,255,.10);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden}
-    .modal-h{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center}
-    .modal-b{padding:16px}
-    .x{background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer}
-    label{display:block;margin:10px 0 6px;color:var(--muted);font-size:13px}
-    input{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.03);color:var(--text)}
-    .scanwrap{display:flex;gap:10px}
-    .scanwrap input{flex:1}
-    video{width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:black}
-    .hidden{display:none !important}
+    body { margin:0; font-family: Arial, sans-serif; background:#f5f6f8; }
+    .layout { display:flex; min-height:100vh; }
+    .sidebar { width:260px; background:#2d333b; color:#fff; padding:24px 18px; box-sizing:border-box; }
+    .brand { font-weight:800; font-size:28px; letter-spacing:1px; margin-bottom:22px; }
+    .nav a { display:flex; align-items:center; gap:10px; color:#cdd6e0; text-decoration:none; padding:10px 10px; border-radius:10px; margin-bottom:8px;}
+    .nav a:hover, .nav a.active { background:#39424d; color:#fff; }
+    .sidebar-actions { margin-top:18px; border-top:1px solid rgba(255,255,255,.08); padding-top:14px; }
+    .logout { margin-top:12px; color:#f3c5c5; text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
+    .content { flex:1; padding:26px; box-sizing:border-box; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+    .title { font-size:28px; font-weight:800; }
+    .badge { font-size:12px; padding:6px 10px; background:#e9eef7; border-radius:999px; }
+    .card { background:#fff; border-radius:16px; padding:18px; box-shadow:0 6px 18px rgba(0,0,0,.06); }
+    .grid { display:grid; gap:14px; grid-template-columns: 1fr 1fr; }
+    .btn { border:0; border-radius:12px; padding:12px 14px; cursor:pointer; font-weight:700; }
+    .btn.primary { background:#0b61ff; color:#fff; }
+    .btn.secondary { background:#eef2ff; }
+    .btn.danger { background:#ffe8e8; color:#b00020; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    input, select { padding:10px 12px; border-radius:10px; border:1px solid #d7dbe2; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #eef0f3; font-size:14px; }
+    th { color:#667085; font-weight:700; }
+    .muted { color:#667085; }
+    /*
+      IMPORTANT:
+      This app uses elements that can have multiple classes like: "modal-backdrop hidden".
+      Because .modal-backdrop is defined after .hidden in CSS, without !important the
+      later rule (display:flex) would override display:none and the modal would show
+      immediately after login.
+    */
+    .hidden { display:none !important; }
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:18px; }
+    .modal { background:#fff; width:520px; max-width:100%; border-radius:16px; padding:16px; box-shadow:0 12px 28px rgba(0,0,0,.15);}
+    .modal h3 { margin:0 0 10px 0; }
+    .toast { margin-top:10px; padding:10px 12px; border-radius:12px; background:#f3f6ff; }
+    .toast.err { background:#ffecec; }
   </style>
 </head>
 <body>
-<div class="layout">
-  <aside class="sidebar">
-    <div class="brand"><span class="dot"></span> WMS</div>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">WMS</div>
+      <nav class="nav">
+        <a href="#" data-view="dashboard" class="active"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+        <a href="#" data-view="inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a>
+        <a href="#" data-view="audit"><i class="fa-solid fa-clipboard-list"></i> Audit</a>
+        <a href="#" data-view="admin"><i class="fa-solid fa-user-shield"></i> Admin</a>
+      </nav>
 
-    <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')">Dashboard</button>
-    <button class="navbtn" id="nav-inventory" onclick="showView('inventory')">Inventory</button>
-    <button class="navbtn" id="nav-audit" onclick="showView('audit')">Audit</button>
-    <button class="navbtn" id="nav-admin" onclick="showView('admin')">Admin</button>
-
-    <div class="me">
-      <div class="muted">Logged in as</div>
-      <div style="font-weight:800;margin-top:2px">{{ (user.full_name if user and user.full_name else (user.username if user else 'User')) }}</div>
-      <div class="muted" style="margin-top:8px">
-        <a href="/logout" style="color:var(--text);text-decoration:none">Logout</a>
-      </div>
-    </div>
-  </aside>
-
-  <main class="main">
-    <div class="header">
-      <div>
-        <h1>{{ welcome_title or "Warehouse Dashboard" }}</h1>
-        <div class="tip">Tip: add products first (with QR + location). Receive/Issue wrócimy później.</div>
-      </div>
-      <button class="primary" onclick="openNewProductModal()">+ Add Product</button>
-    </div>
-
-    <!-- DASHBOARD -->
-    <section id="view-dashboard" class="card">
-      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Dashboard</div>
-      <div class="muted">Tu dodajesz produkty (QR produktu + QR lokalizacji).</div>
-    </section>
-
-    <!-- INVENTORY -->
-    <section id="view-inventory" class="card hidden">
-      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Inventory</div>
-      <div class="muted">Lista produktów z bazy.</div>
-      <div id="inv-msg" class="muted" style="margin-top:8px"></div>
-      <table>
-        <thead><tr><th>Item #</th><th>Name</th><th>Location</th></tr></thead>
-        <tbody id="inv-body"></tbody>
-      </table>
-    </section>
-
-    <!-- AUDIT placeholder -->
-    <section id="view-audit" class="card hidden">
-      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Audit</div>
-      <div class="muted">Wkrótce.</div>
-    </section>
-
-    <!-- ADMIN -->
-    <section id="view-admin" class="card hidden">
-      <div style="font-weight:800;font-size:18px;margin-bottom:6px">Admin</div>
-      <div class="muted">Backup do GitHub tworzy commit w repo.</div>
-
-      <div class="row" style="margin-top:10px">
-        <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
-        <button class="btn" onclick="verifyOnGitHub()">How to verify on GitHub</button>
-      </div>
-
-      <div id="admin-result"></div>
-      <div class="muted" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
-    </section>
-  </main>
-</div>
-
-<!-- ADD PRODUCT MODAL -->
-<div class="modal-backdrop" id="modal-add">
-  <div class="modal">
-    <div class="modal-h">
-      <div style="font-weight:800">Add product</div>
-      <button class="x" onclick="closeNewProductModal()">×</button>
-    </div>
-    <div class="modal-b">
-      <div class="muted">Możesz wpisać ręcznie albo zeskanować QR (kamera).</div>
-
-      <label>Product QR / Item number</label>
-      <div class="scanwrap">
-        <input id="p-item" placeholder="Scan or type item number"/>
-        <button class="btn" onclick="startScan('p-item')">Scan</button>
-      </div>
-
-      <label>Name</label>
-      <input id="p-name" placeholder="Product name"/>
-
-      <label>Location QR / Location name</label>
-      <div class="scanwrap">
-        <input id="p-loc" placeholder="Scan or type location"/>
-        <button class="btn" onclick="startScan('p-loc')">Scan</button>
-      </div>
-
-      <div class="row" style="margin-top:14px;justify-content:flex-end">
-        <button class="btn" onclick="closeNewProductModal()">Cancel</button>
-        <button class="primary" onclick="saveProduct()">Save</button>
-      </div>
-
-      <div id="add-result"></div>
-
-      <div id="scan-area" class="hidden" style="margin-top:16px">
-        <div class="muted" style="margin-bottom:8px">Scan QR (pozwól na kamerę). Kliknij „Stop”, gdy złapie kod.</div>
-        <video id="scan-video" autoplay playsinline></video>
-        <div class="row" style="margin-top:10px;justify-content:flex-end">
-          <button class="btn danger" onclick="stopScan()">Stop</button>
+      <div class="sidebar-actions">
+        <div class="muted" style="font-size:12px;">Logged in as</div>
+        <div style="font-weight:700; margin-top:6px;">
+          {{ user.full_name or user.username }}
+          {% if user.is_admin %}<span class="badge" style="margin-left:8px;">admin</span>{% endif %}
         </div>
+        <a class="logout" href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
       </div>
+    </aside>
+
+    <main class="content">
+      <div class="topbar">
+        <div class="title" id="pageTitle">Warehouse Dashboard</div>
+        <div class="badge">English-only (translation removed)</div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="card">
+        <div class="grid">
+          <button id="btnAddProductDashboard" class="btn primary" onclick="openNewProductModal();">
+            <i class="fa fa-plus"></i> Add Product
+          </button>
+          <button class="btn" onclick="showView('inventory');"><i class="fa fa-boxes"></i> Inventory</button>
+          <button class="btn" onclick="showView('audit');"><i class="fa fa-list"></i> Audit</button>
+          <p class="muted" style="margin-top:12px">
+            Tip: Use <b>Add Product</b> to create items (with QR scanning), then manage them in <b>Inventory</b>.
+          </p>
+</div>
+      </section>
+
+      <!-- INVENTORY -->
+      <section id="view-inventory" class="card hidden">
+        <div class="row" style="justify-content:space-between;">
+          <div class="row">
+<button id="btnRefreshProducts" class="btn secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <div class="row">
+            <input id="searchBox" placeholder="Search item/name..." />
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Item #</th>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Stock</th>
+              </tr>
+            </thead>
+            <tbody id="productsTbody">
+              <tr><td colspan="4" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- AUDIT -->
+      <section id="view-audit" class="card hidden">
+        <div class="row" style="justify-content:space-between;">
+          <div class="row">
+            <button id="btnRefreshAudit" class="btn secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <div class="muted">Last 200 operations</div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Product ID</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody id="auditTbody">
+              <tr><td colspan="5" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ADMIN -->
+      
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  <div id="modalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3 id="modalTitle">Modal</h3>
+      <div id="modalBody"></div>
+      <div class="row" style="justify-content:flex-end; margin-top:14px;">
+        <button id="modalCancel" class="btn secondary">Cancel</button>
+        <button id="modalOk" class="btn primary">OK</button>
+      </div>
+      <div id="modalMsg" class="toast hidden"></div>
     </div>
   </div>
-</div>
 
 <script>
-  // --- Simple view switcher ---
-  function showView(name){
-    const views=['dashboard','inventory','audit','admin'];
-    views.forEach(v=>{
-      document.getElementById('view-'+v).classList.toggle('hidden', v!==name);
-      document.getElementById('nav-'+v).classList.toggle('active', v===name);
+(function () {
+  // --- state ---
+  let PRODUCTS = [];
+
+  // --- helpers ---
+  const $ = (id) => document.getElementById(id);
+
+  function showToast(el, msg, isErr) {
+    el.classList.toggle('err', !!isErr);
+    el.textContent = msg;
+  }
+
+  function setActiveView(view) {
+    const titles = {dashboard:'Warehouse Dashboard', inventory:'Inventory', audit:'Audit Log', admin:'Admin'};
+    $('pageTitle').textContent = titles[view] || 'WMS';
+
+    document.querySelectorAll('.nav a').forEach(a => {
+      a.classList.toggle('active', a.dataset.view === view);
     });
-    if(name==='inventory'){ loadInventory(); }
+
+    ['dashboard','inventory','audit','admin'].forEach(v => {
+      const sec = document.getElementById('view-' + v);
+      if (sec) sec.classList.toggle('hidden', v !== view);
+    });
+
+    if (view === 'inventory') loadProducts();
+    if (view === 'audit') loadAudit();
   }
 
-  // --- Add product modal ---
-  function openNewProductModal(){
-    document.getElementById('add-result').innerHTML='';
-    document.getElementById('modal-add').style.display='flex';
-  }
-  function closeNewProductModal(){
-    stopScan();
-    document.getElementById('modal-add').style.display='none';
+  async function apiGet(url) {
+    const r = await fetch(url, {credentials: 'same-origin'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
   }
 
-  async function saveProduct(){
-    const item = document.getElementById('p-item').value.trim();
-    const name = document.getElementById('p-name').value.trim();
-    const loc  = document.getElementById('p-loc').value.trim();
+  async function apiPost(url, payload) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify(payload)
+    });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = {message:text}; }
+    if (!r.ok) throw new Error((data && data.message) ? data.message : ('HTTP ' + r.status));
+    return data;
+  }
 
-    const out = document.getElementById('add-result');
-    out.innerHTML = '';
+  // --- inventory ---
+  function renderProducts(filterText) {
+    const tbody = $('productsTbody');
+    const q = (filterText || '').trim().toLowerCase();
 
-    if(!item || !name || !loc){
-      out.innerHTML = '<div class="err">Fill: Item number, Name, Location.</div>';
+    const rows = (PRODUCTS || []).filter(p => {
+      if (!q) return true;
+      return (p.item_number || '').toLowerCase().includes(q) || (p.name || '').toLowerCase().includes(q);
+    });
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="muted">No products.</td></tr>';
       return;
     }
 
-    try{
-      const r = await fetch('/api/products', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({item_number:item, name:name, location_name:loc})
-      });
-      const data = await r.json().catch(()=>({message:'Invalid response'}));
-      if(!r.ok){
-        out.innerHTML = '<div class="err">'+(data.message || ('HTTP '+r.status))+'</div>';
+    tbody.innerHTML = rows.map(p => (
+      '<tr>' +
+        '<td>' + escapeHtml(p.item_number) + '</td>' +
+        '<td>' + escapeHtml(p.name) + '</td>' +
+        '<td>' + escapeHtml(p.location_name || '') + '</td>' +
+        '<td><b>' + (p.current_stock ?? 0) + '</b></td>' +
+      '</tr>'
+    )).join('');
+  }
+
+  async function loadProducts() {
+    try {
+      const res = await apiGet('/api/products');
+      PRODUCTS = res.data || [];
+      renderProducts($('searchBox').value);
+    } catch (e) {
+      $('productsTbody').innerHTML = '<tr><td colspan="4" class="muted">Error loading products: ' + escapeHtml(String(e)) + '</td></tr>';
+    }
+  }
+
+  // --- audit ---
+  async function loadAudit() {
+    try {
+      const res = await apiGet('/api/audit');
+      const rows = res.data || [];
+      const tbody = $('auditTbody');
+
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No audit entries.</td></tr>';
         return;
       }
-      out.innerHTML = '<div class="ok">'+(data.message || 'Saved')+'</div>';
-      // refresh inventory quickly
-      loadInventory();
-    }catch(e){
-      out.innerHTML = '<div class="err">Error: '+e+'</div>';
+
+      tbody.innerHTML = rows.map(r => (
+        '<tr>' +
+          '<td>' + escapeHtml(r.created_at || '') + '</td>' +
+          '<td>' + escapeHtml(r.username || '') + '</td>' +
+          '<td>' + escapeHtml(r.action || '') + '</td>' +
+          '<td>' + (r.product_id ?? '') + '</td>' +
+          '<td>' + (r.amount ?? 0) + '</td>' +
+        '</tr>'
+      )).join('');
+    } catch (e) {
+      $('auditTbody').innerHTML = '<tr><td colspan="5" class="muted">Error loading audit: ' + escapeHtml(String(e)) + '</td></tr>';
     }
   }
 
-  // --- Inventory ---
-  async function loadInventory(){
-    const msg = document.getElementById('inv-msg');
-    const body = document.getElementById('inv-body');
-    msg.textContent = 'Loading...';
-    body.innerHTML='';
-    try{
-      const r = await fetch('/api/products');
-      const data = await r.json();
-      msg.textContent = '';
-      (data.products || []).forEach(p=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML = '<td>'+escapeHtml(p.item_number)+'</td><td>'+escapeHtml(p.name)+'</td><td>'+escapeHtml(p.location_name||'')+'</td>';
-        body.appendChild(tr);
-      });
-    }catch(e){
-      msg.textContent = 'Failed to load products: '+e;
+  // --- modals ---
+  function openModal(title, bodyHtml, onOk) {
+    // Reset button state (some modals customize these)
+    $('modalCancel').classList.remove('hidden');
+    $('modalOk').textContent = 'OK';
+    $('modalTitle').textContent = title;
+    $('modalBody').innerHTML = bodyHtml;
+    $('modalMsg').classList.add('hidden');
+    $('modalBackdrop').classList.remove('hidden');
+
+    const cancel = () => closeModal();
+    $('modalCancel').onclick = cancel;
+
+    $('modalOk').onclick = async () => {
+      try {
+        $('modalOk').disabled = true;
+        await onOk();
+      } finally {
+        $('modalOk').disabled = false;
+      }
+    };
+  }
+
+  function closeModal() {
+    $('modalBackdrop').classList.add('hidden');
+    $('modalBody').innerHTML = '';
+    $('modalOk').onclick = null;
+    $('modalCancel').onclick = null;
+  }
+
+  function modalError(msg) {
+    const el = $('modalMsg');
+    el.classList.remove('hidden');
+    el.classList.add('err');
+    el.textContent = msg;
+  }
+
+  // --- actions ---
+  function openNewProductModal() {
+    const body = `
+      <div class="row" style="margin-bottom:10px;">
+        <input id="np_item" placeholder="Item number" style="flex:1;" />
+        <input id="np_loc" placeholder="Location (e.g. MAG-1)" style="width:180px;" />
+      </div>
+      <div class="row">
+        <input id="np_name" placeholder="Product name" style="flex:1;" />
+      </div>
+      <div class="muted" style="margin-top:10px; font-size:13px;">
+        If item number already exists, it will update the product name/location.
+      </div>
+    `;
+    openModal('New product', body, async () => {
+      const item = ($('np_item').value || '').trim();
+      const name = ($('np_name').value || '').trim();
+      const loc = ($('np_loc').value || 'MAG-1').trim();
+
+      try {
+        await apiPost('/api/products', {item_number:item, name:name, location_name:loc});
+        closeModal();
+        await loadProducts();
+      }
+
+  function openAdminModal() {
+    const body = `
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px">
+        <button id="btnExportJson" class="btn"><i class="fa fa-download"></i> Download JSON backup</button>
+        <button id="btnBackupGithub" class="btn primary"><i class="fa fa-cloud-upload-alt"></i> Backup to GitHub</button>
+      </div>
+      <div class="muted">
+        <b>Download JSON backup</b> saves a local file to your computer.<br/>
+        <b>Backup to GitHub</b> writes a backup file to your repo (Render Secret Files: <code>GITHUB_TOKEN</code> + <code>GITHUB_REPO</code>).
+      </div>
+      <div id="adminStatus" style="margin-top:10px"></div>
+    `;
+    openModal("Admin / Backup", body, async () => closeModal());
+    $('modalOk').textContent = 'Close';
+    $('modalCancel').classList.add('hidden');
+  }
+ catch (e) {
+        modalError(String(e));
+      }
+    });
+  }
+
+  function openOperationModal(action) {
+    const options = (PRODUCTS || []).map(p => `<option value="${p.id}">${escapeHtml(p.item_number)} — ${escapeHtml(p.name)}</option>`).join('');
+    const body = `
+      <div class="row" style="margin-bottom:10px;">
+        <select id="op_pid" style="flex:1;">
+          ${options || '<option value="">No products</option>'}
+        </select>
+        <input id="op_amt" type="number" min="1" value="1" style="width:120px;" />
+      </div>
+      <div class="muted" style="font-size:13px;">Choose product and amount.</div>
+    `;
+    openModal(action === 'receive' ? 'Receive stock' : 'Issue stock', body, async () => {
+      const pid = $('op_pid').value;
+      const amt = parseInt($('op_amt').value || '0', 10);
+
+      if (!pid) { modalError('No product selected'); return; }
+      if (!amt || amt <= 0) { modalError('Amount must be > 0'); return; }
+
+      try {
+        await apiPost('/api/stock/' + action, {product_id: Number(pid), amount: amt});
+        closeModal();
+        await loadProducts();
+        await loadAudit();
+      } catch (e) {
+        modalError(String(e));
+      }
+    });
+  }
+
+  // --- admin ---
+  async function doBackupGithub() {
+    const status = $('adminStatus');
+    showToast(status, 'Running backup...', false);
+    try {
+      const res = await apiPost('/api/admin/backup/github', {});
+      showToast(status, res.message + (res.commit ? (' (commit ' + res.commit.slice(0,7) + ')') : ''), false);
+    } catch (e) {
+      showToast(status, 'Backup error: ' + String(e), true);
     }
   }
 
-  function escapeHtml(s){
-    return String(s ?? '').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'","&#039;");
   }
 
-  // --- Admin backup ---
-  async function backupToGitHub(){
-    const out = document.getElementById('admin-result');
-    out.innerHTML='';
-    try{
-      const r = await fetch('/api/admin/backup/github', { method:'POST' });
-      const data = await r.json().catch(()=>({message:'Invalid response'}));
-      if(!r.ok){
-        out.innerHTML = '<div class="err">Backup failed: '+(data.message || ('HTTP '+r.status))+'</div>';
+  // --- wire up events (NO inline onclick -> avoids syntax issues) ---
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      setActiveView(a.dataset.view);
+    });
+  });
+
+  $('btnReceive').addEventListener('click', async () => { await loadProducts(); openOperationModal('receive'); });
+  $('btnIssue').addEventListener('click', async () => { await loadProducts(); openOperationModal('issue'); });
+
+    // Buttons (some are conditionally present depending on the current view / role)
+    const btnNew = $('btnNewProduct');
+    if (btnNew) btnNew.addEventListener('click', openNewProductModal);
+
+    const btnRefreshProducts = $('btnRefreshProducts');
+    if (btnRefreshProducts) btnRefreshProducts.addEventListener('click', loadProducts);
+
+    const btnRefreshAudit = $('btnRefreshAudit');
+    if (btnRefreshAudit) btnRefreshAudit.addEventListener('click', loadAudit);
+
+    const searchBox = $('searchBox');
+    if (searchBox) searchBox.addEventListener('input', () => renderProducts(searchBox.value));
+
+    // Admin / Backup buttons are rendered inside a modal, so bind with event delegation
+    document.addEventListener('click', (e) => {
+      const exportBtn = e.target.closest('#btnExportJson');
+      if (exportBtn) {
+        e.preventDefault();
+        doExportJson();
         return;
       }
-      out.innerHTML = '<div class="ok">'+(data.message || 'Backup saved')+'\nPath: '+(data.path||'')+'\nCommit: '+(data.commit||'')+'</div>';
-    }catch(e){
-      out.innerHTML = '<div class="err">Backup failed: '+e+'</div>';
-    }
-  }
+      const backupBtn = e.target.closest('#btnBackupGithub');
+      if (backupBtn) {
+        e.preventDefault();
+        doBackupGithub();
+        return;
+      }
+    });
 
-  function verifyOnGitHub(){
-    alert("GitHub test: wejdź do repo -> zakładka 'Commits' (historia).\nPo kliknięciu Backup powinien być nowy commit typu 'Backup warehouse to GitHub ...'.");
-  }
-
-  // --- QR scan ---
-  let scanStream = null;
-  let scanTargetId = null;
-  let scanLoop = null;
-
-  async function startScan(targetInputId){
-    scanTargetId = targetInputId;
-
-    // Prefer BarcodeDetector if available
-    const hasBarcodeDetector = ('BarcodeDetector' in window);
-    if(!hasBarcodeDetector){
-      alert("Twoja przeglądarka nie wspiera BarcodeDetector.\nMożesz wkleić wartość z czytnika (np. skaner USB) do pola.");
-      return;
-    }
-
-    try{
-      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-      const video = document.getElementById('scan-video');
-      video.srcObject = scanStream;
-      document.getElementById('scan-area').classList.remove('hidden');
-
-      const detector = new BarcodeDetector({ formats: ['qr_code'] });
-
-      scanLoop = async () => {
-        if(!scanStream) return;
-        try{
-          const barcodes = await detector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = (barcodes[0].rawValue || '').trim();
-            if(raw){
-              document.getElementById(scanTargetId).value = raw;
-              stopScan();
-              return;
-            }
-          }
-        }catch(e){
-          // ignore a frame errors
-        }
-        requestAnimationFrame(scanLoop);
-      };
-      requestAnimationFrame(scanLoop);
-    }catch(e){
-      alert("Nie udało się uruchomić kamery: " + e);
-      stopScan();
-    }
-  }
-
-  function stopScan(){
-    if(scanStream){
-      scanStream.getTracks().forEach(t=>t.stop());
-      scanStream = null;
-    }
-    document.getElementById('scan-area').classList.add('hidden');
-  }
-
-  // default
-  showView('dashboard');
+// initial
+  setActiveView('dashboard');
+})();
 </script>
 </body>
 </html>
