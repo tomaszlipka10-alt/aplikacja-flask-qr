@@ -67,22 +67,6 @@ class Product(db.Model):
     location_name = db.Column(db.String(100), default="MAG-1", nullable=False)
 
 
-def _product_table_cols() -> set[str]:
-    """Return column names for the existing 'product' table.
-
-    The app has had a few schema variants over time. On Render, your SQLite
-    file can keep an older table definition. Using ORM against a mismatched
-    table causes 500 errors. We introspect the table and use safe raw SQL in
-    the API endpoints so both schemas keep working.
-    """
-    try:
-        with db.engine.connect() as conn:
-            rows = conn.execute(text("PRAGMA table_info(product)"))
-            return {r[1] for r in rows}  # second column is name
-    except Exception:
-        return set()
-
-
 class AuditLog(db.Model):
     __tablename__ = "audit_log"
     id = db.Column(db.Integer, primary_key=True)
@@ -294,125 +278,89 @@ def logout():
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
-    cols = _product_table_cols()
-
-    # --- GET ---
     if request.method == "GET":
-        try:
-            # New schema
-            if {"item_number", "name", "current_stock", "location_name"}.issubset(cols):
-                sql = """
-                    SELECT id, item_number, name, current_stock, location_name
-                    FROM product
-                    ORDER BY item_number ASC
-                """
-            # Legacy schema (older commits)
-            elif {"sku", "name", "location"}.issubset(cols):
-                sql = """
-                    SELECT id,
-                           sku AS item_number,
-                           name,
-                           0 AS current_stock,
-                           location AS location_name
-                    FROM product
-                    ORDER BY sku ASC
-                """
-            else:
-                # Unknown schema; return empty instead of 500
-                return jsonify({"data": []})
+        products = Product.query.order_by(Product.item_number.asc()).all()
+        mapped = [
+            {
+                "id": p.id,
+                "item_number": p.item_number,
+                "name": p.name,
+                "current_stock": p.current_stock,
+                "location_name": p.location_name,
+                "created_at": p.created_at.isoformat() if getattr(p, "created_at", None) else None,
+            }
+            for p in products
+        ]
+        # Backwards compatible (older frontend used "data"); newer frontend expects "ok/products".
+        return jsonify({"ok": True, "products": mapped, "data": mapped})
 
-            with db.engine.connect() as conn:
-                rows = conn.execute(db.text(sql)).mappings().all()
-            return jsonify({"data": [dict(r) for r in rows]})
-        except Exception as e:
-            # Don’t crash the UI; surface the error
-            return jsonify({"ok": False, "error": str(e), "data": []}), 500
-
-    # --- POST (upsert) ---
+    # POST: create or update by item_number (upsert)
     data = request.get_json(force=True, silent=True) or {}
 
-    # Be tolerant to frontend payload naming (we've had a few UI iterations).
+    # Accept multiple naming conventions from the UI (ID/Name/Qty/Location)
     item_number = (
         data.get("item_number")
         or data.get("sku")
         or data.get("product_id")
         or data.get("id")
-        or data.get("ProductID")
         or ""
-    ).strip()
+    )
     name = (
         data.get("name")
         or data.get("product_name")
-        or data.get("ProductName")
+        or data.get("product")
         or ""
-    ).strip()
-    location = (data.get("location_name") or data.get("location") or "MAG-1").strip()
-
-    stock_raw = data.get("current_stock", data.get("quantity", 0))
+    )
+    location = (data.get("location_name") or data.get("location") or "").strip() or "MAG-1"
+    qty = data.get("current_stock")
+    if qty is None:
+        qty = data.get("quantity")
     try:
-        current_stock = int(stock_raw) if stock_raw is not None and str(stock_raw).strip() != "" else 0
+        qty = int(qty) if qty is not None and str(qty).strip() != "" else 0
     except Exception:
-        current_stock = 0
+        qty = 0
+
+    item_number = str(item_number).strip()
+    name = str(name).strip()
 
     if not item_number or not name:
-        return jsonify({"ok": False, "error": "item_number and name are required", "message": "item_number and name are required"}), 400
+        return jsonify({"ok": False, "error": "item_number and name are required"}), 400
 
-    # New schema upsert
-    if {"item_number", "name", "current_stock", "location_name"}.issubset(cols):
-        product = Product.query.filter_by(item_number=item_number).first()
-        if product:
-            product.name = name
-            product.location_name = location
-            product.current_stock = current_stock
-        else:
-            product = Product(
-                item_number=item_number,
-                name=name,
-                current_stock=current_stock,
-                location_name=location,
-            )
-            db.session.add(product)
+    product = Product.query.filter_by(item_number=item_number).first()
+    if product:
+        product.name = name
+        product.location_name = location
+        product.current_stock = qty
         db.session.commit()
-        return jsonify({"ok": True, "product": {
+        return jsonify({
+            "ok": True,
+            "updated": True,
+            "product": {
+                "id": product.id,
+                "item_number": product.item_number,
+                "name": product.name,
+                "current_stock": product.current_stock,
+                "location_name": product.location_name,
+                "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
+            },
+        })
+
+    product = Product(item_number=item_number, name=name, location_name=location, current_stock=qty)
+    db.session.add(product)
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "updated": False,
+        "product": {
             "id": product.id,
             "item_number": product.item_number,
             "name": product.name,
             "current_stock": product.current_stock,
             "location_name": product.location_name,
-        }})
+            "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
+        },
+    }), 201
 
-    # Legacy schema upsert (sku/name/location)
-    if {"sku", "name", "location"}.issubset(cols):
-        try:
-            with db.engine.begin() as conn:
-                # Update first
-                upd = db.text("""
-                    UPDATE product
-                    SET name = :name,
-                        location = :location
-                    WHERE sku = :sku
-                """)
-                res = conn.execute(upd, {"name": name, "location": location, "sku": item_number})
-                if res.rowcount == 0:
-                    ins = db.text("""
-                        INSERT INTO product (sku, name, location)
-                        VALUES (:sku, :name, :location)
-                    """)
-                    conn.execute(ins, {"sku": item_number, "name": name, "location": location})
-                # Fetch row (best-effort)
-                sel = db.text("SELECT id, sku AS item_number, name, 0 AS current_stock, location AS location_name FROM product WHERE sku = :sku")
-                row = conn.execute(sel, {"sku": item_number}).mappings().first()
-            return jsonify({"ok": True, "product": dict(row) if row else {
-                "item_number": item_number,
-                "name": name,
-                "current_stock": 0,
-                "location_name": location,
-            }})
-        except Exception as e:
-            return jsonify({"ok": False, "error": str(e)}), 500
-
-    # Unknown schema
-    return jsonify({"ok": False, "error": "Unknown product table schema"}), 500
 
 @app.route("/api/stock/<action>", methods=["POST"])
 @login_required
