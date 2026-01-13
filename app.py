@@ -258,19 +258,33 @@ def api_products_list():
 def api_products_create():
     data = request.get_json(silent=True) or {}
 
-    item_number = (data.get("item_number") or data.get("sku") or "").strip()
-    name = (data.get("name") or "").strip()
-    location_name = (data.get("location_name") or data.get("location") or "").strip()
+   # Accept multiple frontend field names (compat)
+item_number = (data.get("item_number")
+               or data.get("sku")
+               or data.get("product_id")
+               or data.get("productId")
+               or data.get("id")
+               or "").strip()
 
-    # quantity can be string
-    qty = data.get("current_stock", 0)
-    try:
-        qty = int(qty)
-    except Exception:
-        qty = 0
+name = (data.get("name")
+        or data.get("product_name")
+        or data.get("productName")
+        or "").strip()
 
-    if not item_number or not name:
-        return jsonify({"ok": False, "error": "item_number and name are required"}), 400
+location_name = (data.get("location_name")
+                 or data.get("location")
+                 or data.get("locationName")
+                 or "").strip()
+
+qty = data.get("current_stock", data.get("quantity", 0))
+try:
+    qty = int(qty)
+except Exception:
+    qty = 0
+
+if not item_number or not name:
+    return jsonify({"ok": False, "error": "Product ID and Product Name are required"}), 400
+
 
     # Supabase path
     if supabase_enabled():
