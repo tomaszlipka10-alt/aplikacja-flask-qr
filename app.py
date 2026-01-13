@@ -279,18 +279,26 @@ def logout():
 @login_required
 def api_products():
     if request.method == "GET":
-        products = Product.query.order_by(Product.item_number.asc()).all()
-        return jsonify({
-            "data": [
-                {
-                    "id": p.id,
-                    "item_number": p.item_number,
-                    "name": p.name,
-                    "current_stock": p.current_stock,
-                    "location_name": p.location_name
-                } for p in products
-            ]
-        })
+        rows = Product.query.order_by(Product.id.desc()).all()
+        products = []
+        for p in rows:
+            products.append({
+                "id": p.id,
+                # canonical fields used by our UI
+                "item_number": p.item_number,
+                "name": p.name,
+                "current_stock": p.current_stock,
+                "location_name": p.location_name,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                # aliases for older UI / tables
+                "sku": p.item_number,
+                "qty": p.current_stock,
+                "quantity": p.current_stock,
+                "location": p.location_name,
+            })
+        # Return both keys so frontend variants keep working
+        return jsonify({"ok": True, "products": products, "data": products})
+
 
     # POST: create or update by item_number (upsert)
     data = request.get_json(force=True, silent=True) or {}
