@@ -7,6 +7,13 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+def supabase_enabled() -> bool:
+    return bool(
+        os.getenv("SUPABASE_URL") and
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    )
+
+
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_login import (
     LoginManager,
