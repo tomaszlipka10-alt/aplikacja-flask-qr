@@ -12,6 +12,59 @@ def supabase_enabled() -> bool:
         os.getenv("SUPABASE_URL") and
         os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     )
+import urllib.request
+import urllib.parse
+import urllib.error
+
+def supabase_request(method: str, path: str, params: dict | None = None, json_body=None):
+    """
+    Supabase PostgREST request:
+      base_url = SUPABASE_URL/rest/v1/<path>
+    Uses SERVICE_ROLE key (server-side only).
+    """
+    base = (os.getenv("SUPABASE_URL") or "").rstrip("/")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or ""
+    url = f"{base}/rest/v1/{path.lstrip('/')}"
+
+    if params:
+        query = urllib.parse.urlencode(params, doseq=True, safe=",:")
+        url = f"{url}?{query}"
+
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Accept": "application/json",
+    }
+
+    data = None
+    if json_body is not None:
+        headers["Content-Type"] = "application/json"
+        headers["Prefer"] = "return=representation"
+        data = json.dumps(json_body).encode("utf-8")
+
+    req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw = resp.read()
+            if not raw:
+                return None
+            return json.loads(raw.decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Supabase HTTP {e.code}: {err}")
+
+def map_sb_product_to_api(row: dict) -> dict:
+    # API shape expected by frontend:
+    return {
+        "id": row.get("id"),
+        "item_number": row.get("sku"),
+        "name": row.get("name"),
+        "location_name": row.get("location"),
+        "current_stock": row.get("quantity", 0),
+        "qr_product": row.get("qr_product"),
+        "qr_location": row.get("qr_location"),
+        "created_at": row.get("created_at"),
+    }
 
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
@@ -170,44 +223,91 @@ def logout():
 @app.get("/api/products")
 @login_required
 def api_products_list():
+    # Supabase path (shared across devices)
+    if supabase_enabled():
+        rows = supabase_request(
+            "GET",
+            "products",
+            params={
+                "select": "id,sku,name,quantity,location,qr_product,qr_location,created_at",
+                "order": "created_at.desc",
+                "limit": "500",
+            },
+        ) or []
+        return jsonify({"ok": True, "products": [map_sb_product_to_api(r) for r in rows]})
+
+    # SQLite fallback (current behavior)
     products = Product.query.order_by(Product.id.desc()).all()
-    return jsonify(
-        {
-            "ok": True,
-            "products": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "sku": p.sku,
-                    "description": p.description,
-                    "qr_code": p.qr_code,
-                    "location": p.location,
-                    "created_at": p.created_at,
-                }
-                for p in products
-            ],
-        }
-    )
+    mapped = []
+    for p in products:
+        mapped.append({
+            "id": p.id,
+            "item_number": getattr(p, "sku", None),
+            "name": getattr(p, "name", None),
+            "location_name": getattr(p, "location", None),
+            "current_stock": getattr(p, "quantity", 0) if hasattr(p, "quantity") else 0,
+            "qr_product": getattr(p, "qr_code", None) if hasattr(p, "qr_code") else None,
+            "qr_location": None,
+            "created_at": p.created_at.isoformat() if getattr(p, "created_at", None) else None,
+        })
+    return jsonify({"ok": True, "products": mapped})
 
 
 @app.post("/api/products")
 @login_required
 def api_products_create():
     data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
-    if not name:
-        return jsonify({"ok": False, "error": "Name is required"}), 400
 
+    item_number = (data.get("item_number") or data.get("sku") or "").strip()
+    name = (data.get("name") or "").strip()
+    location_name = (data.get("location_name") or data.get("location") or "").strip()
+
+    # quantity can be string
+    qty = data.get("current_stock", 0)
+    try:
+        qty = int(qty)
+    except Exception:
+        qty = 0
+
+    if not item_number or not name:
+        return jsonify({"ok": False, "error": "item_number and name are required"}), 400
+
+    # Supabase path
+    if supabase_enabled():
+        row = {
+            "sku": item_number,
+            "name": name,
+            "location": location_name or None,
+            "quantity": qty,
+            "qr_product": data.get("qr_product") or None,
+            "qr_location": data.get("qr_location") or None,
+        }
+        created = supabase_request("POST", "products", json_body=row) or []
+        product = map_sb_product_to_api(created[0] if created else row)
+        return jsonify({"ok": True, "product": product})
+
+    # SQLite fallback (current behavior)
     p = Product(
         name=name,
-        sku=(data.get("sku") or "").strip() or None,
-        description=(data.get("description") or "").strip() or None,
-        qr_code=(data.get("qr_code") or "").strip() or None,
-        location=(data.get("location") or "").strip() or None,
+        sku=item_number,
+        location=location_name,
+        description=(data.get("description") or ""),
+        qr_code=(data.get("qr_product") or data.get("qr_code") or ""),
     )
     db.session.add(p)
     db.session.commit()
-    return jsonify({"ok": True, "id": p.id})
+
+    return jsonify({"ok": True, "product": {
+        "id": p.id,
+        "item_number": p.sku,
+        "name": p.name,
+        "location_name": p.location,
+        "current_stock": 0,
+        "qr_product": p.qr_code,
+        "qr_location": None,
+        "created_at": p.created_at.isoformat() if getattr(p, "created_at", None) else None,
+    }})
+
 
 
 # -------------------- Admin: Backup to GitHub --------------------
