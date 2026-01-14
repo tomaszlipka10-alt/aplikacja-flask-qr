@@ -12,6 +12,130 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import inspect, text as sql_text
+# ----------------------------
+# Supabase (Postgres) products storage (optional)
+# ----------------------------
+# Required env vars on Render:
+#   USE_SUPABASE=1
+#   SUPABASE_URL=https://<project-ref>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY=<service_role_key>  (preferred)
+#
+# Uses Supabase PostgREST via HTTPS (no extra dependencies).
+import json
+import urllib.request
+import urllib.parse
+import urllib.error
+from typing import Optional, Union, Any, List
+
+def _supabase_key() -> str:
+    return (
+        os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        or os.getenv("SUPABASE_SERVICE_KEY")
+        or os.getenv("SUPABASE_KEY")
+        or os.getenv("SUPABASE_ANON_KEY")
+        or ""
+    )
+
+def _supabase_enabled() -> bool:
+    return os.getenv("USE_SUPABASE", "0") == "1" and bool(os.getenv("SUPABASE_URL") and _supabase_key())
+
+def _supabase_request(
+    method: str,
+    table: str,
+    params: Optional[dict] = None,
+    json_body: Optional[Union[dict, list]] = None,
+    prefer: Optional[str] = None
+) -> Any:
+    base = (os.getenv("SUPABASE_URL") or "").rstrip("/")
+    key = _supabase_key()
+    url = f"{base}/rest/v1/{table.lstrip('/')}"
+    if params:
+        query = urllib.parse.urlencode(params, doseq=True, safe=",:")
+        url = f"{url}?{query}"
+
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Accept": "application/json",
+    }
+    body = None
+
+    if json_body is not None:
+        headers["Content-Type"] = "application/json"
+        body = json.dumps(json_body).encode("utf-8")
+        headers["Prefer"] = prefer or "return=representation"
+    elif prefer:
+        headers["Prefer"] = prefer
+
+    req = urllib.request.Request(url, data=body, headers=headers, method=method.upper())
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            raw = resp.read()
+            if not raw:
+                return None
+            return json.loads(raw.decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_raw = e.read()
+        try:
+            err_text = err_raw.decode("utf-8", errors="replace")
+        except Exception:
+            err_text = str(err_raw)
+        raise RuntimeError(f"Supabase HTTP {e.code}: {err_text}")
+
+def _sb_row_to_api(row: dict) -> dict:
+    return {
+        "id": row.get("id"),
+        "item_number": row.get("sku"),
+        "name": row.get("name"),
+        "current_stock": row.get("quantity", 0),
+        "location_name": row.get("location"),
+        "qr_product": row.get("qr_product"),
+        "qr_location": row.get("qr_location"),
+        "created_at": row.get("created_at"),
+    }
+
+def _sb_list_products(limit: int = 500) -> List[dict]:
+    rows = _supabase_request(
+        "GET",
+        "products",
+        params={
+            "select": "id,sku,name,quantity,location,qr_product,qr_location,created_at",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        },
+    ) or []
+    return [_sb_row_to_api(r) for r in rows]
+
+def _sb_upsert_product(payload: dict) -> dict:
+    sku = (payload.get("item_number") or "").strip()
+    name = (payload.get("name") or "").strip()
+    location = (payload.get("location_name") or "").strip()
+
+    qty_raw = payload.get("current_stock")
+    try:
+        qty = int(qty_raw) if qty_raw is not None else 0
+    except Exception:
+        qty = 0
+
+    row = {
+        "sku": sku,
+        "name": name,
+        "quantity": qty,
+        "location": location or None,
+        "qr_product": payload.get("qr_product") or None,
+        "qr_location": payload.get("qr_location") or None,
+    }
+
+    created = _supabase_request(
+        "POST",
+        "products",
+        params={"on_conflict": "sku"},
+        json_body=row,
+        prefer="return=representation,resolution=merge-duplicates",
+    ) or []
+
+    return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
+
 
 # ------------------------------------------------------------
 # App
@@ -278,7 +402,20 @@ def logout():
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
+    # ---------------------------
+    # GET
+    # ---------------------------
     if request.method == "GET":
+        # Supabase path (shared across devices)
+        if "_supabase_enabled" in globals() and callable(globals().get("_supabase_enabled")) and _supabase_enabled():
+            try:
+                products = _sb_list_products(limit=500)
+                # Backwards compatible ("data") + current ("products")
+                return jsonify({"ok": True, "products": products, "data": products})
+            except Exception as e:
+                return jsonify({"ok": False, "error": str(e)}), 500
+
+        # SQLite fallback
         products = Product.query.order_by(Product.item_number.asc()).all()
         mapped = [
             {
@@ -291,10 +428,11 @@ def api_products():
             }
             for p in products
         ]
-        # Backwards compatible (older frontend used "data"); newer frontend expects "ok/products".
         return jsonify({"ok": True, "products": mapped, "data": mapped})
 
-    # POST: create or update by item_number (upsert)
+    # ---------------------------
+    # POST (upsert)
+    # ---------------------------
     data = request.get_json(force=True, silent=True) or {}
 
     # Accept multiple naming conventions from the UI (ID/Name/Qty/Location)
@@ -312,6 +450,7 @@ def api_products():
         or ""
     )
     location = (data.get("location_name") or data.get("location") or "").strip() or "MAG-1"
+
     qty = data.get("current_stock")
     if qty is None:
         qty = data.get("quantity")
@@ -326,15 +465,52 @@ def api_products():
     if not item_number or not name:
         return jsonify({"ok": False, "error": "item_number and name are required"}), 400
 
+    # Supabase path (shared across devices)
+    if "_supabase_enabled" in globals() and callable(globals().get("_supabase_enabled")) and _supabase_enabled():
+        try:
+            created = _sb_upsert_product(
+                {
+                    "item_number": item_number,
+                    "name": name,
+                    "location_name": location,
+                    "current_stock": qty,
+                    "qr_product": data.get("qr_product"),
+                    "qr_location": data.get("qr_location"),
+                }
+            )
+            return jsonify({"ok": True, "updated": True, "product": created}), 200
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
+
+    # SQLite fallback
     product = Product.query.filter_by(item_number=item_number).first()
     if product:
         product.name = name
         product.location_name = location
         product.current_stock = qty
         db.session.commit()
-        return jsonify({
+        return jsonify(
+            {
+                "ok": True,
+                "updated": True,
+                "product": {
+                    "id": product.id,
+                    "item_number": product.item_number,
+                    "name": product.name,
+                    "current_stock": product.current_stock,
+                    "location_name": product.location_name,
+                    "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
+                },
+            }
+        )
+
+    product = Product(item_number=item_number, name=name, location_name=location, current_stock=qty)
+    db.session.add(product)
+    db.session.commit()
+    return jsonify(
+        {
             "ok": True,
-            "updated": True,
+            "updated": False,
             "product": {
                 "id": product.id,
                 "item_number": product.item_number,
@@ -343,23 +519,9 @@ def api_products():
                 "location_name": product.location_name,
                 "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
             },
-        })
+        }
+    ), 201
 
-    product = Product(item_number=item_number, name=name, location_name=location, current_stock=qty)
-    db.session.add(product)
-    db.session.commit()
-    return jsonify({
-        "ok": True,
-        "updated": False,
-        "product": {
-            "id": product.id,
-            "item_number": product.item_number,
-            "name": product.name,
-            "current_stock": product.current_stock,
-            "location_name": product.location_name,
-            "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
-        },
-    }), 201
 
 
 @app.route("/api/stock/<action>", methods=["POST"])
