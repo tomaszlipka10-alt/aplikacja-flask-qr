@@ -32,7 +32,6 @@
 
     .app{display:flex; min-height:100vh;}
 
-    /* Sidebar (always visible, icon-only) */
     .sidebar{
       position:sticky;
       top:0;
@@ -79,7 +78,6 @@
 
     .navbottom{width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; padding-bottom:6px;}
 
-    /* Main */
     .main{flex:1; min-width:0;}
 
     .topbar{
@@ -144,10 +142,6 @@
 
     .hint{color:var(--muted); margin: 6px 0 14px; font-size:14px}
 
-    .grid{
-     job word:0;
-    }
-
     .card{
       background: var(--card);
       border:1px solid var(--border);
@@ -182,7 +176,6 @@
 
     .small{font-size:13px; color:var(--muted)}
 
-    /* Modal */
     .modal-backdrop{
       position:fixed;
       inset:0;
@@ -233,7 +226,6 @@
     .alert.bad{background:#fff5f5; border-color: rgba(220,38,38,.25); color:#7a1a1a}
     .alert.ok{background:#f0fff6; border-color: rgba(22,163,74,.25); color:#0f5132}
 
-    /* Scanner */
     .scanner{
       display:none;
       margin-top:12px;
@@ -244,7 +236,6 @@
     }
     video{width:100%; height:auto; display:block}
 
-    /* Responsive tweaks */
     @media (max-width: 520px){
       .topbar-inner{padding:12px}
       .container{padding:12px}
@@ -338,7 +329,26 @@
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
           <h2>Audit</h2>
-          <div class="small">Na razie: podgląd logów/akcji dodamy w kolejnych krokach.</div>
+          <div class="small">Logi działań (Supabase audit_log).</div>
+
+          <div style="overflow:auto; margin-top:12px">
+            <table style="width:100%; border-collapse:collapse; font-size:14px">
+              <thead>
+                <tr style="text-align:left; color:var(--muted)">
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Time</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Action</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">User</th>
+                </tr>
+              </thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+
+          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">Brak wpisów.</div>
         </div>
       </section>
 
@@ -357,7 +367,7 @@
       </section>
     </div>
 
-    <!-- ADD PRODUCT MODAL (Dashboard) -->
+    <!-- ADD PRODUCT MODAL -->
     <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-header">
@@ -412,6 +422,15 @@
 </div>
 
 <script>
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
   // ---------- Views ----------
   function showView(name){
     const views = ['dashboard','inventory','audit','admin'];
@@ -420,34 +439,31 @@
       document.getElementById('nav-'+v).classList.toggle('active', v===name);
     }
 
-    // Topbar controls
     const addBtn = document.getElementById('btnAddProductTop');
     addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
 
-    // Update hint
     const hint = document.getElementById('pageHint');
     if (name === 'dashboard') hint.textContent = 'Wybierz akcję. Add Product dodaje produkt do bazy (ID + name + qty + location).';
     else if (name === 'inventory') hint.textContent = 'Lista produktów z bazy.';
+    else if (name === 'audit') hint.textContent = 'Podgląd logów działań (audit).';
     else if (name === 'admin') hint.textContent = 'Administracja (backup itp.).';
     else hint.textContent = '';
 
     if (name === 'inventory') loadProducts();
+    if (name === 'audit') loadAudit();
   }
 
-  // ---------- Logout ----------
   function logout(){
     window.location.href = '/logout';
   }
 
-  // ---------- Dashboard actions ----------
   function comingSoon(label){
     alert(label + ' — wkrótce.');
   }
 
   // ---------- Add product modal ----------
   function openAddProductModal(){
-    const bd = document.getElementById('addProductBackdrop');
-    bd.style.display = 'flex';
+    document.getElementById('addProductBackdrop').style.display = 'flex';
     clearAddAlert();
   }
 
@@ -469,7 +485,7 @@
     el.className = 'alert';
   }
 
-  // ---------- Inventory table ----------
+  // ---------- Inventory ----------
   async function loadProducts(){
     const body = document.getElementById('productsBody');
     const empty = document.getElementById('productsEmpty');
@@ -503,13 +519,42 @@
     }
   }
 
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
+  // ---------- Audit ----------
+  async function loadAudit(){
+    const body = document.getElementById('auditBody');
+    const empty = document.getElementById('auditEmpty');
+    body.innerHTML = '';
+    empty.style.display = 'none';
+
+    try{
+      const res = await fetch('/api/audit');
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      const items = data.audit || data.data || [];
+
+      if(items.length === 0){
+        empty.style.display = 'block';
+        return;
+      }
+
+      for(const r of items){
+        const created = r.created_at ? String(r.created_at).replace('T',' ').replace('Z','') : '';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(created)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(r.qty ?? ''))}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.location ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.username ?? '')}</td>
+        `;
+        body.appendChild(tr);
+      }
+    }catch(e){
+      empty.style.display = 'block';
+      empty.textContent = 'Nie udało się pobrać logów audytu.';
+    }
   }
 
   // ---------- Save product ----------
@@ -529,12 +574,11 @@
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          // new API (Supabase-compatible)
           item_number: product_id,
           name,
           current_stock: quantity,
           location_name: location,
-          // backwards-compat (older backend expects these)
+          // compat
           product_id,
           quantity,
           location
@@ -547,24 +591,21 @@
       }
 
       setAddAlert('Zapisano ✔', 'ok');
-      // refresh inventory silently
       loadProducts();
     }catch(e){
       setAddAlert('Błąd połączenia podczas zapisu.', 'bad');
     }
   }
 
-  // ---------- QR Scan (Product + Location) ----------
-  let scanMode = null; // 'product' | 'location'
+  // ---------- QR Scan ----------
+  let scanMode = null;
   let stream = null;
   let detector = null;
   let scanTimer = null;
 
   async function startScan(mode){
     scanMode = mode;
-    clearAddAlert();
 
-    // If BarcodeDetector isn't supported, fallback to manual paste.
     if(!('BarcodeDetector' in window)){
       const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
       if(pasted) applyScannedValue(pasted);
@@ -589,7 +630,7 @@
             applyScannedValue(raw);
             stopScan();
           }
-        }catch(_){ /* ignore */ }
+        }catch(_){}
       }, 250);
 
     }catch(e){
@@ -617,7 +658,6 @@
       return;
     }
 
-    // product mode: try JSON then "ID|NAME" then plain
     try{
       if(text.startsWith('{') && text.endsWith('}')){
         const obj = JSON.parse(text);
@@ -625,7 +665,7 @@
         if(obj.name) document.getElementById('p_name').value = String(obj.name);
         return;
       }
-    }catch(_){ /* ignore */ }
+    }catch(_){}
 
     if(text.includes('|')){
       const parts = text.split('|');
@@ -636,11 +676,10 @@
       return;
     }
 
-    // fallback: put into ID
     document.getElementById('p_id').value = text;
   }
 
-  // ---------- Admin: backup ----------
+  // ---------- Admin ----------
   function setAdminAlert(msg, type){
     const el = document.getElementById('adminAlert');
     el.className = 'alert ' + (type || '');
@@ -649,7 +688,6 @@
   }
 
   async function backupToGitHub(){
-    // Some earlier versions used different URLs. Try in order.
     const candidates = [
       '/api/admin/backup/github',
       '/api/backup/github',
@@ -663,24 +701,21 @@
         const res = await fetch(url, { method:'POST' });
         const data = await res.json().catch(()=>({}));
         if(res.ok){
-          setAdminAlert(data.message || 'Backup OK ✔ (commit powinien pojawić się w repo).', 'ok');
+          setAdminAlert(data.message || 'Backup OK ✔', 'ok');
           return;
         }
-        // continue only if 404; otherwise show error
         if(res.status !== 404){
           setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
           return;
         }
-      }catch(_){
-        // try next
-      }
+      }catch(_){}
     }
 
-    setAdminAlert('Backup endpoint not found (404). Sprawdź czy backend ma endpoint /api/admin/backup/github.', 'bad');
+    setAdminAlert('Backup endpoint not found (404).', 'bad');
   }
 
   function showGitHubVerify(){
-    alert('GitHub → repo → Commits: po kliknięciu Backup powinien pojawić się nowy commit (np. "Backup warehouse to GitHub").');
+    alert('GitHub → repo → Commits: po kliknięciu Backup powinien pojawić się nowy commit.');
   }
 
   // Initial
@@ -688,3 +723,4 @@
 </script>
 </body>
 </html>
+

@@ -7,11 +7,12 @@ from functools import wraps
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user, login_required
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import inspect, text as sql_text
+
 # ----------------------------
 # Supabase (Postgres) products storage (optional)
 # ----------------------------
@@ -21,11 +22,11 @@ from sqlalchemy import inspect, text as sql_text
 #   SUPABASE_SERVICE_ROLE_KEY=<service_role_key>  (preferred)
 #
 # Uses Supabase PostgREST via HTTPS (no extra dependencies).
-import json
 import urllib.request
 import urllib.parse
 import urllib.error
 from typing import Optional, Union, Any, List
+
 
 def _supabase_key() -> str:
     return (
@@ -36,8 +37,10 @@ def _supabase_key() -> str:
         or ""
     )
 
+
 def _supabase_enabled() -> bool:
     return os.getenv("USE_SUPABASE", "0") == "1" and bool(os.getenv("SUPABASE_URL") and _supabase_key())
+
 
 def _supabase_request(
     method: str,
@@ -58,8 +61,8 @@ def _supabase_request(
         "Authorization": f"Bearer {key}",
         "Accept": "application/json",
     }
-    body = None
 
+    body = None
     if json_body is not None:
         headers["Content-Type"] = "application/json"
         body = json.dumps(json_body).encode("utf-8")
@@ -82,6 +85,7 @@ def _supabase_request(
             err_text = str(err_raw)
         raise RuntimeError(f"Supabase HTTP {e.code}: {err_text}")
 
+
 def _sb_row_to_api(row: dict) -> dict:
     return {
         "id": row.get("id"),
@@ -94,6 +98,7 @@ def _sb_row_to_api(row: dict) -> dict:
         "created_at": row.get("created_at"),
     }
 
+
 def _sb_list_products(limit: int = 500) -> List[dict]:
     rows = _supabase_request(
         "GET",
@@ -105,6 +110,7 @@ def _sb_list_products(limit: int = 500) -> List[dict]:
         },
     ) or []
     return [_sb_row_to_api(r) for r in rows]
+
 
 def _sb_upsert_product(payload: dict) -> dict:
     sku = (payload.get("item_number") or "").strip()
@@ -135,12 +141,23 @@ def _sb_upsert_product(payload: dict) -> dict:
     ) or []
 
     return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
+
+
+# ----------------------------
+# Supabase Audit helpers
+# ----------------------------
 def _sb_audit_table() -> str:
-    # pozwala zmienić nazwę tabeli bez grzebania w kodzie
     return os.getenv("SUPABASE_AUDIT_TABLE", "audit_log")
 
-def _sb_insert_audit(action: str, item_number: str | None, name: str | None, qty: int | None, location: str | None, username: str | None):
-    # zapis do Supabase; wymaga kolumn jak w SQL wyżej
+
+def _sb_insert_audit(
+    action: str,
+    item_number: Optional[str] = None,
+    name: Optional[str] = None,
+    qty: Optional[int] = None,
+    location: Optional[str] = None,
+    username: Optional[str] = None
+) -> None:
     payload = {
         "action": action,
         "item_number": item_number,
@@ -149,7 +166,10 @@ def _sb_insert_audit(action: str, item_number: str | None, name: str | None, qty
         "location": location,
         "username": username,
     }
+    # usuń None żeby nie wysyłać nulli jeśli nie trzeba
+    payload = {k: v for k, v in payload.items() if v is not None}
     _supabase_request("POST", _sb_audit_table(), json_body=payload)
+
 
 def _sb_list_audit(limit: int = 200) -> list[dict]:
     rows = _supabase_request(
@@ -161,6 +181,7 @@ def _sb_list_audit(limit: int = 200) -> list[dict]:
             "limit": str(limit),
         },
     ) or []
+    # zwracamy wprost (kolumny już pasują pod UI)
     return rows
 
 
@@ -169,14 +190,10 @@ def _sb_list_audit(limit: int = 200) -> list[dict]:
 # ------------------------------------------------------------
 app = Flask(__name__)
 
-# SECRET_KEY: allow running even if env not set (but recommend setting it in Render)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY") or "dev-secret-change-me"
 
 # ------------------------------------------------------------
 # Database
-# - Render free web service has ephemeral filesystem unless you attach a disk.
-# - We'll prefer Postgres if DATABASE_URL exists, otherwise use SQLite in /var/data if available (disk),
-#   else fallback to /tmp (ephemeral).
 # ------------------------------------------------------------
 db_url = os.environ.get("DATABASE_URL")
 if db_url:
@@ -186,7 +203,6 @@ if db_url:
 else:
     sqlite_dir = Path("/var/data") if Path("/var/data").exists() else Path("/tmp")
     sqlite_path = sqlite_dir / "warehouse.db"
-    # ensure directory exists (Render: /tmp always exists)
     sqlite_dir.mkdir(parents=True, exist_ok=True)
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{sqlite_path.as_posix()}"
 
@@ -204,7 +220,7 @@ class User(UserMixin, db.Model):
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)  # renamed from password -> password_hash
+    password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100), default="")
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -254,45 +270,32 @@ def _has_column(table: str, column: str) -> bool:
 
 
 def ensure_schema():
-    """
-    Create missing tables and apply a few safe, idempotent migrations for SQLite/Postgres.
-    We DO NOT use non-constant defaults in ALTER TABLE for SQLite (it fails).
-    """
     db.create_all()
 
-    # --- User: password -> password_hash migration
     insp = inspect(db.engine)
     tables = set(insp.get_table_names())
 
     if "user" in tables:
-        # add missing columns
         if not _has_column("user", "password_hash"):
             db.session.execute(sql_text("ALTER TABLE user ADD COLUMN password_hash VARCHAR(255)"))
         if not _has_column("user", "is_admin"):
-            # constant default ok, but SQLite adds NULLs for existing rows; we will set them
             db.session.execute(sql_text("ALTER TABLE user ADD COLUMN is_admin BOOLEAN"))
         if not _has_column("user", "full_name"):
             db.session.execute(sql_text("ALTER TABLE user ADD COLUMN full_name VARCHAR(100)"))
 
-        # if old column "password" exists, copy values into password_hash then leave it (SQLite cannot drop columns)
         cols = [c["name"] for c in insp.get_columns("user")]
         if "password" in cols:
-            # copy only where password_hash is null/empty
             db.session.execute(sql_text("UPDATE user SET password_hash = password WHERE password_hash IS NULL OR password_hash = ''"))
 
-        # normalize is_admin
         db.session.execute(sql_text("UPDATE user SET is_admin = 0 WHERE is_admin IS NULL"))
 
-    # --- AuditLog: created_at migration
     if "audit_log" in tables:
         if not _has_column("audit_log", "created_at"):
-            # SQLite: cannot add column with DEFAULT CURRENT_TIMESTAMP, so add nullable first then backfill.
             db.session.execute(sql_text("ALTER TABLE audit_log ADD COLUMN created_at DATETIME"))
             db.session.execute(sql_text("UPDATE audit_log SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
 
     db.session.commit()
 
-    # Seed admin user if missing
     if not User.query.filter_by(username="admin").first():
         db.session.add(User(
             username="admin",
@@ -340,14 +343,9 @@ def export_warehouse_json() -> dict:
 
 
 def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, message: str) -> dict:
-    """
-    Create or update a file in GitHub via Contents API.
-    Uses standard library urllib (no extra deps).
-    """
     api_url = f"https://api.github.com/repos/{repo}/contents/{path}"
     b64 = base64.b64encode(content_bytes).decode("utf-8")
 
-    # Step 1: check if file exists to get sha (update)
     sha = None
     try:
         req = Request(api_url, headers={
@@ -362,7 +360,6 @@ def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, mess
         if e.code != 404:
             raise
     except URLError:
-        # network issues etc
         raise
 
     payload = {"message": message, "content": b64}
@@ -433,16 +430,9 @@ def api_products():
     # GET
     # ---------------------------
     if request.method == "GET":
-        # Supabase path (shared across devices)
-        if (
-            "_supabase_enabled" in globals()
-            and callable(globals().get("_supabase_enabled"))
-            and _supabase_enabled()
-            and os.getenv("USE_SUPABASE", "0") == "1"
-        ):
+        if _supabase_enabled():
             try:
                 products = _sb_list_products(limit=500)
-                # Backwards compatible ("data") + current ("products")
                 return jsonify({"ok": True, "products": products, "data": products})
             except Exception as e:
                 return jsonify({"ok": False, "error": str(e)}), 500
@@ -456,7 +446,7 @@ def api_products():
                 "name": p.name,
                 "current_stock": p.current_stock,
                 "location_name": p.location_name,
-                "created_at": p.created_at.isoformat() if getattr(p, "created_at", None) else None,
+                "created_at": None,
             }
             for p in products
         ]
@@ -467,7 +457,6 @@ def api_products():
     # ---------------------------
     data = request.get_json(force=True, silent=True) or {}
 
-    # Accept multiple naming conventions from the UI
     item_number = (
         data.get("item_number")
         or data.get("sku")
@@ -500,12 +489,7 @@ def api_products():
     # ---------------------------
     # SUPABASE PATH
     # ---------------------------
-    if (
-        "_supabase_enabled" in globals()
-        and callable(globals().get("_supabase_enabled"))
-        and _supabase_enabled()
-        and os.getenv("USE_SUPABASE", "0") == "1"
-    ):
+    if _supabase_enabled():
         try:
             result = _sb_upsert_product(
                 {
@@ -518,7 +502,7 @@ def api_products():
                 }
             )
 
-            # ---- AUDIT (Supabase) ----
+            # AUDIT (Supabase)
             try:
                 _sb_insert_audit(
                     action="PRODUCT_UPSERT",
@@ -546,19 +530,14 @@ def api_products():
         product.current_stock = qty
         db.session.commit()
 
-        # ---- AUDIT (SQLite fallback → Supabase if enabled) ----
-        try:
-            if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
-                _sb_insert_audit(
-                    action="PRODUCT_UPDATE",
-                    item_number=item_number,
-                    name=name,
-                    qty=qty,
-                    location=location,
-                    username=getattr(current_user, "username", None),
-                )
-        except Exception as _ae:
-            print("[audit] insert failed:", _ae)
+        db.session.add(AuditLog(
+            product_id=product.id,
+            action="update",
+            amount=qty,
+            username=getattr(current_user, "username", ""),
+            created_at=dt.datetime.utcnow()
+        ))
+        db.session.commit()
 
         return jsonify(
             {
@@ -570,7 +549,7 @@ def api_products():
                     "name": product.name,
                     "current_stock": product.current_stock,
                     "location_name": product.location_name,
-                    "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
+                    "created_at": None,
                 },
             }
         )
@@ -584,19 +563,14 @@ def api_products():
     db.session.add(product)
     db.session.commit()
 
-    # ---- AUDIT CREATE ----
-    try:
-        if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
-            _sb_insert_audit(
-                action="PRODUCT_CREATE",
-                item_number=item_number,
-                name=name,
-                qty=qty,
-                location=location,
-                username=getattr(current_user, "username", None),
-            )
-    except Exception as _ae:
-        print("[audit] insert failed:", _ae)
+    db.session.add(AuditLog(
+        product_id=product.id,
+        action="create",
+        amount=qty,
+        username=getattr(current_user, "username", ""),
+        created_at=dt.datetime.utcnow()
+    ))
+    db.session.commit()
 
     return jsonify(
         {
@@ -608,12 +582,10 @@ def api_products():
                 "name": product.name,
                 "current_stock": product.current_stock,
                 "location_name": product.location_name,
-                "created_at": product.created_at.isoformat() if getattr(product, "created_at", None) else None,
+                "created_at": None,
             },
         }
     ), 201
-
-
 
 
 @app.route("/api/stock/<action>", methods=["POST"])
@@ -650,36 +622,35 @@ def api_stock(action):
     return jsonify({"message": "OK", "current_stock": product.current_stock})
 
 
-@app.route("/api/audit")
-@login_required
-def api_audit():
-    rows = AuditLog.query.order_by(AuditLog.id.desc()).limit(200).all()
-    return jsonify({
-        "data": [
-            {
-                "id": r.id,
-                "product_id": r.product_id,
-                "action": r.action,
-                "amount": r.amount,
-                "username": r.username,
-                "created_at": (r.created_at.isoformat() + "Z") if r.created_at else None,
-            } for r in rows
-        ]
-    })
-
+# ✅ JEDYNY audit endpoint (bez duplikatów)
 @app.get("/api/audit")
 @login_required
 def api_audit_list():
-    # jeśli Supabase jest włączony – czytamy z Supabase
-    if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
+    # Supabase: czytaj z audit_log w Supabase
+    if _supabase_enabled():
         try:
             rows = _sb_list_audit(limit=300)
-            return jsonify({"ok": True, "audit": rows})
+            return jsonify({"ok": True, "audit": rows, "data": rows})
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500
 
-    # fallback: jeśli kiedyś zechcesz logować w SQLite (na razie zwróć pusto)
-    return jsonify({"ok": True, "audit": []})
+    # SQLite fallback: czytaj z lokalnej tabeli audit_log
+    rows = AuditLog.query.order_by(AuditLog.id.desc()).limit(200).all()
+    mapped = [
+        {
+            "id": r.id,
+            "action": r.action,
+            "item_number": None,
+            "name": None,
+            "qty": r.amount,
+            "location": None,
+            "username": r.username,
+            "created_at": (r.created_at.isoformat() + "Z") if r.created_at else None,
+        }
+        for r in rows
+    ]
+    return jsonify({"ok": True, "audit": mapped, "data": mapped})
+
 
 @app.route("/api/admin/export.json")
 @login_required
