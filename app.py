@@ -135,6 +135,33 @@ def _sb_upsert_product(payload: dict) -> dict:
     ) or []
 
     return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
+def _sb_audit_table() -> str:
+    # pozwala zmienić nazwę tabeli bez grzebania w kodzie
+    return os.getenv("SUPABASE_AUDIT_TABLE", "audit_log")
+
+def _sb_insert_audit(action: str, item_number: str | None, name: str | None, qty: int | None, location: str | None, username: str | None):
+    # zapis do Supabase; wymaga kolumn jak w SQL wyżej
+    payload = {
+        "action": action,
+        "item_number": item_number,
+        "name": name,
+        "qty": qty,
+        "location": location,
+        "username": username,
+    }
+    _supabase_request("POST", _sb_audit_table(), json_body=payload)
+
+def _sb_list_audit(limit: int = 200) -> list[dict]:
+    rows = _supabase_request(
+        "GET",
+        _sb_audit_table(),
+        params={
+            "select": "id,action,item_number,name,qty,location,username,created_at",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        },
+    ) or []
+    return rows
 
 
 # ------------------------------------------------------------
@@ -407,7 +434,12 @@ def api_products():
     # ---------------------------
     if request.method == "GET":
         # Supabase path (shared across devices)
-        if "_supabase_enabled" in globals() and callable(globals().get("_supabase_enabled")) and _supabase_enabled():
+        if (
+            "_supabase_enabled" in globals()
+            and callable(globals().get("_supabase_enabled"))
+            and _supabase_enabled()
+            and os.getenv("USE_SUPABASE", "0") == "1"
+        ):
             try:
                 products = _sb_list_products(limit=500)
                 # Backwards compatible ("data") + current ("products")
@@ -435,7 +467,7 @@ def api_products():
     # ---------------------------
     data = request.get_json(force=True, silent=True) or {}
 
-    # Accept multiple naming conventions from the UI (ID/Name/Qty/Location)
+    # Accept multiple naming conventions from the UI
     item_number = (
         data.get("item_number")
         or data.get("sku")
@@ -465,10 +497,17 @@ def api_products():
     if not item_number or not name:
         return jsonify({"ok": False, "error": "item_number and name are required"}), 400
 
-    # Supabase path (shared across devices)
-    if "_supabase_enabled" in globals() and callable(globals().get("_supabase_enabled")) and _supabase_enabled():
+    # ---------------------------
+    # SUPABASE PATH
+    # ---------------------------
+    if (
+        "_supabase_enabled" in globals()
+        and callable(globals().get("_supabase_enabled"))
+        and _supabase_enabled()
+        and os.getenv("USE_SUPABASE", "0") == "1"
+    ):
         try:
-            created = _sb_upsert_product(
+            result = _sb_upsert_product(
                 {
                     "item_number": item_number,
                     "name": name,
@@ -478,17 +517,49 @@ def api_products():
                     "qr_location": data.get("qr_location"),
                 }
             )
-            return jsonify({"ok": True, "updated": True, "product": created}), 200
+
+            # ---- AUDIT (Supabase) ----
+            try:
+                _sb_insert_audit(
+                    action="PRODUCT_UPSERT",
+                    item_number=item_number,
+                    name=name,
+                    qty=qty,
+                    location=location,
+                    username=getattr(current_user, "username", None),
+                )
+            except Exception as _ae:
+                print("[audit] supabase insert failed:", _ae)
+
+            return jsonify({"ok": True, "updated": True, "product": result}), 200
+
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500
 
-    # SQLite fallback
+    # ---------------------------
+    # SQLITE FALLBACK
+    # ---------------------------
     product = Product.query.filter_by(item_number=item_number).first()
     if product:
         product.name = name
         product.location_name = location
         product.current_stock = qty
         db.session.commit()
+
+        # ---- AUDIT (SQLite fallback → Supabase if enabled) ----
+        try:
+            if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
+                _sb_insert_audit(
+                    action="PRODUCT_UPDATE",
+                    item_number=item_number,
+                    name=name,
+                    qty=qty,
+                    location=location,
+                    username=getattr(current_user, "username", None),
+                )
+        except Exception as _ae:
+            print("[audit] insert failed:", _ae)
+
         return jsonify(
             {
                 "ok": True,
@@ -504,9 +575,29 @@ def api_products():
             }
         )
 
-    product = Product(item_number=item_number, name=name, location_name=location, current_stock=qty)
+    product = Product(
+        item_number=item_number,
+        name=name,
+        location_name=location,
+        current_stock=qty,
+    )
     db.session.add(product)
     db.session.commit()
+
+    # ---- AUDIT CREATE ----
+    try:
+        if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
+            _sb_insert_audit(
+                action="PRODUCT_CREATE",
+                item_number=item_number,
+                name=name,
+                qty=qty,
+                location=location,
+                username=getattr(current_user, "username", None),
+            )
+    except Exception as _ae:
+        print("[audit] insert failed:", _ae)
+
     return jsonify(
         {
             "ok": True,
@@ -521,6 +612,7 @@ def api_products():
             },
         }
     ), 201
+
 
 
 
@@ -575,6 +667,19 @@ def api_audit():
         ]
     })
 
+@app.get("/api/audit")
+@login_required
+def api_audit_list():
+    # jeśli Supabase jest włączony – czytamy z Supabase
+    if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
+        try:
+            rows = _sb_list_audit(limit=300)
+            return jsonify({"ok": True, "audit": rows})
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
+
+    # fallback: jeśli kiedyś zechcesz logować w SQLite (na razie zwróć pusto)
+    return jsonify({"ok": True, "audit": []})
 
 @app.route("/api/admin/export.json")
 @login_required
