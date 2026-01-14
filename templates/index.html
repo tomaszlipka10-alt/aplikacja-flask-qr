@@ -490,10 +490,10 @@
       for(const p of items){
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.product_id || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || p.sku || '')}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(p.quantity ?? ''))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String((p.current_stock ?? p.quantity ?? '')))}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
         `;
         body.appendChild(tr);
       }
@@ -528,7 +528,17 @@
       const res = await fetch('/api/products', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ product_id, name, quantity, location })
+        body: JSON.stringify({
+          // new API (Supabase-compatible)
+          item_number: product_id,
+          name,
+          current_stock: quantity,
+          location_name: location,
+          // backwards-compat (older backend expects these)
+          product_id,
+          quantity,
+          location
+        })
       });
       const data = await res.json().catch(()=>({}));
       if(!res.ok){
