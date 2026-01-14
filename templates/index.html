@@ -287,11 +287,11 @@
               <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
               <div class="small">ID + name + qty + location</div>
             </div>
-            <div class="pill" onclick="comingSoon('Przyjęcie materiału (Receive)')">
+            <div class="pill" onclick="openStockModal('receive')">
               <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
               <div class="small">Wkrótce</div>
             </div>
-            <div class="pill" onclick="comingSoon('Wydanie materiału (Issue)')">
+            <div class="pill" onclick="openStockModal('issue')">
               <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
               <div class="small">Wkrótce</div>
             </div>
@@ -420,6 +420,171 @@
 
   </main>
 </div>
+
+<!-- RECEIVE / ISSUE MODAL -->
+<div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="stockTitle">Stock</div>
+      <button class="btn" onclick="closeStockModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="row">
+        <div>
+          <label>Product ID (manual or QR)</label>
+          <div class="scanrow">
+            <input id="s_id" placeholder="e.g. 100234" />
+            <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
+          </div>
+        </div>
+
+        <div>
+          <label>Quantity</label>
+          <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
+        </div>
+      </div>
+
+      <div class="scanner" id="stockScannerBox">
+        <video id="stockVideo" playsinline></video>
+      </div>
+
+      <div class="alert" id="stockAlert"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="closeStockModal()">Cancel</button>
+      <button class="btn primary" onclick="submitStock()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- Stock modal (receive/issue) ---
+  let stockMode = "receive"; // 'receive' | 'issue'
+  let stockStream = null;
+  let stockDetector = null;
+  let stockScanTimer = null;
+
+  function setStockAlert(msg, type){
+    const el = document.getElementById('stockAlert');
+    el.className = 'alert ' + (type || '');
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+  function clearStockAlert(){
+    const el = document.getElementById('stockAlert');
+    el.style.display = 'none';
+    el.textContent = '';
+    el.className = 'alert';
+  }
+
+  function openStockModal(mode){
+    stockMode = mode;
+    clearStockAlert();
+    document.getElementById('s_id').value = '';
+    document.getElementById('s_qty').value = '';
+    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Przyjęcie materiału (Receive)' : 'Wydanie materiału (Issue)';
+    document.getElementById('stockBackdrop').style.display = 'flex';
+  }
+
+  function closeStockModal(){
+    stopStockScan();
+    document.getElementById('stockBackdrop').style.display = 'none';
+  }
+
+  async function submitStock(){
+    clearStockAlert();
+    const item_number = document.getElementById('s_id').value.trim();
+    const amount = Number(document.getElementById('s_qty').value || 0);
+
+    if(!item_number){ setStockAlert('Podaj Product ID.', 'bad'); return; }
+    if(!amount || amount <= 0){ setStockAlert('Podaj ilość > 0.', 'bad'); return; }
+
+    try{
+      const res = await fetch('/api/stock/' + stockMode, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ item_number, amount })
+      });
+      const data = await res.json().catch(()=>({}));
+
+      if(!res.ok){
+        setStockAlert(data.error || ('Błąd (HTTP '+res.status+')'), 'bad');
+        return;
+      }
+
+      setStockAlert('Zapisano ✔', 'ok');
+
+      // refresh inventory + audit if user is viewing them
+      loadProducts();
+      if (document.getElementById('view-audit').style.display !== 'none' && typeof loadAudit === 'function') {
+        loadAudit();
+      }
+    }catch(e){
+      setStockAlert('Błąd połączenia.', 'bad');
+    }
+  }
+
+  async function startScanStock(targetInputId){
+    clearStockAlert();
+
+    if(!('BarcodeDetector' in window)){
+      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
+      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
+      return;
+    }
+
+    try{
+      stockDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      stockStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
+
+      const video = document.getElementById('stockVideo');
+      video.srcObject = stockStream;
+      await video.play();
+
+      document.getElementById('stockScannerBox').style.display = 'block';
+
+      stockScanTimer = setInterval(async () => {
+        try{
+          const barcodes = await stockDetector.detect(video);
+          if(barcodes && barcodes.length){
+            const raw = (barcodes[0].rawValue || '').trim();
+            if(raw){
+              // If QR is JSON or ID|NAME — we take only ID part for stock move
+              let idOnly = raw;
+              try{
+                if(raw.startsWith('{') && raw.endsWith('}')){
+                  const obj = JSON.parse(raw);
+                  if(obj.id) idOnly = String(obj.id).trim();
+                } else if(raw.includes('|')) {
+                  idOnly = raw.split('|')[0].trim();
+                }
+              }catch(_){}
+              document.getElementById(targetInputId).value = idOnly;
+            }
+            stopStockScan();
+          }
+        }catch(_){}
+      }, 250);
+
+    }catch(e){
+      stopStockScan();
+      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
+      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
+    }
+  }
+
+  function stopStockScan(){
+    if(stockScanTimer){ clearInterval(stockScanTimer); stockScanTimer = null; }
+    if(stockStream){
+      stockStream.getTracks().forEach(t => t.stop());
+      stockStream = null;
+    }
+    document.getElementById('stockScannerBox').style.display = 'none';
+  }
+</script>
+
 
 <script>
   function escapeHtml(s){

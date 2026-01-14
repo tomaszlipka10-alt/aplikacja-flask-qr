@@ -142,6 +142,44 @@ def _sb_upsert_product(payload: dict) -> dict:
 
     return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
 
+def _sb_get_product_by_sku(item_number: str) -> Optional[dict]:
+    item_number = (item_number or "").strip()
+    if not item_number:
+        return None
+    rows = _supabase_request(
+        "GET",
+        "products",
+        params={
+            "select": "id,sku,name,quantity,location,qr_product,qr_location,created_at",
+            "sku": f"eq.{item_number}",
+            "limit": "1",
+        },
+    ) or []
+    return rows[0] if rows else None
+
+
+def _sb_set_product_quantity(item_number: str, new_qty: int) -> dict:
+    item_number = (item_number or "").strip()
+    new_qty = int(new_qty)
+
+    # PATCH with filter in query
+    updated = _supabase_request(
+        "PATCH",
+        "products",
+        params={"sku": f"eq.{item_number}"},
+        json_body={"quantity": new_qty},
+        prefer="return=representation",
+    ) or []
+    # Supabase returns list of updated rows
+    if updated:
+        return updated[0]
+    # If nothing returned (shouldn't happen), fetch again
+    row = _sb_get_product_by_sku(item_number)
+    if not row:
+        raise RuntimeError("Product not found after update")
+    return row
+
+
 
 # ----------------------------
 # Supabase Audit helpers
@@ -592,64 +630,105 @@ def api_products():
 @login_required
 def api_stock(action):
     data = request.get_json(force=True, silent=True) or {}
+
+    # Prefer item_number (SKU) – works for Supabase
+    item_number = (data.get("item_number") or data.get("sku") or "").strip()
+
+    # Backwards compatibility: allow product_id (SQLite)
     product_id = data.get("product_id")
-    amount = int(data.get("amount") or 0)
 
-    if not product_id or amount <= 0:
-        return jsonify({"message": "product_id and positive amount required"}), 400
+    amount = data.get("amount")
+    if amount is None:
+        amount = data.get("qty")
+    try:
+        amount = int(amount) if amount is not None else 0
+    except Exception:
+        amount = 0
 
-    product = Product.query.get(int(product_id))
+    if action not in ("receive", "issue"):
+        return jsonify({"ok": False, "error": "Unknown action"}), 400
+    if amount <= 0:
+        return jsonify({"ok": False, "error": "Positive amount required"}), 400
+
+    # ---------------------------
+    # SUPABASE PATH
+    # ---------------------------
+    if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
+        if not item_number:
+            return jsonify({"ok": False, "error": "item_number required"}), 400
+
+        row = _sb_get_product_by_sku(item_number)
+        if not row:
+            return jsonify({"ok": False, "error": "Product not found"}), 404
+
+        current_qty = row.get("quantity") or 0
+        try:
+            current_qty = int(current_qty)
+        except Exception:
+            current_qty = 0
+
+        if action == "receive":
+            new_qty = current_qty + amount
+            audit_action = "RECEIVE"
+        else:
+            if current_qty < amount:
+                return jsonify({"ok": False, "error": "Insufficient stock"}), 400
+            new_qty = current_qty - amount
+            audit_action = "ISSUE"
+
+        updated_row = _sb_set_product_quantity(item_number, new_qty)
+
+        # Supabase audit insert
+        try:
+            _sb_insert_audit(
+                action=audit_action,
+                item_number=item_number,
+                name=row.get("name"),
+                qty=amount,
+                location=row.get("location"),
+                username=getattr(current_user, "username", None),
+            )
+        except Exception as _ae:
+            print("[audit] supabase insert failed:", _ae)
+
+        return jsonify({
+            "ok": True,
+            "item_number": item_number,
+            "current_stock": new_qty,
+        })
+
+    # ---------------------------
+    # SQLITE FALLBACK
+    # ---------------------------
+    product = None
+    if product_id:
+        product = Product.query.get(int(product_id))
+    elif item_number:
+        product = Product.query.filter_by(item_number=item_number).first()
+
     if not product:
-        return jsonify({"message": "Product not found"}), 404
+        return jsonify({"ok": False, "error": "Product not found"}), 404
 
     if action == "receive":
         product.current_stock += amount
-    elif action == "issue":
-        if product.current_stock < amount:
-            return jsonify({"message": "Insufficient stock"}), 400
-        product.current_stock -= amount
+        audit_action = "receive"
     else:
-        return jsonify({"message": "Unknown action"}), 400
+        if product.current_stock < amount:
+            return jsonify({"ok": False, "error": "Insufficient stock"}), 400
+        product.current_stock -= amount
+        audit_action = "issue"
 
     db.session.add(AuditLog(
         product_id=product.id,
-        action=action,
+        action=audit_action,
         amount=amount,
         username=current_user.username,
         created_at=dt.datetime.utcnow()
     ))
     db.session.commit()
-    return jsonify({"message": "OK", "current_stock": product.current_stock})
 
+    return jsonify({"ok": True, "current_stock": product.current_stock})
 
-# ✅ JEDYNY audit endpoint (bez duplikatów)
-@app.get("/api/audit")
-@login_required
-def api_audit_list():
-    # Supabase: czytaj z audit_log w Supabase
-    if _supabase_enabled():
-        try:
-            rows = _sb_list_audit(limit=300)
-            return jsonify({"ok": True, "audit": rows, "data": rows})
-        except Exception as e:
-            return jsonify({"ok": False, "error": str(e)}), 500
-
-    # SQLite fallback: czytaj z lokalnej tabeli audit_log
-    rows = AuditLog.query.order_by(AuditLog.id.desc()).limit(200).all()
-    mapped = [
-        {
-            "id": r.id,
-            "action": r.action,
-            "item_number": None,
-            "name": None,
-            "qty": r.amount,
-            "location": None,
-            "username": r.username,
-            "created_at": (r.created_at.isoformat() + "Z") if r.created_at else None,
-        }
-        for r in rows
-    ]
-    return jsonify({"ok": True, "audit": mapped, "data": mapped})
 
 
 @app.route("/api/admin/export.json")
