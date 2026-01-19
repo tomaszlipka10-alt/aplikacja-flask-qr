@@ -19,7 +19,7 @@ import urllib.error
 from typing import Optional, Union, Any, List
 
 # ----------------------------
-# Supabase Helpers (English internal labels)
+# Supabase Helpers
 # ----------------------------
 def _supabase_key() -> str:
     return (
@@ -62,6 +62,7 @@ def _sb_row_to_api(row: dict) -> dict:
         "item_number": row.get("sku"),
         "name": row.get("name"),
         "current_stock": row.get("quantity", 0),
+        "min_stock": row.get("min_stock", 0), # Nowe pole
         "location_name": row.get("location"),
         "qr_product": row.get("qr_product"),
         "qr_location": row.get("qr_location"),
@@ -69,18 +70,21 @@ def _sb_row_to_api(row: dict) -> dict:
     }
 
 def _sb_list_products(limit: int = 500) -> List[dict]:
-    rows = _supabase_request("GET", "products", params={"select": "id,sku,name,quantity,location,qr_product,qr_location,created_at", "order": "created_at.desc", "limit": str(limit)}) or []
+    rows = _supabase_request("GET", "products", params={"select": "id,sku,name,quantity,min_stock,location,qr_product,qr_location,created_at", "order": "created_at.desc", "limit": str(limit)}) or []
     return [_sb_row_to_api(r) for r in rows]
 
 def _sb_upsert_product(payload: dict) -> dict:
-    sku, name, location = payload.get("item_number", "").strip(), payload.get("name", "").strip(), payload.get("location_name", "").strip()
+    sku = payload.get("item_number", "").strip()
+    name = payload.get("name", "").strip()
+    location = payload.get("location_name", "").strip()
     qty = int(payload.get("current_stock") or 0)
-    row = {"sku": sku, "name": name, "quantity": qty, "location": location or None}
+    min_s = int(payload.get("min_stock") or 0) # Nowe pole
+    row = {"sku": sku, "name": name, "quantity": qty, "min_stock": min_s, "location": location or None}
     created = _supabase_request("POST", "products", params={"on_conflict": "sku"}, json_body=row, prefer="return=representation,resolution=merge-duplicates") or []
     return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
 
 def _sb_get_product_by_sku(item_number: str) -> Optional[dict]:
-    rows = _supabase_request("GET", "products", params={"select": "id,sku,name,quantity,location,qr_product,qr_location,created_at", "sku": f"eq.{item_number.strip()}", "limit": "1"}) or []
+    rows = _supabase_request("GET", "products", params={"select": "id,sku,name,quantity,min_stock,location,qr_product,qr_location,created_at", "sku": f"eq.{item_number.strip()}", "limit": "1"}) or []
     return rows[0] if rows else None
 
 def _sb_set_product_quantity(item_number: str, new_qty: int) -> dict:
@@ -96,7 +100,7 @@ def _sb_list_audit(limit: int = 200) -> list[dict]:
     return [{"created_at": r.get("created_at"), "type": r.get("action"), "item_number": r.get("item_number"), "quantity": r.get("qty"), "location_name": r.get("location"), "username": r.get("username")} for r in rows]
 
 # ------------------------------------------------------------
-# App
+# App Configuration
 # ------------------------------------------------------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY") or "dev-secret"
@@ -124,6 +128,7 @@ class Product(db.Model):
     item_number = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     current_stock = db.Column(db.Integer, default=0)
+    min_stock = db.Column(db.Integer, default=0) # Nowe pole dla alertów
     location_name = db.Column(db.String(100), default="MAG-1")
 
 class AuditLog(db.Model):
@@ -146,12 +151,36 @@ def admin_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
+# --- REPAIR DATABASE FUNCTION ---
+def repair_database():
+    """Checks and adds missing columns to existing SQLite database."""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        
+        # Check User table
+        u_cols = [c['name'] for c in inspector.get_columns('user')]
+        if 'is_admin' not in u_cols:
+            print("Migration: Adding is_admin to user table")
+            with db.engine.begin() as conn:
+                conn.execute(sql_text("ALTER TABLE \"user\" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"))
+        
+        # Check Product table
+        p_cols = [c['name'] for c in inspector.get_columns('product')]
+        if 'min_stock' not in p_cols:
+            print("Migration: Adding min_stock to product table")
+            with db.engine.begin() as conn:
+                conn.execute(sql_text("ALTER TABLE product ADD COLUMN min_stock INTEGER DEFAULT 0"))
+
 with app.app_context():
     db.create_all()
+    repair_database() # Fix for the error you encountered
     if not User.query.filter_by(username="admin").first():
         db.session.add(User(username="admin", password_hash=generate_password_hash("admin123"), is_admin=True))
         db.session.commit()
 
+# ------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------
 @app.route("/")
 @login_required
 def index(): return render_template("index.html")
@@ -179,12 +208,14 @@ def api_products():
             data = _sb_list_products()
             return jsonify({"ok": True, "products": data, "data": data})
         prods = Product.query.all()
-        mapped = [{"item_number": p.item_number, "name": p.name, "current_stock": p.current_stock, "location_name": p.location_name} for p in prods]
+        mapped = [{"item_number": p.item_number, "name": p.name, "current_stock": p.current_stock, "min_stock": p.min_stock, "location_name": p.location_name} for p in prods]
         return jsonify({"ok": True, "products": mapped, "data": mapped})
 
     data = request.get_json() or {}
     sku = str(data.get("item_number") or "").strip()
     name = str(data.get("name") or "").strip()
+    min_s = int(data.get("min_stock") or 0)
+    
     if not sku or not name: return jsonify({"ok": False, "error": "SKU and Name required"}), 400
 
     if _supabase_enabled():
@@ -194,10 +225,14 @@ def api_products():
 
     p = Product.query.filter_by(item_number=sku).first()
     if p:
-        p.name, p.current_stock, p.location_name = name, data.get("current_stock", 0), data.get("location_name", "MAG-1")
+        p.name = name
+        p.current_stock = int(data.get("current_stock", p.current_stock))
+        p.min_stock = min_s
+        p.location_name = data.get("location_name", p.location_name)
     else:
-        p = Product(item_number=sku, name=name, current_stock=data.get("current_stock", 0), location_name=data.get("location_name", "MAG-1"))
+        p = Product(item_number=sku, name=name, current_stock=data.get("current_stock", 0), min_stock=min_s, location_name=data.get("location_name", "MAG-1"))
         db.session.add(p)
+    
     db.session.commit()
     db.session.add(AuditLog(item_number=sku, action="UPSERT", qty=p.current_stock, location_name=p.location_name, username=current_user.username))
     db.session.commit()
@@ -229,7 +264,7 @@ def api_stock(action):
         p.current_stock -= amt
     db.session.add(AuditLog(item_number=sku, action=action.upper(), qty=amt, location_name=p.location_name, username=current_user.username))
     db.session.commit()
-    return jsonify({"ok": True, "current_stock": p.current_stock})
+    return jsonify({"ok": True, "current_stock": p.current_stock, "name": p.name, "location": p.location_name})
 
 @app.route("/api/audit")
 @login_required
