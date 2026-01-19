@@ -32,7 +32,6 @@
 
     .app{display:flex; min-height:100vh;}
 
-    /* Sidebar */
     .sidebar{
       width:280px;
       background:var(--sidebar);
@@ -69,7 +68,6 @@
       color:#fff;
     }
 
-    /* Main */
     .main{flex:1; display:flex; flex-direction:column; min-width:0;}
     .topbar{
       height:80px;
@@ -81,13 +79,13 @@
       padding:0 40px;
     }
 
-    /* LUPKA STYLE */
-    .search-wrap {
+    /* LUPKA W TOPBARZE */
+    .search-box {
       position: relative;
       display: flex;
       align-items: center;
     }
-    .search-wrap input {
+    .search-box input {
       padding: 10px 15px 10px 35px;
       border-radius: 20px;
       border: 1px solid var(--border);
@@ -95,7 +93,7 @@
       outline: none;
       width: 250px;
     }
-    .search-wrap::before {
+    .search-box::before {
       content: "🔍";
       position: absolute;
       left: 12px;
@@ -107,7 +105,6 @@
     .view{display:none}
     .view.active{display:block}
 
-    /* Dashboard */
     .stats-grid{
       display:grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -125,7 +122,6 @@
     .stat-card .label{font-size:14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em}
     .stat-card .val{font-size:32px; font-weight:800; margin-top:8px; display:block}
 
-    /* Table */
     .table-container{
       background:#fff;
       border-radius:var(--radius);
@@ -138,7 +134,6 @@
     td{padding:18px 24px; border-top:1px solid var(--border); font-size:15px}
     tr:hover td{background:#fcfdfe}
 
-    /* Modals */
     .modal-overlay{
       position:fixed; inset:0; background:rgba(11,27,58,0.4); backdrop-filter:blur(4px);
       display:none; align-items:center; justify-content:center; z-index:1000;
@@ -151,27 +146,18 @@
     .form-group label{display:block; font-size:14px; font-weight:600; margin-bottom:8px; color:var(--muted)}
     input, select{
       width:100%; padding:12px 16px; border-radius:12px; border:1px solid var(--border);
-      font-size:16px; outline:none; transition:0.2s;
+      font-size:16px; outline:none;
     }
-    input:focus{border-color:var(--blue-500); box-shadow:0 0 0 4px var(--blue-100)}
     .btn{
-      width:100%; padding:14px; border-radius:12px; font-weight:700; border:none; cursor:pointer;
-      transition:0.2s; font-size:16px;
+      width:100%; padding:14px; border-radius:12px; font-weight:700; border:none; cursor:pointer; font-size:16px;
     }
     .btn-primary{background:var(--blue-600); color:#fff}
 
-    /* Scanner */
     #scanner-container{
       width:100%; height:300px; background:#000; border-radius:16px; overflow:hidden; margin-bottom:20px;
       position:relative;
     }
     #scanner-video{width:100%; height:100%; object-fit:cover}
-
-    .status-pill{
-      padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;
-    }
-    .status-receive{background:#ecfdf5; color:#059669}
-    .status-issue{background:#fff1f2; color:#e11d48}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
@@ -192,8 +178,8 @@
 
   <main class="main">
     <div class="topbar">
-      <div class="search-wrap">
-        <input type="text" id="mainSearch" placeholder="Search SKU or Name..." onkeyup="instantFilter()">
+      <div class="search-box">
+        <input type="text" id="topSearch" placeholder="Search SKU or Name..." onkeyup="doSearch()">
       </div>
       <div style="font-weight:600">Admin Panel</div>
     </div>
@@ -219,18 +205,11 @@
       </div>
 
       <div id="view-inventory" class="view">
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px">
-          <h2 style="margin:0; font-size:24px; font-weight:800">Stock Inventory</h2>
-        </div>
+        <h2 style="margin-bottom:24px; font-size:24px; font-weight:800">Stock Inventory</h2>
         <div class="table-container">
-          <table id="inventoryTable">
+          <table id="invTable">
             <thead>
-              <tr>
-                <th>SKU / ID</th>
-                <th>Product Name</th>
-                <th>Stock</th>
-                <th>Location</th>
-              </tr>
+              <tr><th>SKU / ID</th><th>Product Name</th><th>Stock</th><th>Location</th></tr>
             </thead>
             <tbody id="inventoryBody"></tbody>
           </table>
@@ -241,15 +220,7 @@
         <h2 style="margin-bottom:24px; font-size:24px; font-weight:800">Activity Log</h2>
         <div class="table-container">
           <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Action</th>
-                <th>SKU</th>
-                <th>Qty</th>
-                <th>User</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Date</th><th>Action</th><th>SKU</th><th>Qty</th><th>User</th></tr></thead>
             <tbody id="auditBody"></tbody>
           </table>
         </div>
@@ -261,7 +232,7 @@
 
 <div id="modal-add" class="modal-overlay">
   <div class="modal">
-    <h3 style="margin-top:0">Add New Product</h3>
+    <h3>Add New Product</h3>
     <div class="form-group"><label>SKU</label><input type="text" id="p_id"></div>
     <div class="form-group"><label>Name</label><input type="text" id="p_name"></div>
     <div class="form-group"><label>Initial Stock</label><input type="number" id="p_qty" value="0"></div>
@@ -278,8 +249,8 @@
       <div class="form-group" style="flex:1"><label>SKU</label><input type="text" id="r_item"></div>
       <button onclick="startScan('r_item')" style="height:46px; margin-top:28px; padding:0 12px; border-radius:12px; border:1px solid var(--border)">📷</button>
     </div>
-    <div class="form-group"><label>Quantity to Add</label><input type="number" id="r_qty" value="1"></div>
-    <button class="btn btn-primary" onclick="submitStock('receive')">Confirm Receipt</button>
+    <div class="form-group"><label>Quantity</label><input type="number" id="r_qty" value="1"></div>
+    <button class="btn btn-primary" onclick="submitStock('receive')">Confirm</button>
     <button onclick="closeModal()" style="background:none; border:none; color:var(--muted); margin-top:16px; width:100%; cursor:pointer">Cancel</button>
   </div>
 </div>
@@ -291,8 +262,8 @@
       <div class="form-group" style="flex:1"><label>SKU</label><input type="text" id="i_item"></div>
       <button onclick="startScan('i_item')" style="height:46px; margin-top:28px; padding:0 12px; border-radius:12px; border:1px solid var(--border)">📷</button>
     </div>
-    <div class="form-group"><label>Quantity to Issue</label><input type="number" id="i_qty" value="1"></div>
-    <button class="btn btn-primary" style="background:var(--text)" onclick="submitStock('issue')">Confirm Issue</button>
+    <div class="form-group"><label>Quantity</label><input type="number" id="i_qty" value="1"></div>
+    <button class="btn btn-primary" style="background:var(--text)" onclick="submitStock('issue')">Confirm</button>
     <button onclick="closeModal()" style="background:none; border:none; color:var(--muted); margin-top:16px; width:100%; cursor:pointer">Cancel</button>
   </div>
 </div>
@@ -301,17 +272,16 @@
   <div class="modal" style="max-width:400px">
     <h3>Scan QR Code</h3>
     <div id="scanner-container"><video id="scanner-video"></video></div>
-    <button class="btn" onclick="stopScan()" style="background:#f1f5f9">Cancel Scan</button>
+    <button class="btn" onclick="stopScan()" style="background:#f1f5f9">Cancel</button>
   </div>
 </div>
 
 <script>
-  // --- NAVIGATION ---
   function switchView(viewId){
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + viewId).classList.add('active');
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    if(event && event.target) event.target.classList.add('active');
+    if(event && event.currentTarget) event.currentTarget.classList.add('active');
     if(viewId === 'inventory') loadInventory();
     if(viewId === 'audit') loadAudit();
   }
@@ -319,13 +289,12 @@
   function openModal(type){ document.getElementById('modal-' + type).style.display = 'flex'; }
   function closeModal(){ document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); stopScan(); }
 
-  // --- LUPKA LOGIC ---
-  function instantFilter() {
-    let input = document.getElementById("mainSearch");
+  // LOGIKA WYSZUKIWANIA
+  function doSearch() {
+    let input = document.getElementById("topSearch");
     let filter = input.value.toUpperCase();
-    let table = document.getElementById("inventoryTable");
+    let table = document.getElementById("invTable");
     let tr = table.getElementsByTagName("tr");
-
     for (let i = 1; i < tr.length; i++) {
       let td0 = tr[i].getElementsByTagName("td")[0];
       let td1 = tr[i].getElementsByTagName("td")[1];
@@ -334,25 +303,18 @@
         tr[i].style.display = txt.toUpperCase().indexOf(filter) > -1 ? "" : "none";
       }
     }
-    // Automatyczne przełączanie na Inventory przy pisaniu
     if(filter.length > 0 && document.getElementById('view-dashboard').classList.contains('active')) {
       switchView('inventory');
     }
   }
 
-  // --- API (Twoje oryginalne) ---
   async function loadInventory(){
     const res = await fetch('/api/products');
     const d = await res.json();
     const body = document.getElementById('inventoryBody');
     body.innerHTML = '';
     (d.products || []).forEach(p => {
-      body.innerHTML += `<tr>
-        <td><b>${p.item_number}</b></td>
-        <td>${p.name}</td>
-        <td>${p.current_stock}</td>
-        <td>${p.location_name}</td>
-      </tr>`;
+      body.innerHTML += `<tr><td><b>${p.item_number}</b></td><td>${p.name}</td><td>${p.current_stock}</td><td>${p.location_name}</td></tr>`;
     });
   }
 
@@ -363,19 +325,15 @@
       current_stock: document.getElementById('p_qty').value,
       location_name: document.getElementById('p_loc').value
     };
-    await fetch('/api/products', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)
-    });
+    await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p) });
     closeModal(); loadInventory();
   }
 
   async function submitStock(type){
     const sku = document.getElementById(type === 'receive' ? 'r_item' : 'i_item').value;
     const amt = document.getElementById(type === 'receive' ? 'r_qty' : 'i_qty').value;
-    const res = await fetch('/api/stock/' + type, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({item_number:sku, amount:amt})
-    });
-    if(res.ok){ closeModal(); loadInventory(); } else { alert('Error updating stock'); }
+    const res = await fetch('/api/stock/' + type, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({item_number:sku, amount:amt}) });
+    if(res.ok){ closeModal(); loadInventory(); } else { alert('Error'); }
   }
 
   async function loadAudit(){
@@ -384,18 +342,10 @@
     const body = document.getElementById('auditBody');
     body.innerHTML = '';
     (d.data || []).forEach(a => {
-      const pill = a.type === 'RECEIVE' ? 'status-receive' : 'status-issue';
-      body.innerHTML += `<tr>
-        <td style="color:var(--muted)">${a.created_at.split('T')[0]}</td>
-        <td><span class="status-pill ${pill}">${a.type}</span></td>
-        <td>${a.item_number}</td>
-        <td>${a.quantity}</td>
-        <td>${a.username}</td>
-      </tr>`;
+      body.innerHTML += `<tr><td>${a.created_at.split('T')[0]}</td><td>${a.type}</td><td>${a.item_number}</td><td>${a.quantity}</td><td>${a.username}</td></tr>`;
     });
   }
 
-  // --- SCANNER (Twoje oryginalne) ---
   let scannerActive = false;
   let videoStream = null;
 
@@ -409,7 +359,7 @@
       video.play();
       scannerActive = true;
       requestAnimationFrame(() => tick(targetId));
-    } catch (err) { alert("Camera error: " + err); }
+    } catch (err) { alert("Camera error"); }
   }
 
   function tick(targetId) {
