@@ -275,28 +275,28 @@
     </header>
 
     <div class="container">
-      <div class="hint" id="pageHint">Tip: add products first (ID + name + qty + location). Receive/Issue i picking dodamy później.</div>
+      <div class="hint" id="pageHint">Tip: Add products first (ID + Name + Qty + Location).</div>
 
       <section id="view-dashboard" class="view">
         <div class="card">
           <h2>Dashboard</h2>
-          <div class="small">Wybierz akcję:</div>
+          <div class="small">Choose an action:</div>
           <div class="pillgrid" style="margin-top:12px">
             <div class="pill" onclick="openAddProductModal()">
               <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
-              <div class="small">ID + name + qty + location</div>
+              <div class="small">ID + Name + Qty + Location</div>
             </div>
             <div class="pill" onclick="openStockModal('receive')">
-              <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
-              <div class="small">Wkrótce</div>
+              <div class="left"><div class="ic">⬇️</div><div>Receive Material</div></div>
+              <div class="small">Incoming stock</div>
             </div>
             <div class="pill" onclick="openStockModal('issue')">
-              <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
-              <div class="small">Wkrótce</div>
+              <div class="left"><div class="ic">⬆️</div><div>Issue Material</div></div>
+              <div class="small">Outgoing stock</div>
             </div>
             <div class="pill" onclick="comingSoon('Picking lists')">
-              <div class="left"><div class="ic">📋</div><div>Picking lists</div></div>
-              <div class="small">Wkrótce</div>
+              <div class="left"><div class="ic">📋</div><div>Picking Lists</div></div>
+              <div class="small">Coming soon</div>
             </div>
           </div>
         </div>
@@ -305,7 +305,7 @@
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
-          <div class="small">Produkty w bazie:</div>
+          <div class="small">Products in database:</div>
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
@@ -319,14 +319,14 @@
               <tbody id="productsBody"></tbody>
             </table>
           </div>
-          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">Brak produktów.</div>
+          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">No products found.</div>
         </div>
       </section>
 
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
           <h2>Audit</h2>
-          <div class="small">Logi działań (Supabase audit_log).</div>
+          <div class="small">Activity logs (Supabase audit_log).</div>
 
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
@@ -345,19 +345,19 @@
             </table>
           </div>
 
-          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">Brak wpisów.</div>
+          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">No logs found.</div>
         </div>
       </section>
 
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
           <h2>Admin</h2>
-          <div class="small">Backup do GitHub tworzy commit w repo.</div>
+          <div class="small">GitHub backup creates a commit in the repository.</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
             <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
-            <button class="btn" onclick="showGitHubVerify()">How to verify on GitHub</button>
+            <button class="btn" onclick="showGitHubVerify()">How to verify</button>
           </div>
-          <div class="small" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
+          <div class="small" style="margin-top:10px">If backup fails: check Render → Environment: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.</div>
           <div class="alert" id="adminAlert"></div>
         </div>
       </section>
@@ -373,16 +373,16 @@
 
           <div class="row">
             <div>
-              <label>Product ID (manual or QR)</label>
+              <label>Product ID (Manual or QR)</label>
               <div class="scanrow">
                 <input id="p_id" placeholder="e.g. 100234" />
                 <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
               </div>
-              <div class="small">QR może zawierać: <b>ID|NAME</b> albo JSON {"id":"...","name":"..."}.</div>
+              <div class="small">QR can contain: <b>ID|NAME</b> or JSON {"id":"...","name":"..."}.</div>
             </div>
 
             <div>
-              <label>Product Name (manual or from QR)</label>
+              <label>Product Name (Manual or from QR)</label>
               <input id="p_name" placeholder="e.g. Screw M6" />
             </div>
 
@@ -392,7 +392,7 @@
             </div>
 
             <div>
-              <label>Location (manual or QR)</label>
+              <label>Location (Manual or QR)</label>
               <div class="scanrow">
                 <input id="p_loc" placeholder="e.g. A-01-02" />
                 <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
@@ -426,7 +426,7 @@
 
       <div class="row">
         <div>
-          <label>Product ID (manual or QR)</label>
+          <label>Product ID (Manual or QR)</label>
           <div class="scanrow">
             <input id="s_id" placeholder="e.g. 100234" />
             <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
@@ -455,7 +455,7 @@
 
 <script>
   // --- Stock modal (receive/issue) ---
-  let stockMode = "receive"; // 'receive' | 'issue'
+  let stockMode = "receive"; 
   let stockStream = null;
   let stockDetector = null;
   let stockScanTimer = null;
@@ -478,7 +478,7 @@
     clearStockAlert();
     document.getElementById('s_id').value = '';
     document.getElementById('s_qty').value = '';
-    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Przyjęcie materiału (Receive)' : 'Wydanie materiału (Issue)';
+    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Receive Material' : 'Issue Material';
     document.getElementById('stockBackdrop').style.display = 'flex';
   }
 
@@ -492,8 +492,8 @@
     const item_number = document.getElementById('s_id').value.trim();
     const amount = Number(document.getElementById('s_qty').value || 0);
 
-    if(!item_number){ setStockAlert('Podaj Product ID.', 'bad'); return; }
-    if(!amount || amount <= 0){ setStockAlert('Podaj ilość > 0.', 'bad'); return; }
+    if(!item_number){ setStockAlert('Please provide Product ID.', 'bad'); return; }
+    if(!amount || amount <= 0){ setStockAlert('Amount must be > 0.', 'bad'); return; }
 
     try{
       const res = await fetch('/api/stock/' + stockMode, {
@@ -504,19 +504,18 @@
       const data = await res.json().catch(()=>({}));
 
       if(!res.ok){
-        setStockAlert(data.error || ('Błąd (HTTP '+res.status+')'), 'bad');
+        setStockAlert(data.error || ('Error (HTTP '+res.status+')'), 'bad');
         return;
       }
 
-      setStockAlert('Zapisano ✔', 'ok');
+      setStockAlert('Saved successfully ✔', 'ok');
 
-      // Odświeżenie danych jeśli widoczne
       loadProducts();
       if (document.getElementById('view-audit').style.display !== 'none') {
         loadAudit();
       }
     }catch(e){
-      setStockAlert('Błąd połączenia.', 'bad');
+      setStockAlert('Connection error.', 'bad');
     }
   }
 
@@ -524,7 +523,7 @@
     clearStockAlert();
 
     if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
+      const pasted = prompt('Scanning not supported. Paste QR text here:');
       if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
       return;
     }
@@ -563,7 +562,7 @@
 
     }catch(e){
       stopStockScan();
-      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
+      const pasted = prompt('Camera access failed. Paste QR text here:');
       if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
     }
   }
@@ -602,10 +601,10 @@
     addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
 
     const hint = document.getElementById('pageHint');
-    if (name === 'dashboard') hint.textContent = 'Wybierz akcję. Add Product dodaje produkt do bazy (ID + name + qty + location).';
-    else if (name === 'inventory') hint.textContent = 'Lista produktów z bazy.';
-    else if (name === 'audit') hint.textContent = 'Podgląd logów działań (audit).';
-    else if (name === 'admin') hint.textContent = 'Administracja (backup itp.).';
+    if (name === 'dashboard') hint.textContent = 'Choose an action. Use "Add Product" to register new items.';
+    else if (name === 'inventory') hint.textContent = 'List of products currently in the database.';
+    else if (name === 'audit') hint.textContent = 'View recent activity logs.';
+    else if (name === 'admin') hint.textContent = 'Administration and backup settings.';
     else hint.textContent = '';
 
     if (name === 'inventory') loadProducts();
@@ -617,7 +616,7 @@
   }
 
   function comingSoon(label){
-    alert(label + ' — wkrótce.');
+    alert(label + ' — coming soon.');
   }
 
   // ---------- Add product modal ----------
@@ -674,11 +673,11 @@
       }
     }catch(e){
       empty.style.display = 'block';
-      empty.textContent = 'Nie udało się pobrać listy produktów.';
+      empty.textContent = 'Failed to load products.';
     }
   }
 
-  // ---------- Audit (FIXED) ----------
+  // ---------- Audit ----------
   async function loadAudit(){
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmpty');
@@ -690,7 +689,6 @@
       if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
       
-      // Obsługa różnych formatów odpowiedzi API
       const items = data.audit || data.data || (Array.isArray(data) ? data : []);
 
       if(items.length === 0){
@@ -699,7 +697,6 @@
       }
 
       for(const r of items){
-        // Formatowanie daty: usuwamy T i Z dla czytelności
         const created = r.created_at ? String(r.created_at).replace('T',' ').split('.')[0] : '';
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -716,7 +713,7 @@
     }catch(e){
       console.error("Audit load error:", e);
       empty.style.display = 'block';
-      empty.textContent = 'Nie udało się pobrać logów audytu.';
+      empty.textContent = 'Failed to load audit logs.';
     }
   }
 
@@ -728,9 +725,9 @@
     const quantity = Number(document.getElementById('p_qty').value || 0);
     const location = document.getElementById('p_loc').value.trim();
 
-    if(!product_id){ setAddAlert('Podaj Product ID (ręcznie lub QR).', 'bad'); return; }
-    if(!name){ setAddAlert('Podaj nazwę produktu.', 'bad'); return; }
-    if(!location){ setAddAlert('Podaj lokację (ręcznie lub QR).', 'bad'); return; }
+    if(!product_id){ setAddAlert('Product ID is required.', 'bad'); return; }
+    if(!name){ setAddAlert('Product Name is required.', 'bad'); return; }
+    if(!location){ setAddAlert('Location is required.', 'bad'); return; }
 
     try{
       const res = await fetch('/api/products', {
@@ -748,15 +745,15 @@
       });
       const data = await res.json().catch(()=>({}));
       if(!res.ok){
-        setAddAlert(data.error || ('Błąd zapisu (HTTP '+res.status+')'), 'bad');
+        setAddAlert(data.error || ('Save error (HTTP '+res.status+')'), 'bad');
         return;
       }
 
-      setAddAlert('Zapisano ✔', 'ok');
+      setAddAlert('Saved successfully ✔', 'ok');
       loadProducts();
       if(document.getElementById('view-audit').style.display !== 'none') loadAudit();
     }catch(e){
-      setAddAlert('Błąd połączenia podczas zapisu.', 'bad');
+      setAddAlert('Connection error during save.', 'bad');
     }
   }
 
@@ -770,7 +767,7 @@
     scanMode = mode;
 
     if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
+      const pasted = prompt('Scanning not supported. Paste QR text here:');
       if(pasted) applyScannedValue(pasted);
       return;
     }
@@ -798,7 +795,7 @@
 
     }catch(e){
       stopScan();
-      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
+      const pasted = prompt('Camera access failed. Paste QR text here:');
       if(pasted) applyScannedValue(pasted);
     }
   }
@@ -857,7 +854,7 @@
       '/admin/backup/github'
     ];
 
-    setAdminAlert('Backup: start...', '');
+    setAdminAlert('Backup starting...', '');
 
     for (const url of candidates){
       try{
@@ -878,10 +875,9 @@
   }
 
   function showGitHubVerify(){
-    alert('GitHub → repo → Commits: po kliknięciu Backup powinien pojawić się nowy commit.');
+    alert('Go to GitHub → Repository → Commits. A new commit should appear after a successful backup.');
   }
 
-  // Initial
   showView('dashboard');
 </script>
 </body>

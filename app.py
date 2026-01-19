@@ -132,7 +132,7 @@ class Product(db.Model):
     item_number = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     current_stock = db.Column(db.Integer, default=0, nullable=False)
-    location_name = db.Column(db.String(100), default="MAG-1", nullable=False)
+    location_name = db.Column(db.String(100), default="WH-1", nullable=False)
 
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -176,7 +176,7 @@ def login():
         if user and check_password_hash(user.password_hash, request.form.get("password", "")):
             login_user(user)
             return redirect(request.args.get("next") or url_for("index"))
-        return render_template("login.html", error="Invalid login")
+        return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
 
 @app.route("/logout")
@@ -206,9 +206,9 @@ def api_products():
 
     p = Product.query.filter_by(item_number=sku).first()
     if p:
-        p.name, p.location_name, p.current_stock = name, data.get("location_name", "MAG-1"), data.get("current_stock", 0)
+        p.name, p.location_name, p.current_stock = name, data.get("location_name", "WH-1"), data.get("current_stock", 0)
     else:
-        p = Product(item_number=sku, name=name, location_name=data.get("location_name", "MAG-1"), current_stock=data.get("current_stock", 0))
+        p = Product(item_number=sku, name=name, location_name=data.get("location_name", "WH-1"), current_stock=data.get("current_stock", 0))
         db.session.add(p)
     db.session.commit()
     db.session.add(AuditLog(product_id=p.id, action="upsert", amount=p.current_stock, username=current_user.username))
@@ -225,18 +225,18 @@ def api_stock(action):
 
     if _supabase_enabled():
         row = _sb_get_product_by_sku(sku)
-        if not row: return jsonify({"ok":False,"error":"Not found"}), 404
+        if not row: return jsonify({"ok":False,"error":"Product not found"}), 404
         new_q = (row['quantity'] + amount) if action == "receive" else (row['quantity'] - amount)
-        if new_q < 0: return jsonify({"ok":False,"error":"Low stock"}), 400
+        if new_q < 0: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
         _sb_set_product_quantity(sku, new_q)
         _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
         return jsonify({"ok":True, "current_stock": new_q})
 
     p = Product.query.filter_by(item_number=sku).first()
-    if not p: return jsonify({"ok":False,"error":"Not found"}), 404
+    if not p: return jsonify({"ok":False,"error":"Product not found"}), 404
     if action == "receive": p.current_stock += amount
     else:
-        if p.current_stock < amount: return jsonify({"ok":False,"error":"Low stock"}), 400
+        if p.current_stock < amount: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
         p.current_stock -= amount
     db.session.add(AuditLog(product_id=p.id, action=action, amount=amount, username=current_user.username))
     db.session.commit()
