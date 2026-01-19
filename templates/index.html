@@ -84,7 +84,6 @@
 
 <header>BTV Inventory</header>
 
-<!-- DASHBOARD -->
 <div class="dashboard" id="dashboard">
     <div class="tile" onclick="openPanel('receive')">Receive</div>
     <div class="tile" onclick="openPanel('issue')">Issue</div>
@@ -92,7 +91,6 @@
     <div class="tile" onclick="openPanel('audit')">Audit</div>
 </div>
 
-<!-- RECEIVE -->
 <div class="panel hidden" id="receive">
     <h2>Receive</h2>
     <input id="r_item" placeholder="Item number">
@@ -105,7 +103,6 @@
     <button class="secondary" onclick="goBack()">Back</button>
 </div>
 
-<!-- ISSUE -->
 <div class="panel hidden" id="issue">
     <h2>Issue</h2>
     <input id="i_item" placeholder="Item number">
@@ -115,7 +112,6 @@
     <button class="secondary" onclick="goBack()">Back</button>
 </div>
 
-<!-- INVENTORY -->
 <div class="panel hidden" id="inventory">
     <h2>Inventory</h2>
     <table>
@@ -133,7 +129,6 @@
     <button class="secondary" onclick="goBack()">Back</button>
 </div>
 
-<!-- AUDIT -->
 <div class="panel hidden" id="audit">
     <h2>Audit</h2>
     <table>
@@ -166,81 +161,58 @@ function goBack(){
     document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
 }
 
-// Funkcja pomocnicza do wysyłania danych do serwera
-async function sendStockAction(action, data) {
-    try {
-        const response = await fetch(`/api/stock/${action}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        
-        if (response.ok) {
-            alert('Sukces: ' + (result.message || 'Operacja wykonana'));
-            goBack(); // Wróć do menu po sukcesie
-        } else {
-            alert('Błąd: ' + (result.error || 'Coś poszło nie tak'));
-        }
-    } catch (err) {
-        alert('Błąd połączenia z serwerem');
-    }
-}
-
-// Obsługa przycisku "Receive" (Przyjęcie na stan/Update)
 async function saveReceive(){
-    const item_number = document.getElementById('r_item').value;
-    const name = document.getElementById('r_name').value;
-    const qty = document.getElementById('r_qty').value;
-    const loc = document.getElementById('r_loc').value;
-
-    if(!item_number || !name) {
-        alert('Numer przedmiotu i nazwa są wymagane!');
-        return;
-    }
-
-    const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            item_number: item_number,
-            name: name,
-            current_stock: qty,
-            location_name: loc
+    const res = await fetch('/api/products',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            item_number: document.getElementById('r_item').value,
+            name: document.getElementById('r_name').value,
+            current_stock: document.getElementById('r_qty').value,
+            location_name: document.getElementById('r_loc').value,
+            action:'receive'
         })
     });
-    
-    if(res.ok) alert('Produkt zaktualizowany/dodany');
-    else alert('Błąd przy zapisie produktu');
+    if(res.ok) alert('Received');
+    else alert('Error saving product');
 }
 
-// Obsługa przycisku "Delivery" (Dostawa - zwiększenie stanu)
-function saveDelivery(){
-    const data = {
-        item_number: document.getElementById('r_item').value,
-        qty: document.getElementById('r_qty').value
-    };
-    if(!data.item_number || !data.qty) return alert('Wpisz SKU i Ilość');
-    sendStockAction('receive', data);
+async function saveDelivery(){
+    const res = await fetch('/api/stock/receive',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            item_number: document.getElementById('r_item').value,
+            qty: document.getElementById('r_qty').value
+        })
+    });
+    if(res.ok) alert('Delivery saved');
+    else alert('Error during delivery');
 }
 
-// Obsługa przycisku "Issue" (Wydanie - zmniejszenie stanu)
-function saveIssue(){
-    const data = {
-        item_number: document.getElementById('i_item').value,
-        qty: document.getElementById('i_qty').value
-    };
-    if(!data.item_number || !data.qty) return alert('Wpisz SKU i Ilość');
-    sendStockAction('issue', data);
+async function saveIssue(){
+    const res = await fetch('/api/stock/issue',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+            item_number: document.getElementById('i_item').value,
+            qty: document.getElementById('i_qty').value
+        })
+    });
+    if(res.ok) alert('Issued');
+    else {
+        const err = await res.json();
+        alert('Error: ' + (err.error || 'Check stock'));
+    }
 }
 
 async function loadInventory(){
     const res = await fetch('/api/products');
     const json = await res.json();
-    const body = document.getElementById('inventoryBody');
-    body.innerHTML = '';
-    (json.products || []).forEach(p => {
-        body.innerHTML += `<tr>
+    const inventoryBody = document.getElementById('inventoryBody');
+    inventoryBody.innerHTML='';
+    (json.products||[]).forEach(p=>{
+        inventoryBody.innerHTML+=`<tr>
             <td>${p.item_number}</td>
             <td>${p.name}</td>
             <td>${p.current_stock}</td>
@@ -251,15 +223,12 @@ async function loadInventory(){
 
 async function loadAudit(){
     const res = await fetch('/api/audit');
-    if (!res.ok) {
-        document.getElementById('auditBody').innerHTML = '<tr><td colspan="5">Błąd ładowania lub brak danych audit</td></tr>';
-        return;
-    }
+    if(!res.ok) return;
     const json = await res.json();
-    const body = document.getElementById('auditBody');
-    body.innerHTML = '';
-    (json.data || []).forEach(a => {
-        body.innerHTML += `<tr>
+    const auditBody = document.getElementById('auditBody');
+    auditBody.innerHTML='';
+    (json.data||[]).forEach(a=>{
+        auditBody.innerHTML+=`<tr>
             <td>${a.created_at}</td>
             <td>${a.action || a.type}</td>
             <td>${a.item_number}</td>
