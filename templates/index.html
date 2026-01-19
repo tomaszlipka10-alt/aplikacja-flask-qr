@@ -116,6 +116,25 @@
 
     .actions{display:flex; gap:10px; align-items:center;}
 
+    /* Style dla pola wyszukiwania w topbarze */
+    .search-container {
+      display: none; /* Ukryte domyślnie, pokazywane w Inventory */
+      align-items: center;
+      background: #f1f5f9;
+      border-radius: 12px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+    }
+    .search-container input {
+      border: none;
+      background: transparent;
+      padding: 6px;
+      outline: none;
+      width: 150px;
+      font-size: 14px;
+    }
+    .search-icon { font-size: 18px; color: var(--muted); }
+
     .btn{
       border:1px solid var(--border);
       background: #fff;
@@ -243,6 +262,7 @@
       .btn{padding:10px 10px}
       .sidebar{width:64px; flex-basis:64px}
       .navbtn{width:48px;height:48px;border-radius:14px}
+      .search-container input { width: 100px; }
     }
   </style>
 </head>
@@ -269,7 +289,10 @@
           <span id="pageTitle">BTVenloStorage</span>
         </div>
         <div class="actions">
-          <button class="btn primary" id="btnAddProductTop" onclick="openAddProductModal()">+ Add Product</button>
+          <div class="search-container" id="searchWrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inventorySearch" placeholder="Search..." onkeyup="filterInventory()">
+          </div>
         </div>
       </div>
     </header>
@@ -307,7 +330,7 @@
           <h2>Inventory</h2>
           <div class="small">Products in database:</div>
           <div style="overflow:auto; margin-top:12px">
-            <table style="width:100%; border-collapse:collapse; font-size:14px">
+            <table style="width:100%; border-collapse:collapse; font-size:14px" id="inventoryTable">
               <thead>
                 <tr style="text-align:left; color:var(--muted)">
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
@@ -378,7 +401,6 @@
                 <input id="p_id" placeholder="e.g. 100234" />
                 <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
               </div>
-              <div class="small">QR can contain: <b>ID|NAME</b> or JSON {"id":"...","name":"..."}.</div>
             </div>
 
             <div>
@@ -454,6 +476,26 @@
 </div>
 
 <script>
+  // --- Wyszukiwanie produktów ---
+  function filterInventory() {
+    const input = document.getElementById('inventorySearch');
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('inventoryTable');
+    const tr = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < tr.length; i++) {
+      let visible = false;
+      const tds = tr[i].getElementsByTagName('td');
+      for (let j = 0; j < tds.length; j++) {
+        if (tds[j] && tds[j].textContent.toLowerCase().indexOf(filter) > -1) {
+          visible = true;
+          break;
+        }
+      }
+      tr[i].style.display = visible ? "" : "none";
+    }
+  }
+
   // --- Stock modal (receive/issue) ---
   let stockMode = "receive"; 
   let stockStream = null;
@@ -509,11 +551,7 @@
       }
 
       setStockAlert('Saved successfully ✔', 'ok');
-
       loadProducts();
-      if (document.getElementById('view-audit').style.display !== 'none') {
-        loadAudit();
-      }
     }catch(e){
       setStockAlert('Connection error.', 'bad');
     }
@@ -521,23 +559,18 @@
 
   async function startScanStock(targetInputId){
     clearStockAlert();
-
     if(!('BarcodeDetector' in window)){
       const pasted = prompt('Scanning not supported. Paste QR text here:');
       if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
       return;
     }
-
     try{
       stockDetector = new BarcodeDetector({ formats: ['qr_code'] });
       stockStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
       const video = document.getElementById('stockVideo');
       video.srcObject = stockStream;
       await video.play();
-
       document.getElementById('stockScannerBox').style.display = 'block';
-
       stockScanTimer = setInterval(async () => {
         try{
           const barcodes = await stockDetector.detect(video);
@@ -559,11 +592,8 @@
           }
         }catch(_){}
       }, 250);
-
     }catch(e){
       stopStockScan();
-      const pasted = prompt('Camera access failed. Paste QR text here:');
-      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
     }
   }
 
@@ -577,19 +607,12 @@
   }
 </script>
 
-
 <script>
   function escapeHtml(s){
     if(!s) return "";
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
+    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   }
 
-  // ---------- Views ----------
   function showView(name){
     const views = ['dashboard','inventory','audit','admin'];
     for (const v of views){
@@ -597,34 +620,30 @@
       document.getElementById('nav-'+v).classList.toggle('active', v===name);
     }
 
-    const addBtn = document.getElementById('btnAddProductTop');
-    addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
+    // Pokaż lupkę tylko w widoku Inventory
+    const searchWrapper = document.getElementById('searchWrapper');
+    searchWrapper.style.display = (name === 'inventory') ? 'flex' : 'none';
 
     const hint = document.getElementById('pageHint');
     if (name === 'dashboard') hint.textContent = 'Choose an action. Use "Add Product" to register new items.';
-    else if (name === 'inventory') hint.textContent = 'List of products currently in the database.';
+    else if (name === 'inventory') hint.textContent = 'List of products. Use the search icon to filter.';
     else if (name === 'audit') hint.textContent = 'View recent activity logs.';
     else if (name === 'admin') hint.textContent = 'Administration and backup settings.';
-    else hint.textContent = '';
-
-    if (name === 'inventory') loadProducts();
+    
+    if (name === 'inventory') {
+        document.getElementById('inventorySearch').value = '';
+        loadProducts();
+    }
     if (name === 'audit') loadAudit();
   }
 
-  function logout(){
-    window.location.href = '/logout';
-  }
+  function logout(){ window.location.href = '/logout'; }
+  function comingSoon(label){ alert(label + ' — coming soon.'); }
 
-  function comingSoon(label){
-    alert(label + ' — coming soon.');
-  }
-
-  // ---------- Add product modal ----------
   function openAddProductModal(){
     document.getElementById('addProductBackdrop').style.display = 'flex';
     clearAddAlert();
   }
-
   function closeAddProductModal(){
     stopScan();
     document.getElementById('addProductBackdrop').style.display = 'none';
@@ -639,63 +658,42 @@
   function clearAddAlert(){
     const el = document.getElementById('addAlert');
     el.style.display = 'none';
-    el.textContent = '';
     el.className = 'alert';
   }
 
-  // ---------- Inventory ----------
   async function loadProducts(){
     const body = document.getElementById('productsBody');
     const empty = document.getElementById('productsEmpty');
     body.innerHTML = '';
     empty.style.display = 'none';
-
     try{
       const res = await fetch('/api/products');
-      if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
       const items = data.products || [];
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
-      }
-
+      if(items.length === 0){ empty.style.display = 'block'; return; }
       for(const p of items){
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || p.sku || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.sku || '')}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String((p.current_stock ?? p.quantity ?? '')))}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(p.current_stock ?? p.quantity ?? ''))}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
         `;
         body.appendChild(tr);
       }
-    }catch(e){
-      empty.style.display = 'block';
-      empty.textContent = 'Failed to load products.';
-    }
+    }catch(e){ empty.style.display = 'block'; }
   }
 
-  // ---------- Audit ----------
   async function loadAudit(){
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmpty');
     body.innerHTML = '';
     empty.style.display = 'none';
-
     try{
       const res = await fetch('/api/audit');
-      if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
-      
-      const items = data.audit || data.data || (Array.isArray(data) ? data : []);
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
-      }
-
+      const items = data.audit || data.data || [];
+      if(items.length === 0){ empty.style.display = 'block'; return; }
       for(const r of items){
         const created = r.created_at ? String(r.created_at).replace('T',' ').split('.')[0] : '';
         const tr = document.createElement('tr');
@@ -710,173 +708,71 @@
         `;
         body.appendChild(tr);
       }
-    }catch(e){
-      console.error("Audit load error:", e);
-      empty.style.display = 'block';
-      empty.textContent = 'Failed to load audit logs.';
-    }
+    }catch(e){ empty.style.display = 'block'; }
   }
 
-  // ---------- Save product ----------
   async function saveProduct(){
     clearAddAlert();
     const product_id = document.getElementById('p_id').value.trim();
     const name = document.getElementById('p_name').value.trim();
     const quantity = Number(document.getElementById('p_qty').value || 0);
     const location = document.getElementById('p_loc').value.trim();
-
-    if(!product_id){ setAddAlert('Product ID is required.', 'bad'); return; }
-    if(!name){ setAddAlert('Product Name is required.', 'bad'); return; }
-    if(!location){ setAddAlert('Location is required.', 'bad'); return; }
-
+    if(!product_id || !name || !location){ setAddAlert('Required fields missing.', 'bad'); return; }
     try{
       const res = await fetch('/api/products', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          item_number: product_id,
-          name,
-          current_stock: quantity,
-          location_name: location,
-          product_id,
-          quantity,
-          location
-        })
+        body: JSON.stringify({ item_number: product_id, name, current_stock: quantity, location_name: location })
       });
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        setAddAlert(data.error || ('Save error (HTTP '+res.status+')'), 'bad');
-        return;
-      }
-
-      setAddAlert('Saved successfully ✔', 'ok');
-      loadProducts();
-      if(document.getElementById('view-audit').style.display !== 'none') loadAudit();
-    }catch(e){
-      setAddAlert('Connection error during save.', 'bad');
-    }
+      if(res.ok){ setAddAlert('Saved ✔', 'ok'); loadProducts(); }
+      else { setAddAlert('Error saving.', 'bad'); }
+    }catch(e){ setAddAlert('Connection error.', 'bad'); }
   }
 
-  // ---------- QR Scan ----------
   let scanMode = null;
   let stream = null;
-  let detector = null;
   let scanTimer = null;
-
   async function startScan(mode){
     scanMode = mode;
-
     if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Scanning not supported. Paste QR text here:');
+      const pasted = prompt('Paste QR:');
       if(pasted) applyScannedValue(pasted);
       return;
     }
-
     try{
-      detector = new BarcodeDetector({ formats: ['qr_code'] });
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       const video = document.getElementById('video');
       video.srcObject = stream;
       await video.play();
-
       document.getElementById('scannerBox').style.display = 'block';
-
       scanTimer = setInterval(async () => {
-        try{
-          const barcodes = await detector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = barcodes[0].rawValue || '';
-            applyScannedValue(raw);
-            stopScan();
-          }
-        }catch(_){}
+        const barcodes = await detector.detect(video);
+        if(barcodes.length){ applyScannedValue(barcodes[0].rawValue); stopScan(); }
       }, 250);
-
-    }catch(e){
-      stopScan();
-      const pasted = prompt('Camera access failed. Paste QR text here:');
-      if(pasted) applyScannedValue(pasted);
-    }
+    }catch(e){ stopScan(); }
   }
-
   function stopScan(){
-    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
+    if(scanTimer) clearInterval(scanTimer);
+    if(stream) stream.getTracks().forEach(t => t.stop());
     document.getElementById('scannerBox').style.display = 'none';
   }
-
   function applyScannedValue(raw){
     const text = (raw || '').trim();
-    if(!text) return;
-
-    if(scanMode === 'location'){
-      document.getElementById('p_loc').value = text;
-      return;
-    }
-
-    try{
-      if(text.startsWith('{') && text.endsWith('}')){
-        const obj = JSON.parse(text);
-        if(obj.id) document.getElementById('p_id').value = String(obj.id);
-        if(obj.name) document.getElementById('p_name').value = String(obj.name);
-        return;
-      }
-    }catch(_){}
-
+    if(scanMode === 'location') { document.getElementById('p_loc').value = text; return; }
     if(text.includes('|')){
-      const parts = text.split('|');
-      const id = (parts[0] || '').trim();
-      const nm = (parts.slice(1).join('|') || '').trim();
-      if(id) document.getElementById('p_id').value = id;
-      if(nm) document.getElementById('p_name').value = nm;
-      return;
-    }
-
-    document.getElementById('p_id').value = text;
-  }
-
-  // ---------- Admin ----------
-  function setAdminAlert(msg, type){
-    const el = document.getElementById('adminAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
+      const p = text.split('|');
+      document.getElementById('p_id').value = p[0].trim();
+      document.getElementById('p_name').value = p[1].trim();
+    } else { document.getElementById('p_id').value = text; }
   }
 
   async function backupToGitHub(){
-    const candidates = [
-      '/api/admin/backup/github',
-      '/api/backup/github',
-      '/admin/backup/github'
-    ];
-
-    setAdminAlert('Backup starting...', '');
-
-    for (const url of candidates){
-      try{
-        const res = await fetch(url, { method:'POST' });
-        const data = await res.json().catch(()=>({}));
-        if(res.ok){
-          setAdminAlert(data.message || 'Backup OK ✔', 'ok');
-          return;
-        }
-        if(res.status !== 404){
-          setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
-          return;
-        }
-      }catch(_){}
-    }
-
-    setAdminAlert('Backup endpoint not found (404).', 'bad');
+    const res = await fetch('/api/admin/backup/github', { method:'POST' });
+    const data = await res.json();
+    alert(data.message || 'Backup complete');
   }
-
-  function showGitHubVerify(){
-    alert('Go to GitHub → Repository → Commits. A new commit should appear after a successful backup.');
-  }
+  function showGitHubVerify(){ alert('Check GitHub commits.'); }
 
   showView('dashboard');
 </script>
