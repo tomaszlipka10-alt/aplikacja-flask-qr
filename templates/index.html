@@ -275,9 +275,8 @@
     </header>
 
     <div class="container">
-      <div class="hint" id="pageHint">Tip: add products first (ID + name + qty + location). Receive/Issue i picking dodamy później.</div>
+      <div class="hint" id="pageHint">Tip: dodaj produkty do bazy, a następnie używaj Przyjęcia/Wydania.</div>
 
-      <!-- DASHBOARD -->
       <section id="view-dashboard" class="view">
         <div class="card">
           <h2>Dashboard</h2>
@@ -285,15 +284,15 @@
           <div class="pillgrid" style="margin-top:12px">
             <div class="pill" onclick="openAddProductModal()">
               <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
-              <div class="small">ID + name + qty + location</div>
+              <div class="small">Dodaj nowy SKU do bazy</div>
             </div>
             <div class="pill" onclick="openStockModal('receive')">
               <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
-              <div class="small">Wkrótce</div>
+              <div class="small">Zwiększ stan (Dostawa)</div>
             </div>
             <div class="pill" onclick="openStockModal('issue')">
               <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
-              <div class="small">Wkrótce</div>
+              <div class="small">Zmniejsz stan (Wydanie)</div>
             </div>
             <div class="pill" onclick="comingSoon('Picking lists')">
               <div class="left"><div class="ic">📋</div><div>Picking lists</div></div>
@@ -303,7 +302,6 @@
         </div>
       </section>
 
-      <!-- INVENTORY -->
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
@@ -325,12 +323,10 @@
         </div>
       </section>
 
-      <!-- AUDIT -->
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
           <h2>Audit</h2>
-          <div class="small">Logi działań (Supabase audit_log).</div>
-
+          <div class="small">Ostatnie logi działań.</div>
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
@@ -338,44 +334,37 @@
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Time</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Action</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">User</th>
                 </tr>
               </thead>
               <tbody id="auditBody"></tbody>
             </table>
           </div>
-
           <div class="small" id="auditEmpty" style="margin-top:10px; display:none">Brak wpisów.</div>
         </div>
       </section>
 
-      <!-- ADMIN -->
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
           <h2>Admin</h2>
           <div class="small">Backup do GitHub tworzy commit w repo.</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
             <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
-            <button class="btn" onclick="showGitHubVerify()">How to verify on GitHub</button>
+            <button class="btn" onclick="showGitHubVerify()">How to verify</button>
           </div>
-          <div class="small" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
           <div class="alert" id="adminAlert"></div>
         </div>
       </section>
     </div>
 
-    <!-- ADD PRODUCT MODAL -->
     <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-header">
-          <div class="modal-title">Add Product</div>
+          <div class="modal-title">Add Product (New SKU)</div>
           <button class="btn" onclick="closeAddProductModal()">✕</button>
         </div>
         <div class="modal-body">
-
           <div class="row">
             <div>
               <label>Product ID (manual or QR)</label>
@@ -383,32 +372,26 @@
                 <input id="p_id" placeholder="e.g. 100234" />
                 <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
               </div>
-              <div class="small">QR może zawierać: <b>ID|NAME</b> albo JSON {"id":"...","name":"..."}.</div>
             </div>
-
             <div>
-              <label>Product Name (manual or from QR)</label>
+              <label>Product Name</label>
               <input id="p_name" placeholder="e.g. Screw M6" />
             </div>
-
             <div>
               <label>Quantity</label>
-              <input id="p_qty" type="number" min="0" step="1" placeholder="e.g. 10" />
+              <input id="p_qty" type="number" min="0" placeholder="e.g. 10" />
             </div>
-
             <div>
-              <label>Location (manual or QR)</label>
+              <label>Location</label>
               <div class="scanrow">
                 <input id="p_loc" placeholder="e.g. A-01-02" />
                 <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
               </div>
             </div>
           </div>
-
           <div class="scanner" id="scannerBox">
             <video id="video" playsinline></video>
           </div>
-
           <div class="alert" id="addAlert"></div>
         </div>
         <div class="modal-footer">
@@ -418,474 +401,190 @@
       </div>
     </div>
 
+    <div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title" id="stockTitle">Stock Move</div>
+          <button class="btn" onclick="closeStockModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div>
+              <label>Product ID</label>
+              <div class="scanrow">
+                <input id="s_id" placeholder="Scan SKU" />
+                <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
+              </div>
+            </div>
+            <div>
+              <label>Quantity</label>
+              <input id="s_qty" type="number" min="1" placeholder="e.g. 10" />
+            </div>
+          </div>
+          <div class="scanner" id="stockScannerBox">
+            <video id="stockVideo" playsinline></video>
+          </div>
+          <div class="alert" id="stockAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeStockModal()">Cancel</button>
+          <button class="btn primary" onclick="submitStock()">Save Action</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
-<!-- RECEIVE / ISSUE MODAL -->
-<div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="stockTitle">Stock</div>
-      <button class="btn" onclick="closeStockModal()">✕</button>
-    </div>
-    <div class="modal-body">
-
-      <div class="row">
-        <div>
-          <label>Product ID (manual or QR)</label>
-          <div class="scanrow">
-            <input id="s_id" placeholder="e.g. 100234" />
-            <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
-          </div>
-        </div>
-
-        <div>
-          <label>Quantity</label>
-          <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
-        </div>
-      </div>
-
-      <div class="scanner" id="stockScannerBox">
-        <video id="stockVideo" playsinline></video>
-      </div>
-
-      <div class="alert" id="stockAlert"></div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn" onclick="closeStockModal()">Cancel</button>
-      <button class="btn primary" onclick="submitStock()">Save</button>
-    </div>
-  </div>
-</div>
-
 <script>
-  // --- Stock modal (receive/issue) ---
-  let stockMode = "receive"; // 'receive' | 'issue'
-  let stockStream = null;
-  let stockDetector = null;
-  let stockScanTimer = null;
-
-  function setStockAlert(msg, type){
-    const el = document.getElementById('stockAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
-  function clearStockAlert(){
-    const el = document.getElementById('stockAlert');
-    el.style.display = 'none';
-    el.textContent = '';
-    el.className = 'alert';
-  }
-
-  function openStockModal(mode){
-    stockMode = mode;
-    clearStockAlert();
-    document.getElementById('s_id').value = '';
-    document.getElementById('s_qty').value = '';
-    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Przyjęcie materiału (Receive)' : 'Wydanie materiału (Issue)';
-    document.getElementById('stockBackdrop').style.display = 'flex';
-  }
-
-  function closeStockModal(){
-    stopStockScan();
-    document.getElementById('stockBackdrop').style.display = 'none';
-  }
-
-  async function submitStock(){
-    clearStockAlert();
-    const item_number = document.getElementById('s_id').value.trim();
-    const amount = Number(document.getElementById('s_qty').value || 0);
-
-    if(!item_number){ setStockAlert('Podaj Product ID.', 'bad'); return; }
-    if(!amount || amount <= 0){ setStockAlert('Podaj ilość > 0.', 'bad'); return; }
-
-    try{
-      const res = await fetch('/api/stock/' + stockMode, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ item_number, amount })
-      });
-      const data = await res.json().catch(()=>({}));
-
-      if(!res.ok){
-        setStockAlert(data.error || ('Błąd (HTTP '+res.status+')'), 'bad');
-        return;
-      }
-
-      setStockAlert('Zapisano ✔', 'ok');
-
-      // refresh inventory + audit if user is viewing them
-      loadProducts();
-      if (document.getElementById('view-audit').style.display !== 'none' && typeof loadAudit === 'function') {
-        loadAudit();
-      }
-    }catch(e){
-      setStockAlert('Błąd połączenia.', 'bad');
-    }
-  }
-
-  async function startScanStock(targetInputId){
-    clearStockAlert();
-
-    if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
-      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
-      return;
-    }
-
-    try{
-      stockDetector = new BarcodeDetector({ formats: ['qr_code'] });
-      stockStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
-      const video = document.getElementById('stockVideo');
-      video.srcObject = stockStream;
-      await video.play();
-
-      document.getElementById('stockScannerBox').style.display = 'block';
-
-      stockScanTimer = setInterval(async () => {
-        try{
-          const barcodes = await stockDetector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = (barcodes[0].rawValue || '').trim();
-            if(raw){
-              // If QR is JSON or ID|NAME — we take only ID part for stock move
-              let idOnly = raw;
-              try{
-                if(raw.startsWith('{') && raw.endsWith('}')){
-                  const obj = JSON.parse(raw);
-                  if(obj.id) idOnly = String(obj.id).trim();
-                } else if(raw.includes('|')) {
-                  idOnly = raw.split('|')[0].trim();
-                }
-              }catch(_){}
-              document.getElementById(targetInputId).value = idOnly;
-            }
-            stopStockScan();
-          }
-        }catch(_){}
-      }, 250);
-
-    }catch(e){
-      stopStockScan();
-      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
-      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
-    }
-  }
-
-  function stopStockScan(){
-    if(stockScanTimer){ clearInterval(stockScanTimer); stockScanTimer = null; }
-    if(stockStream){
-      stockStream.getTracks().forEach(t => t.stop());
-      stockStream = null;
-    }
-    document.getElementById('stockScannerBox').style.display = 'none';
-  }
-</script>
-
-
-<script>
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
-  }
-
-  // ---------- Views ----------
-  function showView(name){
-    const views = ['dashboard','inventory','audit','admin'];
-    for (const v of views){
-      document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
-      document.getElementById('nav-'+v).classList.toggle('active', v===name);
-    }
-
-    const addBtn = document.getElementById('btnAddProductTop');
-    addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
-
-    const hint = document.getElementById('pageHint');
-    if (name === 'dashboard') hint.textContent = 'Wybierz akcję. Add Product dodaje produkt do bazy (ID + name + qty + location).';
-    else if (name === 'inventory') hint.textContent = 'Lista produktów z bazy.';
-    else if (name === 'audit') hint.textContent = 'Podgląd logów działań (audit).';
-    else if (name === 'admin') hint.textContent = 'Administracja (backup itp.).';
-    else hint.textContent = '';
-
-    if (name === 'inventory') loadProducts();
-    if (name === 'audit') loadAudit();
-  }
-
-  function logout(){
-    window.location.href = '/logout';
-  }
-
-  function comingSoon(label){
-    alert(label + ' — wkrótce.');
-  }
-
-  // ---------- Add product modal ----------
-  function openAddProductModal(){
-    document.getElementById('addProductBackdrop').style.display = 'flex';
-    clearAddAlert();
-  }
-
-  function closeAddProductModal(){
-    stopScan();
-    document.getElementById('addProductBackdrop').style.display = 'none';
-  }
-
-  function setAddAlert(msg, type){
-    const el = document.getElementById('addAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
-  function clearAddAlert(){
-    const el = document.getElementById('addAlert');
-    el.style.display = 'none';
-    el.textContent = '';
-    el.className = 'alert';
-  }
-
-  // ---------- Inventory ----------
-  async function loadProducts(){
-    const body = document.getElementById('productsBody');
-    const empty = document.getElementById('productsEmpty');
-    body.innerHTML = '';
-    empty.style.display = 'none';
-
-    try{
-      const res = await fetch('/api/products');
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      const items = data.products || [];
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
-      }
-
-      for(const p of items){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || p.sku || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String((p.current_stock ?? p.quantity ?? '')))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
-        `;
-        body.appendChild(tr);
-      }
-    }catch(e){
-      empty.style.display = 'block';
-      empty.textContent = 'Nie udało się pobrać listy produktów.';
-    }
-  }
-
-  // ---------- Audit ----------
-  async function loadAudit(){
-    const body = document.getElementById('auditBody');
-    const empty = document.getElementById('auditEmpty');
-    body.innerHTML = '';
-    empty.style.display = 'none';
-
-    try{
-      const res = await fetch('/api/audit');
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      const items = data.audit || data.data || [];
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
-      }
-
-      for(const r of items){
-        const created = r.created_at ? String(r.created_at).replace('T',' ').replace('Z','') : '';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(created)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(r.qty ?? ''))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.location ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.username ?? '')}</td>
-        `;
-        body.appendChild(tr);
-      }
-    }catch(e){
-      empty.style.display = 'block';
-      empty.textContent = 'Nie udało się pobrać logów audytu.';
-    }
-  }
-
-  // ---------- Save product ----------
-  async function saveProduct(){
-    clearAddAlert();
-    const product_id = document.getElementById('p_id').value.trim();
-    const name = document.getElementById('p_name').value.trim();
-    const quantity = Number(document.getElementById('p_qty').value || 0);
-    const location = document.getElementById('p_loc').value.trim();
-
-    if(!product_id){ setAddAlert('Podaj Product ID (ręcznie lub QR).', 'bad'); return; }
-    if(!name){ setAddAlert('Podaj nazwę produktu.', 'bad'); return; }
-    if(!location){ setAddAlert('Podaj lokację (ręcznie lub QR).', 'bad'); return; }
-
-    try{
-      const res = await fetch('/api/products', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          item_number: product_id,
-          name,
-          current_stock: quantity,
-          location_name: location,
-          // compat
-          product_id,
-          quantity,
-          location
-        })
-      });
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        setAddAlert(data.error || ('Błąd zapisu (HTTP '+res.status+')'), 'bad');
-        return;
-      }
-
-      setAddAlert('Zapisano ✔', 'ok');
-      loadProducts();
-    }catch(e){
-      setAddAlert('Błąd połączenia podczas zapisu.', 'bad');
-    }
-  }
-
-  // ---------- QR Scan ----------
+  let stockMode = "receive";
   let scanMode = null;
   let stream = null;
   let detector = null;
   let scanTimer = null;
 
+  function showView(name){
+    const views = ['dashboard','inventory','audit','admin'];
+    views.forEach(v => {
+      document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
+      document.getElementById('nav-'+v).classList.toggle('active', v===name);
+    });
+    if(name === 'inventory') loadProducts();
+    if(name === 'audit') loadAudit();
+  }
+
+  function openAddProductModal(){ document.getElementById('addProductBackdrop').style.display = 'flex'; clearAddAlert(); }
+  function closeAddProductModal(){ stopScan(); document.getElementById('addProductBackdrop').style.display = 'none'; }
+  function openStockModal(mode){
+    stockMode = mode;
+    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Przyjęcie (Receive)' : 'Wydanie (Issue)';
+    document.getElementById('stockBackdrop').style.display = 'flex';
+    document.getElementById('s_id').value = '';
+    document.getElementById('s_qty').value = '';
+    clearStockAlert();
+  }
+  function closeStockModal(){ stopScan(); document.getElementById('stockBackdrop').style.display = 'none'; }
+
+  function setAddAlert(m, t){ const e = document.getElementById('addAlert'); e.className = 'alert ' + (t||''); e.style.display = 'block'; e.textContent = m; }
+  function clearAddAlert(){ document.getElementById('addAlert').style.display = 'none'; }
+  function setStockAlert(m, t){ const e = document.getElementById('stockAlert'); e.className = 'alert ' + (t||''); e.style.display = 'block'; e.textContent = m; }
+  function clearStockAlert(){ document.getElementById('stockAlert').style.display = 'none'; }
+
+  async function loadProducts(){
+    const body = document.getElementById('productsBody');
+    body.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    const res = await fetch('/api/products');
+    const data = await res.json();
+    body.innerHTML = '';
+    (data.products || []).forEach(p => {
+      body.innerHTML += `<tr>
+        <td>${p.item_number}</td>
+        <td>${p.name}</td>
+        <td>${p.current_stock}</td>
+        <td>${p.location_name}</td>
+      </tr>`;
+    });
+  }
+
+  async function loadAudit(){
+    const body = document.getElementById('auditBody');
+    const res = await fetch('/api/audit');
+    const data = await res.json();
+    body.innerHTML = '';
+    (data.data || []).forEach(a => {
+      body.innerHTML += `<tr>
+        <td>${a.created_at.slice(0,16).replace('T',' ')}</td>
+        <td>${a.type || a.action}</td>
+        <td>${a.item_number}</td>
+        <td>${a.quantity || a.qty}</td>
+        <td>${a.location_name || ''}</td>
+      </tr>`;
+    });
+  }
+
+  async function saveProduct(){
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        item_number: document.getElementById('p_id').value,
+        name: document.getElementById('p_name').value,
+        current_stock: document.getElementById('p_qty').value,
+        location_name: document.getElementById('p_loc').value
+      })
+    });
+    if(res.ok) { setAddAlert('Saved ✔', 'ok'); loadProducts(); }
+    else setAddAlert('Error saving', 'bad');
+  }
+
+  async function submitStock(){
+    const res = await fetch('/api/stock/' + stockMode, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        item_number: document.getElementById('s_id').value,
+        qty: document.getElementById('s_qty').value
+      })
+    });
+    if(res.ok) { setStockAlert('Action Success ✔', 'ok'); loadProducts(); }
+    else { const e = await res.json(); setStockAlert(e.error || 'Error', 'bad'); }
+  }
+
   async function startScan(mode){
     scanMode = mode;
+    if(!('BarcodeDetector' in window)) return alert('Scanner not supported in this browser');
+    detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const v = document.getElementById('video');
+    v.srcObject = stream; v.play();
+    document.getElementById('scannerBox').style.display = 'block';
+    scanTimer = setInterval(async () => {
+      const codes = await detector.detect(v);
+      if(codes.length > 0) {
+        applyValue(codes[0].rawValue);
+        stopScan();
+      }
+    }, 300);
+  }
 
-    if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
-      if(pasted) applyScannedValue(pasted);
-      return;
-    }
+  async function startScanStock(id){
+    if(!('BarcodeDetector' in window)) return alert('Scanner not supported');
+    detector = new BarcodeDetector({ formats: ['qr_code', 'code_128'] });
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const v = document.getElementById('stockVideo');
+    v.srcObject = stream; v.play();
+    document.getElementById('stockScannerBox').style.display = 'block';
+    scanTimer = setInterval(async () => {
+      const codes = await detector.detect(v);
+      if(codes.length > 0) {
+        document.getElementById(id).value = codes[0].rawValue;
+        stopScan();
+      }
+    }, 300);
+  }
 
-    try{
-      detector = new BarcodeDetector({ formats: ['qr_code'] });
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
-      const video = document.getElementById('video');
-      video.srcObject = stream;
-      await video.play();
-
-      document.getElementById('scannerBox').style.display = 'block';
-
-      scanTimer = setInterval(async () => {
-        try{
-          const barcodes = await detector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = barcodes[0].rawValue || '';
-            applyScannedValue(raw);
-            stopScan();
-          }
-        }catch(_){}
-      }, 250);
-
-    }catch(e){
-      stopScan();
-      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
-      if(pasted) applyScannedValue(pasted);
-    }
+  function applyValue(val){
+    if(scanMode === 'location') document.getElementById('p_loc').value = val;
+    else document.getElementById('p_id').value = val;
   }
 
   function stopScan(){
-    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
+    clearInterval(scanTimer);
+    if(stream) stream.getTracks().forEach(t => t.stop());
     document.getElementById('scannerBox').style.display = 'none';
-  }
-
-  function applyScannedValue(raw){
-    const text = (raw || '').trim();
-    if(!text) return;
-
-    if(scanMode === 'location'){
-      document.getElementById('p_loc').value = text;
-      return;
-    }
-
-    try{
-      if(text.startsWith('{') && text.endsWith('}')){
-        const obj = JSON.parse(text);
-        if(obj.id) document.getElementById('p_id').value = String(obj.id);
-        if(obj.name) document.getElementById('p_name').value = String(obj.name);
-        return;
-      }
-    }catch(_){}
-
-    if(text.includes('|')){
-      const parts = text.split('|');
-      const id = (parts[0] || '').trim();
-      const nm = (parts.slice(1).join('|') || '').trim();
-      if(id) document.getElementById('p_id').value = id;
-      if(nm) document.getElementById('p_name').value = nm;
-      return;
-    }
-
-    document.getElementById('p_id').value = text;
-  }
-
-  // ---------- Admin ----------
-  function setAdminAlert(msg, type){
-    const el = document.getElementById('adminAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
+    document.getElementById('stockScannerBox').style.display = 'none';
   }
 
   async function backupToGitHub(){
-    const candidates = [
-      '/api/admin/backup/github',
-      '/api/backup/github',
-      '/admin/backup/github'
-    ];
-
-    setAdminAlert('Backup: start...', '');
-
-    for (const url of candidates){
-      try{
-        const res = await fetch(url, { method:'POST' });
-        const data = await res.json().catch(()=>({}));
-        if(res.ok){
-          setAdminAlert(data.message || 'Backup OK ✔', 'ok');
-          return;
-        }
-        if(res.status !== 404){
-          setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
-          return;
-        }
-      }catch(_){}
-    }
-
-    setAdminAlert('Backup endpoint not found (404).', 'bad');
+    setAdminAlert('Starting backup...', '');
+    const res = await fetch('/api/admin/backup/github', {method: 'POST'});
+    const d = await res.json();
+    setAdminAlert(d.message, res.ok ? 'ok' : 'bad');
   }
 
-  function showGitHubVerify(){
-    alert('GitHub → repo → Commits: po kliknięciu Backup powinien pojawić się nowy commit.');
-  }
-
-  // Initial
+  function logout(){ window.location.href = '/logout'; }
+  function comingSoon(m){ alert(m + ' coming soon'); }
   showView('dashboard');
 </script>
 </body>
 </html>
-

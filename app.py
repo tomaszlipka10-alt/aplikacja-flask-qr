@@ -16,12 +16,6 @@ from sqlalchemy import inspect, text as sql_text
 # ----------------------------
 # Supabase (Postgres) products storage (optional)
 # ----------------------------
-# Required env vars on Render:
-#   USE_SUPABASE=1
-#   SUPABASE_URL=https://<project-ref>.supabase.co
-#   SUPABASE_SERVICE_ROLE_KEY=<service_role_key>  (preferred)
-#
-# Uses Supabase PostgREST via HTTPS (no extra dependencies).
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -162,7 +156,6 @@ def _sb_set_product_quantity(item_number: str, new_qty: int) -> dict:
     item_number = (item_number or "").strip()
     new_qty = int(new_qty)
 
-    # PATCH with filter in query
     updated = _supabase_request(
         "PATCH",
         "products",
@@ -170,15 +163,12 @@ def _sb_set_product_quantity(item_number: str, new_qty: int) -> dict:
         json_body={"quantity": new_qty},
         prefer="return=representation",
     ) or []
-    # Supabase returns list of updated rows
     if updated:
         return updated[0]
-    # If nothing returned (shouldn't happen), fetch again
     row = _sb_get_product_by_sku(item_number)
     if not row:
         raise RuntimeError("Product not found after update")
     return row
-
 
 
 # ----------------------------
@@ -204,7 +194,6 @@ def _sb_insert_audit(
         "location": location,
         "username": username,
     }
-    # usuń None żeby nie wysyłać nulli jeśli nie trzeba
     payload = {k: v for k, v in payload.items() if v is not None}
     _supabase_request("POST", _sb_audit_table(), json_body=payload)
 
@@ -219,20 +208,25 @@ def _sb_list_audit(limit: int = 200) -> list[dict]:
             "limit": str(limit),
         },
     ) or []
-    # zwracamy wprost (kolumny już pasują pod UI)
-    return rows
+    data = []
+    for r in rows:
+        data.append({
+            "created_at": r.get("created_at"),
+            "type": r.get("action"),
+            "item_number": r.get("item_number"),
+            "quantity": r.get("qty"),
+            "location_name": r.get("location"),
+            "username": r.get("username")
+        })
+    return data
 
 
 # ------------------------------------------------------------
-# App
+# App Setup
 # ------------------------------------------------------------
 app = Flask(__name__)
-
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or os.environ.get("FLASK_SECRET_KEY") or "dev-secret-change-me"
 
-# ------------------------------------------------------------
-# Database
-# ------------------------------------------------------------
 db_url = os.environ.get("DATABASE_URL")
 if db_url:
     if db_url.startswith("postgres://"):
@@ -276,8 +270,10 @@ class AuditLog(db.Model):
     __tablename__ = "audit_log"
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, nullable=True)
+    item_number = db.Column(db.String(50), nullable=True)
     action = db.Column(db.String(20), nullable=False)
-    amount = db.Column(db.Integer, nullable=False, default=0)
+    qty = db.Column(db.Integer, nullable=False, default=0)
+    location_name = db.Column(db.String(100), nullable=True)
     username = db.Column(db.String(80), nullable=False, default="")
     created_at = db.Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
 
@@ -309,7 +305,6 @@ def _has_column(table: str, column: str) -> bool:
 
 def ensure_schema():
     db.create_all()
-
     insp = inspect(db.engine)
     tables = set(insp.get_table_names())
 
@@ -320,17 +315,17 @@ def ensure_schema():
             db.session.execute(sql_text("ALTER TABLE user ADD COLUMN is_admin BOOLEAN"))
         if not _has_column("user", "full_name"):
             db.session.execute(sql_text("ALTER TABLE user ADD COLUMN full_name VARCHAR(100)"))
-
-        cols = [c["name"] for c in insp.get_columns("user")]
-        if "password" in cols:
-            db.session.execute(sql_text("UPDATE user SET password_hash = password WHERE password_hash IS NULL OR password_hash = ''"))
-
         db.session.execute(sql_text("UPDATE user SET is_admin = 0 WHERE is_admin IS NULL"))
 
     if "audit_log" in tables:
         if not _has_column("audit_log", "created_at"):
             db.session.execute(sql_text("ALTER TABLE audit_log ADD COLUMN created_at DATETIME"))
-            db.session.execute(sql_text("UPDATE audit_log SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+        if not _has_column("audit_log", "qty"):
+            db.session.execute(sql_text("ALTER TABLE audit_log ADD COLUMN qty INTEGER DEFAULT 0"))
+        if not _has_column("audit_log", "item_number"):
+            db.session.execute(sql_text("ALTER TABLE audit_log ADD COLUMN item_number VARCHAR(50)"))
+        if not _has_column("audit_log", "location_name"):
+            db.session.execute(sql_text("ALTER TABLE audit_log ADD COLUMN location_name VARCHAR(100)"))
 
     db.session.commit()
 
@@ -362,9 +357,9 @@ def export_warehouse_json() -> dict:
         "audit_log": [
             {
                 "id": a.id,
-                "product_id": a.product_id,
+                "item_number": a.item_number,
                 "action": a.action,
-                "amount": a.amount,
+                "quantity": a.qty,
                 "username": a.username,
                 "created_at": (a.created_at.isoformat() + "Z") if a.created_at else None,
             } for a in audit
@@ -383,7 +378,6 @@ def export_warehouse_json() -> dict:
 def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, message: str) -> dict:
     api_url = f"https://api.github.com/repos/{repo}/contents/{path}"
     b64 = base64.b64encode(content_bytes).decode("utf-8")
-
     sha = None
     try:
         req = Request(api_url, headers={
@@ -395,15 +389,11 @@ def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, mess
             existing = json.loads(r.read().decode("utf-8"))
             sha = existing.get("sha")
     except HTTPError as e:
-        if e.code != 404:
-            raise
-    except URLError:
-        raise
+        if e.code != 404: raise
+    except URLError: raise
 
     payload = {"message": message, "content": b64}
-    if sha:
-        payload["sha"] = sha
-
+    if sha: payload["sha"] = sha
     data = json.dumps(payload).encode("utf-8")
     req2 = Request(api_url, data=data, method="PUT", headers={
         "Authorization": f"token {token}",
@@ -415,9 +405,6 @@ def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, mess
         return json.loads(r2.read().decode("utf-8"))
 
 
-# ------------------------------------------------------------
-# Boot-time schema init
-# ------------------------------------------------------------
 with app.app_context():
     ensure_schema()
 
@@ -429,27 +416,22 @@ with app.app_context():
 def health():
     return "OK", 200
 
-
 @app.route("/")
 @login_required
 def index():
     return render_template("index.html", user=current_user)
-
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
-
         user = User.query.filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(request.args.get("next") or url_for("index"))
         return render_template("login.html", error="Invalid username or password")
-
     return render_template("login.html")
-
 
 @app.route("/logout")
 @login_required
@@ -464,9 +446,6 @@ def logout():
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
-    # ---------------------------
-    # GET
-    # ---------------------------
     if request.method == "GET":
         if _supabase_enabled():
             try:
@@ -474,261 +453,90 @@ def api_products():
                 return jsonify({"ok": True, "products": products, "data": products})
             except Exception as e:
                 return jsonify({"ok": False, "error": str(e)}), 500
-
-        # SQLite fallback
         products = Product.query.order_by(Product.item_number.asc()).all()
-        mapped = [
-            {
-                "id": p.id,
-                "item_number": p.item_number,
-                "name": p.name,
-                "current_stock": p.current_stock,
-                "location_name": p.location_name,
-                "created_at": None,
-            }
-            for p in products
-        ]
+        mapped = [{"id": p.id, "item_number": p.item_number, "name": p.name, "current_stock": p.current_stock, "location_name": p.location_name} for p in products]
         return jsonify({"ok": True, "products": mapped, "data": mapped})
 
-    # ---------------------------
-    # POST (upsert)
-    # ---------------------------
     data = request.get_json(force=True, silent=True) or {}
-
-    item_number = (
-        data.get("item_number")
-        or data.get("sku")
-        or data.get("product_id")
-        or data.get("id")
-        or ""
-    )
-    name = (
-        data.get("name")
-        or data.get("product_name")
-        or data.get("product")
-        or ""
-    )
-    location = (data.get("location_name") or data.get("location") or "").strip() or "MAG-1"
-
-    qty = data.get("current_stock")
-    if qty is None:
-        qty = data.get("quantity")
-    try:
-        qty = int(qty) if qty is not None and str(qty).strip() != "" else 0
-    except Exception:
-        qty = 0
-
-    item_number = str(item_number).strip()
-    name = str(name).strip()
+    item_number = str(data.get("item_number") or data.get("sku") or "").strip()
+    name = str(data.get("name") or "").strip()
+    location = (data.get("location_name") or "MAG-1").strip()
+    qty = data.get("current_stock") or 0
 
     if not item_number or not name:
         return jsonify({"ok": False, "error": "item_number and name are required"}), 400
 
-    # ---------------------------
-    # SUPABASE PATH
-    # ---------------------------
     if _supabase_enabled():
-        try:
-            result = _sb_upsert_product(
-                {
-                    "item_number": item_number,
-                    "name": name,
-                    "location_name": location,
-                    "current_stock": qty,
-                    "qr_product": data.get("qr_product"),
-                    "qr_location": data.get("qr_location"),
-                }
-            )
+        result = _sb_upsert_product({"item_number": item_number, "name": name, "location_name": location, "current_stock": qty})
+        _sb_insert_audit("PRODUCT_UPSERT", item_number, name, qty, location, current_user.username)
+        return jsonify({"ok": True, "product": result})
 
-            # AUDIT (Supabase)
-            try:
-                _sb_insert_audit(
-                    action="PRODUCT_UPSERT",
-                    item_number=item_number,
-                    name=name,
-                    qty=qty,
-                    location=location,
-                    username=getattr(current_user, "username", None),
-                )
-            except Exception as _ae:
-                print("[audit] supabase insert failed:", _ae)
-
-            return jsonify({"ok": True, "updated": True, "product": result}), 200
-
-        except Exception as e:
-            return jsonify({"ok": False, "error": str(e)}), 500
-
-    # ---------------------------
-    # SQLITE FALLBACK
-    # ---------------------------
     product = Product.query.filter_by(item_number=item_number).first()
     if product:
         product.name = name
         product.location_name = location
         product.current_stock = qty
-        db.session.commit()
-
-        db.session.add(AuditLog(
-            product_id=product.id,
-            action="update",
-            amount=qty,
-            username=getattr(current_user, "username", ""),
-            created_at=dt.datetime.utcnow()
-        ))
-        db.session.commit()
-
-        return jsonify(
-            {
-                "ok": True,
-                "updated": True,
-                "product": {
-                    "id": product.id,
-                    "item_number": product.item_number,
-                    "name": product.name,
-                    "current_stock": product.current_stock,
-                    "location_name": product.location_name,
-                    "created_at": None,
-                },
-            }
-        )
-
-    product = Product(
-        item_number=item_number,
-        name=name,
-        location_name=location,
-        current_stock=qty,
-    )
-    db.session.add(product)
+    else:
+        product = Product(item_number=item_number, name=name, location_name=location, current_stock=qty)
+        db.session.add(product)
+    
     db.session.commit()
-
-    db.session.add(AuditLog(
-        product_id=product.id,
-        action="create",
-        amount=qty,
-        username=getattr(current_user, "username", ""),
-        created_at=dt.datetime.utcnow()
-    ))
+    db.session.add(AuditLog(item_number=item_number, action="upsert", qty=qty, location_name=location, username=current_user.username))
     db.session.commit()
-
-    return jsonify(
-        {
-            "ok": True,
-            "updated": False,
-            "product": {
-                "id": product.id,
-                "item_number": product.item_number,
-                "name": product.name,
-                "current_stock": product.current_stock,
-                "location_name": product.location_name,
-                "created_at": None,
-            },
-        }
-    ), 201
+    return jsonify({"ok": True})
 
 
 @app.route("/api/stock/<action>", methods=["POST"])
 @login_required
 def api_stock(action):
     data = request.get_json(force=True, silent=True) or {}
-
-    # Prefer item_number (SKU) – works for Supabase
     item_number = (data.get("item_number") or data.get("sku") or "").strip()
+    amount = int(data.get("amount") or data.get("qty") or 0)
 
-    # Backwards compatibility: allow product_id (SQLite)
-    product_id = data.get("product_id")
+    if action not in ("receive", "issue") or amount <= 0:
+        return jsonify({"ok": False, "error": "Invalid action or amount"}), 400
 
-    amount = data.get("amount")
-    if amount is None:
-        amount = data.get("qty")
-    try:
-        amount = int(amount) if amount is not None else 0
-    except Exception:
-        amount = 0
-
-    if action not in ("receive", "issue"):
-        return jsonify({"ok": False, "error": "Unknown action"}), 400
-    if amount <= 0:
-        return jsonify({"ok": False, "error": "Positive amount required"}), 400
-
-    # ---------------------------
-    # SUPABASE PATH
-    # ---------------------------
-    if _supabase_enabled() and os.getenv("USE_SUPABASE", "0") == "1":
-        if not item_number:
-            return jsonify({"ok": False, "error": "item_number required"}), 400
-
+    if _supabase_enabled():
         row = _sb_get_product_by_sku(item_number)
-        if not row:
-            return jsonify({"ok": False, "error": "Product not found"}), 404
+        if not row: return jsonify({"ok": False, "error": "Not found"}), 404
+        cur = int(row.get("quantity") or 0)
+        new_q = (cur + amount) if action == "receive" else (cur - amount)
+        if new_q < 0: return jsonify({"ok": False, "error": "No stock"}), 400
+        _sb_set_product_quantity(item_number, new_q)
+        _sb_insert_audit(action.upper(), item_number, row.get("name"), amount, row.get("location"), current_user.username)
+        return jsonify({"ok": True, "current_stock": new_q})
 
-        current_qty = row.get("quantity") or 0
-        try:
-            current_qty = int(current_qty)
-        except Exception:
-            current_qty = 0
-
-        if action == "receive":
-            new_qty = current_qty + amount
-            audit_action = "RECEIVE"
-        else:
-            if current_qty < amount:
-                return jsonify({"ok": False, "error": "Insufficient stock"}), 400
-            new_qty = current_qty - amount
-            audit_action = "ISSUE"
-
-        updated_row = _sb_set_product_quantity(item_number, new_qty)
-
-        # Supabase audit insert
-        try:
-            _sb_insert_audit(
-                action=audit_action,
-                item_number=item_number,
-                name=row.get("name"),
-                qty=amount,
-                location=row.get("location"),
-                username=getattr(current_user, "username", None),
-            )
-        except Exception as _ae:
-            print("[audit] supabase insert failed:", _ae)
-
-        return jsonify({
-            "ok": True,
-            "item_number": item_number,
-            "current_stock": new_qty,
-        })
-
-    # ---------------------------
-    # SQLITE FALLBACK
-    # ---------------------------
-    product = None
-    if product_id:
-        product = Product.query.get(int(product_id))
-    elif item_number:
-        product = Product.query.filter_by(item_number=item_number).first()
-
-    if not product:
-        return jsonify({"ok": False, "error": "Product not found"}), 404
-
-    if action == "receive":
-        product.current_stock += amount
-        audit_action = "receive"
+    product = Product.query.filter_by(item_number=item_number).first()
+    if not product: return jsonify({"ok": False, "error": "Not found"}), 404
+    if action == "receive": product.current_stock += amount
     else:
-        if product.current_stock < amount:
-            return jsonify({"ok": False, "error": "Insufficient stock"}), 400
+        if product.current_stock < amount: return jsonify({"ok": False, "error": "No stock"}), 400
         product.current_stock -= amount
-        audit_action = "issue"
-
-    db.session.add(AuditLog(
-        product_id=product.id,
-        action=audit_action,
-        amount=amount,
-        username=current_user.username,
-        created_at=dt.datetime.utcnow()
-    ))
+    
+    db.session.add(AuditLog(item_number=item_number, action=action, qty=amount, location_name=product.location_name, username=current_user.username))
     db.session.commit()
-
     return jsonify({"ok": True, "current_stock": product.current_stock})
 
+
+@app.route("/api/audit", methods=["GET"])
+@login_required
+def api_list_audit():
+    # Pobieranie logów z Supabase lub SQLite
+    if _supabase_enabled():
+        data = _sb_list_audit()
+    else:
+        logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(100).all()
+        data = []
+        for l in logs:
+            data.append({
+                "created_at": l.created_at.isoformat(),
+                "type": l.action,
+                "item_number": l.item_number,
+                "quantity": l.qty,
+                "location_name": l.location_name,
+                "username": l.username
+            })
+    return jsonify({"data": data})
 
 
 @app.route("/api/admin/export.json")
@@ -748,31 +556,16 @@ def api_admin_backup_github():
     token = os.environ.get("GITHUB_TOKEN", "").strip()
     repo = os.environ.get("GITHUB_REPO", "").strip()
     backup_path = os.environ.get("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
-
-    if not token or not repo:
-        return jsonify({"message": "Missing GITHUB_TOKEN or GITHUB_REPO in Render Secret Files"}), 400
+    if not token or not repo: return jsonify({"message": "Missing config"}), 400
 
     payload = export_warehouse_json()
     content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    msg = f"Backup warehouse to GitHub ({payload['exported_at_utc']})"
-
+    msg = f"Backup {payload['exported_at_utc']}"
     try:
-        result = github_put_file(repo=repo, path=backup_path, token=token, content_bytes=content, message=msg)
-    except HTTPError as e:
-        body = ""
-        try:
-            body = e.read().decode("utf-8", errors="ignore")
-        except Exception:
-            pass
-        return jsonify({"message": f"GitHub API error: HTTP {e.code}", "details": body[:500]}), 502
+        result = github_put_file(repo, backup_path, token, content, msg)
+        return jsonify({"message": "Backup OK", "commit": (result.get("commit") or {}).get("sha")})
     except Exception as e:
-        return jsonify({"message": f"Backup failed: {type(e).__name__}: {e}"}), 502
-
-    return jsonify({
-        "message": "Backup saved to GitHub",
-        "path": backup_path,
-        "commit": (result.get("commit") or {}).get("sha"),
-    })
+        return jsonify({"message": f"Failed: {e}"}), 502
 
 
 if __name__ == "__main__":
