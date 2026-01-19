@@ -62,7 +62,7 @@ def _sb_row_to_api(row: dict) -> dict:
         "item_number": row.get("sku"),
         "name": row.get("name"),
         "current_stock": row.get("quantity", 0),
-        "min_stock": row.get("min_stock", 0), # Nowe pole
+        "min_stock": row.get("min_stock", 0),
         "location_name": row.get("location"),
         "qr_product": row.get("qr_product"),
         "qr_location": row.get("qr_location"),
@@ -78,7 +78,7 @@ def _sb_upsert_product(payload: dict) -> dict:
     name = payload.get("name", "").strip()
     location = payload.get("location_name", "").strip()
     qty = int(payload.get("current_stock") or 0)
-    min_s = int(payload.get("min_stock") or 0) # Nowe pole
+    min_s = int(payload.get("min_stock") or 0)
     row = {"sku": sku, "name": name, "quantity": qty, "min_stock": min_s, "location": location or None}
     created = _supabase_request("POST", "products", params={"on_conflict": "sku"}, json_body=row, prefer="return=representation,resolution=merge-duplicates") or []
     return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
@@ -100,7 +100,7 @@ def _sb_list_audit(limit: int = 200) -> list[dict]:
     return [{"created_at": r.get("created_at"), "type": r.get("action"), "item_number": r.get("item_number"), "quantity": r.get("qty"), "location_name": r.get("location"), "username": r.get("username")} for r in rows]
 
 # ------------------------------------------------------------
-# App Configuration
+# App Config
 # ------------------------------------------------------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY") or "dev-secret"
@@ -128,7 +128,7 @@ class Product(db.Model):
     item_number = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
     current_stock = db.Column(db.Integer, default=0)
-    min_stock = db.Column(db.Integer, default=0) # Nowe pole dla alertów
+    min_stock = db.Column(db.Integer, default=0)
     location_name = db.Column(db.String(100), default="MAG-1")
 
 class AuditLog(db.Model):
@@ -143,37 +143,21 @@ class AuditLog(db.Model):
 @login_manager.user_loader
 def load_user(user_id): return User.query.get(int(user_id))
 
-def admin_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not current_user.is_authenticated or not getattr(current_user, "is_admin", False):
-            return jsonify({"message": "Admin access required"}), 403
-        return fn(*args, **kwargs)
-    return wrapper
-
-# --- REPAIR DATABASE FUNCTION ---
 def repair_database():
-    """Checks and adds missing columns to existing SQLite database."""
     with app.app_context():
         inspector = inspect(db.engine)
-        
-        # Check User table
         u_cols = [c['name'] for c in inspector.get_columns('user')]
         if 'is_admin' not in u_cols:
-            print("Migration: Adding is_admin to user table")
             with db.engine.begin() as conn:
-                conn.execute(sql_text("ALTER TABLE \"user\" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"))
-        
-        # Check Product table
+                conn.execute(sql_text('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE'))
         p_cols = [c['name'] for c in inspector.get_columns('product')]
         if 'min_stock' not in p_cols:
-            print("Migration: Adding min_stock to product table")
             with db.engine.begin() as conn:
-                conn.execute(sql_text("ALTER TABLE product ADD COLUMN min_stock INTEGER DEFAULT 0"))
+                conn.execute(sql_text('ALTER TABLE product ADD COLUMN min_stock INTEGER DEFAULT 0'))
 
 with app.app_context():
     db.create_all()
-    repair_database() # Fix for the error you encountered
+    repair_database()
     if not User.query.filter_by(username="admin").first():
         db.session.add(User(username="admin", password_hash=generate_password_hash("admin123"), is_admin=True))
         db.session.commit()
@@ -181,6 +165,9 @@ with app.app_context():
 # ------------------------------------------------------------
 # Routes
 # ------------------------------------------------------------
+@app.route("/health")
+def health(): return "OK", 200
+
 @app.route("/")
 @login_required
 def index(): return render_template("index.html")
@@ -225,14 +212,10 @@ def api_products():
 
     p = Product.query.filter_by(item_number=sku).first()
     if p:
-        p.name = name
-        p.current_stock = int(data.get("current_stock", p.current_stock))
-        p.min_stock = min_s
-        p.location_name = data.get("location_name", p.location_name)
+        p.name, p.current_stock, p.min_stock, p.location_name = name, int(data.get("current_stock", 0)), min_s, data.get("location_name", "MAG-1")
     else:
         p = Product(item_number=sku, name=name, current_stock=data.get("current_stock", 0), min_stock=min_s, location_name=data.get("location_name", "MAG-1"))
         db.session.add(p)
-    
     db.session.commit()
     db.session.add(AuditLog(item_number=sku, action="UPSERT", qty=p.current_stock, location_name=p.location_name, username=current_user.username))
     db.session.commit()
@@ -254,7 +237,7 @@ def api_stock(action):
         if new_q < 0: return jsonify({"ok": False, "error": "Insufficient stock"}), 400
         _sb_set_product_quantity(sku, new_q)
         _sb_insert_audit(action.upper(), sku, row.get("name"), amt, row.get("location"), current_user.username)
-        return jsonify({"ok": True, "current_stock": new_q})
+        return jsonify({"ok": True, "current_stock": new_q, "name": row.get("name"), "location": row.get("location")})
 
     p = Product.query.filter_by(item_number=sku).first()
     if not p: return jsonify({"ok": False, "error": "Not found"}), 404
