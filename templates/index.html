@@ -1,238 +1,891 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>BTV Inventory</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background:#0f172a;
-            color:#e5e7eb;
-            margin:0;
-        }
-        header {
-            padding:16px;
-            background:#020617;
-            text-align:center;
-            font-size:22px;
-            font-weight:bold;
-        }
-        .dashboard {
-            display:grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
-            gap:16px;
-            padding:20px;
-        }
-        .tile {
-            background:#020617;
-            border:1px solid #1e293b;
-            border-radius:12px;
-            padding:40px 20px;
-            text-align:center;
-            font-size:20px;
-            cursor:pointer;
-            transition:.2s;
-        }
-        .tile:hover {
-            background:#020617;
-            border-color:#38bdf8;
-        }
-        .hidden { display:none; }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BTVenloStorage</title>
+  <style>
+    :root{
+      --bg: #ffffff;
+      --card: #ffffff;
+      --text: #0b1b3a;
+      --muted: #5b6a88;
+      --border: rgba(17, 41, 84, .12);
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-100: #eaf2ff;
+      --sidebar: #0f2a5f;
+      --sidebar2:#123372;
+      --shadow: 0 10px 30px rgba(10, 25, 60, .10);
+      --radius: 16px;
+    }
 
-        .panel {
-            padding:20px;
-        }
-        button {
-            background:#38bdf8;
-            color:#020617;
-            border:none;
-            padding:10px 16px;
-            border-radius:8px;
-            cursor:pointer;
-            font-size:14px;
-            margin-right:8px;
-        }
-        button.secondary {
-            background:#64748b;
-            color:white;
-        }
-        table {
-            width:100%;
-            border-collapse:collapse;
-            margin-top:16px;
-        }
-        th, td {
-            border:1px solid #1e293b;
-            padding:8px;
-            text-align:left;
-        }
-        th {
-            background:#020617;
-        }
-        input {
-            padding:8px;
-            border-radius:6px;
-            border:1px solid #1e293b;
-            background:#020617;
-            color:white;
-            margin-right:8px;
-        }
-    </style>
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: var(--bg);
+    }
+
+    .app{display:flex; min-height:100vh;}
+
+    .sidebar{
+      position:sticky;
+      top:0;
+      height:100vh;
+      width:72px;
+      flex: 0 0 72px;
+      background: linear-gradient(180deg, var(--sidebar), var(--sidebar2));
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:10px 8px;
+      gap:10px;
+    }
+
+    .nav{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top:6px;
+      flex: 1;
+      align-items:center;
+    }
+
+    .navbtn{
+      width:52px;
+      height:52px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      font-size:22px;
+      transition: transform .05s ease, background .15s ease;
+    }
+    .navbtn:active{transform:scale(.98)}
+    .navbtn:hover{background: rgba(255,255,255,.10)}
+    .navbtn.active{background: rgba(59,130,246,.26); border-color: rgba(255,255,255,.22)}
+
+    .navbottom{width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; padding-bottom:6px;}
+
+    .main{flex:1; min-width:0;}
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+
+    .topbar-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:800;
+      letter-spacing:.2px;
+      font-size:20px;
+    }
+
+    .brand-dot{
+      width:12px;height:12px;border-radius:999px;
+      background: var(--blue-600);
+      box-shadow: 0 0 0 5px rgba(37,99,235,.18);
+    }
+
+    .actions{display:flex; gap:10px; align-items:center;}
+
+    .btn{
+      border:1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      padding:10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .btn:hover{background: #f7faff}
+
+    .btn.primary{
+      background: var(--blue-600);
+      border-color: rgba(37,99,235,.35);
+      color:#fff;
+    }
+    .btn.primary:hover{background: var(--blue-700)}
+
+    .container{
+      max-width:1100px;
+      margin: 0 auto;
+      padding:16px;
+    }
+
+    .hint{color:var(--muted); margin: 6px 0 14px; font-size:14px}
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:16px;
+    }
+
+    .card h2{margin:0 0 6px; font-size:18px}
+
+    .pillgrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 14px;
+      border:1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .pill:hover{background: var(--blue-100)}
+
+    .pill .left{display:flex; align-items:center; gap:10px}
+    .pill .ic{width:32px;height:32px;border-radius:12px;background: var(--blue-100); display:flex;align-items:center;justify-content:center; font-size:18px}
+
+    .small{font-size:13px; color:var(--muted)}
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(10,25,60,.35);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+      padding:16px;
+    }
+    .modal{
+      width: min(560px, 100%);
+      background:#fff;
+      border-radius: 18px;
+      border:1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,.18);
+      overflow:hidden;
+    }
+    .modal-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: #fbfdff;
+    }
+    .modal-title{font-weight:800}
+    .modal-body{padding:16px}
+    .row{display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:12px}
+    label{font-size:12px; color:var(--muted); font-weight:700}
+    input{
+      width:100%;
+      padding:12px 12px;
+      border-radius: 12px;
+      border:1px solid var(--border);
+      outline:none;
+      font-size:14px;
+    }
+    input:focus{border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 4px rgba(37,99,235,.12)}
+
+    .scanrow{display:flex; gap:10px}
+    .scanrow input{flex:1}
+    .scanbtn{white-space:nowrap}
+
+    .modal-footer{display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--border); background:#fbfdff}
+
+    .alert{margin-top:10px; padding:10px 12px; border-radius: 12px; border:1px solid var(--border); background:#f7fbff; color: var(--text); font-size:13px; display:none}
+    .alert.bad{background:#fff5f5; border-color: rgba(220,38,38,.25); color:#7a1a1a}
+    .alert.ok{background:#f0fff6; border-color: rgba(22,163,74,.25); color:#0f5132}
+
+    .scanner{
+      display:none;
+      margin-top:12px;
+      border:1px solid var(--border);
+      border-radius: 14px;
+      overflow:hidden;
+      background:#000;
+    }
+    video{width:100%; height:auto; display:block}
+
+    @media (max-width: 520px){
+      .topbar-inner{padding:12px}
+      .container{padding:12px}
+      .brand{font-size:18px}
+      .btn{padding:10px 10px}
+      .sidebar{width:64px; flex-basis:64px}
+      .navbtn{width:48px;height:48px;border-radius:14px}
+    }
+  </style>
 </head>
 <body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="nav" aria-label="Primary">
+      <button class="navbtn active" id="nav-dashboard" title="Dashboard" onclick="showView('dashboard')">🏠</button>
+      <button class="navbtn" id="nav-inventory" title="Inventory" onclick="showView('inventory')">📦</button>
+      <button class="navbtn" id="nav-audit" title="Audit" onclick="showView('audit')">✅</button>
+      <button class="navbtn" id="nav-admin" title="Admin" onclick="showView('admin')">⚙️</button>
+    </div>
 
-<header>BTV Inventory</header>
+    <div class="navbottom">
+      <button class="navbtn" title="Logout" onclick="logout()">🚪</button>
+    </div>
+  </aside>
 
-<div class="dashboard" id="dashboard">
-    <div class="tile" onclick="openPanel('receive')">Receive</div>
-    <div class="tile" onclick="openPanel('issue')">Issue</div>
-    <div class="tile" onclick="openPanel('inventory')">Inventory</div>
-    <div class="tile" onclick="openPanel('audit')">Audit</div>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand" aria-label="App name">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <span id="pageTitle">BTVenloStorage</span>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="btnAddProductTop" onclick="openAddProductModal()">+ Add Product</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="hint" id="pageHint">Tip: add products first (ID + name + qty + location). Receive/Issue i picking dodamy później.</div>
+
+      <!-- DASHBOARD -->
+      <section id="view-dashboard" class="view">
+        <div class="card">
+          <h2>Dashboard</h2>
+          <div class="small">Wybierz akcję:</div>
+          <div class="pillgrid" style="margin-top:12px">
+            <div class="pill" onclick="openAddProductModal()">
+              <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
+              <div class="small">ID + name + qty + location</div>
+            </div>
+            <div class="pill" onclick="openStockModal('receive')">
+              <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
+              <div class="small">Wkrótce</div>
+            </div>
+            <div class="pill" onclick="openStockModal('issue')">
+              <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
+              <div class="small">Wkrótce</div>
+            </div>
+            <div class="pill" onclick="comingSoon('Picking lists')">
+              <div class="left"><div class="ic">📋</div><div>Picking lists</div></div>
+              <div class="small">Wkrótce</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVENTORY -->
+      <section id="view-inventory" class="view" style="display:none">
+        <div class="card">
+          <h2>Inventory</h2>
+          <div class="small">Produkty w bazie:</div>
+          <div style="overflow:auto; margin-top:12px">
+            <table style="width:100%; border-collapse:collapse; font-size:14px">
+              <thead>
+                <tr style="text-align:left; color:var(--muted)">
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
+                </tr>
+              </thead>
+              <tbody id="productsBody"></tbody>
+            </table>
+          </div>
+          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">Brak produktów.</div>
+        </div>
+      </section>
+
+      <!-- AUDIT -->
+      <section id="view-audit" class="view" style="display:none">
+        <div class="card">
+          <h2>Audit</h2>
+          <div class="small">Logi działań (Supabase audit_log).</div>
+
+          <div style="overflow:auto; margin-top:12px">
+            <table style="width:100%; border-collapse:collapse; font-size:14px">
+              <thead>
+                <tr style="text-align:left; color:var(--muted)">
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Time</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Action</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">User</th>
+                </tr>
+              </thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+
+          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">Brak wpisów.</div>
+        </div>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="view-admin" class="view" style="display:none">
+        <div class="card">
+          <h2>Admin</h2>
+          <div class="small">Backup do GitHub tworzy commit w repo.</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+            <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
+            <button class="btn" onclick="showGitHubVerify()">How to verify on GitHub</button>
+          </div>
+          <div class="small" style="margin-top:10px">Jeśli backup nie działa: Render → Environment/Secret Files: <b>GITHUB_TOKEN</b> i <b>GITHUB_REPO</b>.</div>
+          <div class="alert" id="adminAlert"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ADD PRODUCT MODAL -->
+    <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Add Product</div>
+          <button class="btn" onclick="closeAddProductModal()">✕</button>
+        </div>
+        <div class="modal-body">
+
+          <div class="row">
+            <div>
+              <label>Product ID (manual or QR)</label>
+              <div class="scanrow">
+                <input id="p_id" placeholder="e.g. 100234" />
+                <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
+              </div>
+              <div class="small">QR może zawierać: <b>ID|NAME</b> albo JSON {"id":"...","name":"..."}.</div>
+            </div>
+
+            <div>
+              <label>Product Name (manual or from QR)</label>
+              <input id="p_name" placeholder="e.g. Screw M6" />
+            </div>
+
+            <div>
+              <label>Quantity</label>
+              <input id="p_qty" type="number" min="0" step="1" placeholder="e.g. 10" />
+            </div>
+
+            <div>
+              <label>Location (manual or QR)</label>
+              <div class="scanrow">
+                <input id="p_loc" placeholder="e.g. A-01-02" />
+                <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="scanner" id="scannerBox">
+            <video id="video" playsinline></video>
+          </div>
+
+          <div class="alert" id="addAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeAddProductModal()">Cancel</button>
+          <button class="btn primary" onclick="saveProduct()">Save</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
-<div class="panel hidden" id="receive">
-    <h2>Receive</h2>
-    <input id="r_item" placeholder="Item number">
-    <input id="r_name" placeholder="Name">
-    <input id="r_qty" type="number" placeholder="Qty">
-    <input id="r_loc" placeholder="Location">
-    <br><br>
-    <button onclick="saveReceive()">Receive</button>
-    <button class="secondary" onclick="saveDelivery()">Delivery</button>
-    <button class="secondary" onclick="goBack()">Back</button>
-</div>
+<!-- RECEIVE / ISSUE MODAL -->
+<div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="stockTitle">Stock</div>
+      <button class="btn" onclick="closeStockModal()">✕</button>
+    </div>
+    <div class="modal-body">
 
-<div class="panel hidden" id="issue">
-    <h2>Issue</h2>
-    <input id="i_item" placeholder="Item number">
-    <input id="i_qty" type="number" placeholder="Qty">
-    <br><br>
-    <button onclick="saveIssue()">Issue</button>
-    <button class="secondary" onclick="goBack()">Back</button>
-</div>
+      <div class="row">
+        <div>
+          <label>Product ID (manual or QR)</label>
+          <div class="scanrow">
+            <input id="s_id" placeholder="e.g. 100234" />
+            <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
+          </div>
+        </div>
 
-<div class="panel hidden" id="inventory">
-    <h2>Inventory</h2>
-    <table>
-        <thead>
-        <tr>
-            <th>Item</th>
-            <th>Name</th>
-            <th>Qty</th>
-            <th>Location</th>
-        </tr>
-        </thead>
-        <tbody id="inventoryBody"></tbody>
-    </table>
-    <br>
-    <button class="secondary" onclick="goBack()">Back</button>
-</div>
+        <div>
+          <label>Quantity</label>
+          <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
+        </div>
+      </div>
 
-<div class="panel hidden" id="audit">
-    <h2>Audit</h2>
-    <table>
-        <thead>
-        <tr>
-            <th>Time</th>
-            <th>Type</th>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Location</th>
-        </tr>
-        </thead>
-        <tbody id="auditBody"></tbody>
-    </table>
-    <br>
-    <button class="secondary" onclick="goBack()">Back</button>
+      <div class="scanner" id="stockScannerBox">
+        <video id="stockVideo" playsinline></video>
+      </div>
+
+      <div class="alert" id="stockAlert"></div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="closeStockModal()">Cancel</button>
+      <button class="btn primary" onclick="submitStock()">Save</button>
+    </div>
+  </div>
 </div>
 
 <script>
-function openPanel(id){
-    document.getElementById('dashboard').classList.add('hidden');
-    document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-    if(id==='inventory') loadInventory();
-    if(id==='audit') loadAudit();
-}
-function goBack(){
-    document.getElementById('dashboard').classList.remove('hidden');
-    document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
-}
+  // --- Stock modal (receive/issue) ---
+  let stockMode = "receive"; // 'receive' | 'issue'
+  let stockStream = null;
+  let stockDetector = null;
+  let stockScanTimer = null;
 
-async function saveReceive(){
-    const res = await fetch('/api/products',{
+  function setStockAlert(msg, type){
+    const el = document.getElementById('stockAlert');
+    el.className = 'alert ' + (type || '');
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+  function clearStockAlert(){
+    const el = document.getElementById('stockAlert');
+    el.style.display = 'none';
+    el.textContent = '';
+    el.className = 'alert';
+  }
+
+  function openStockModal(mode){
+    stockMode = mode;
+    clearStockAlert();
+    document.getElementById('s_id').value = '';
+    document.getElementById('s_qty').value = '';
+    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Przyjęcie materiału (Receive)' : 'Wydanie materiału (Issue)';
+    document.getElementById('stockBackdrop').style.display = 'flex';
+  }
+
+  function closeStockModal(){
+    stopStockScan();
+    document.getElementById('stockBackdrop').style.display = 'none';
+  }
+
+  async function submitStock(){
+    clearStockAlert();
+    const item_number = document.getElementById('s_id').value.trim();
+    const amount = Number(document.getElementById('s_qty').value || 0);
+
+    if(!item_number){ setStockAlert('Podaj Product ID.', 'bad'); return; }
+    if(!amount || amount <= 0){ setStockAlert('Podaj ilość > 0.', 'bad'); return; }
+
+    try{
+      const res = await fetch('/api/stock/' + stockMode, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            item_number: document.getElementById('r_item').value,
-            name: document.getElementById('r_name').value,
-            current_stock: document.getElementById('r_qty').value,
-            location_name: document.getElementById('r_loc').value
-        })
-    });
-    if(res.ok) alert('Product updated/added');
-    else alert('Error saving product');
-}
+        body: JSON.stringify({ item_number, amount })
+      });
+      const data = await res.json().catch(()=>({}));
 
-async function saveDelivery(){
-    const res = await fetch('/api/stock/receive',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            item_number: document.getElementById('r_item').value,
-            qty: document.getElementById('r_qty').value
-        })
-    });
-    if(res.ok) alert('Delivery saved');
-    else alert('Error during delivery');
-}
+      if(!res.ok){
+        setStockAlert(data.error || ('Błąd (HTTP '+res.status+')'), 'bad');
+        return;
+      }
 
-async function saveIssue(){
-    const res = await fetch('/api/stock/issue',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            item_number: document.getElementById('i_item').value,
-            qty: document.getElementById('i_qty').value
-        })
-    });
-    if(res.ok) alert('Issued');
-    else alert('Error: Check stock or SKU');
-}
+      setStockAlert('Zapisano ✔', 'ok');
 
-async function loadInventory(){
-    const res = await fetch('/api/products');
-    const json = await res.json();
-    const inventoryBody = document.getElementById('inventoryBody');
-    inventoryBody.innerHTML='';
-    (json.products||[]).forEach(p=>{
-        inventoryBody.innerHTML+=`<tr>
-            <td>${p.item_number}</td>
-            <td>${p.name}</td>
-            <td>${p.current_stock}</td>
-            <td>${p.location_name}</td>
-        </tr>`;
-    });
-}
+      // refresh inventory + audit if user is viewing them
+      loadProducts();
+      if (document.getElementById('view-audit').style.display !== 'none' && typeof loadAudit === 'function') {
+        loadAudit();
+      }
+    }catch(e){
+      setStockAlert('Błąd połączenia.', 'bad');
+    }
+  }
 
-async function loadAudit(){
-    const res = await fetch('/api/audit');
-    if(!res.ok) return;
-    const json = await res.json();
-    const auditBody = document.getElementById('auditBody');
-    auditBody.innerHTML='';
-    (json.data||[]).forEach(a=>{
-        auditBody.innerHTML+=`<tr>
-            <td>${a.created_at}</td>
-            <td>${a.action || a.type}</td>
-            <td>${a.item_number}</td>
-            <td>${a.qty || a.quantity}</td>
-            <td>${a.location_name||''}</td>
-        </tr>`;
-    });
-}
+  async function startScanStock(targetInputId){
+    clearStockAlert();
+
+    if(!('BarcodeDetector' in window)){
+      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
+      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
+      return;
+    }
+
+    try{
+      stockDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      stockStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
+
+      const video = document.getElementById('stockVideo');
+      video.srcObject = stockStream;
+      await video.play();
+
+      document.getElementById('stockScannerBox').style.display = 'block';
+
+      stockScanTimer = setInterval(async () => {
+        try{
+          const barcodes = await stockDetector.detect(video);
+          if(barcodes && barcodes.length){
+            const raw = (barcodes[0].rawValue || '').trim();
+            if(raw){
+              // If QR is JSON or ID|NAME — we take only ID part for stock move
+              let idOnly = raw;
+              try{
+                if(raw.startsWith('{') && raw.endsWith('}')){
+                  const obj = JSON.parse(raw);
+                  if(obj.id) idOnly = String(obj.id).trim();
+                } else if(raw.includes('|')) {
+                  idOnly = raw.split('|')[0].trim();
+                }
+              }catch(_){}
+              document.getElementById(targetInputId).value = idOnly;
+            }
+            stopStockScan();
+          }
+        }catch(_){}
+      }, 250);
+
+    }catch(e){
+      stopStockScan();
+      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
+      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
+    }
+  }
+
+  function stopStockScan(){
+    if(stockScanTimer){ clearInterval(stockScanTimer); stockScanTimer = null; }
+    if(stockStream){
+      stockStream.getTracks().forEach(t => t.stop());
+      stockStream = null;
+    }
+    document.getElementById('stockScannerBox').style.display = 'none';
+  }
 </script>
 
+
+<script>
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  // ---------- Views ----------
+  function showView(name){
+    const views = ['dashboard','inventory','audit','admin'];
+    for (const v of views){
+      document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
+      document.getElementById('nav-'+v).classList.toggle('active', v===name);
+    }
+
+    const addBtn = document.getElementById('btnAddProductTop');
+    addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
+
+    const hint = document.getElementById('pageHint');
+    if (name === 'dashboard') hint.textContent = 'Wybierz akcję. Add Product dodaje produkt do bazy (ID + name + qty + location).';
+    else if (name === 'inventory') hint.textContent = 'Lista produktów z bazy.';
+    else if (name === 'audit') hint.textContent = 'Podgląd logów działań (audit).';
+    else if (name === 'admin') hint.textContent = 'Administracja (backup itp.).';
+    else hint.textContent = '';
+
+    if (name === 'inventory') loadProducts();
+    if (name === 'audit') loadAudit();
+  }
+
+  function logout(){
+    window.location.href = '/logout';
+  }
+
+  function comingSoon(label){
+    alert(label + ' — wkrótce.');
+  }
+
+  // ---------- Add product modal ----------
+  function openAddProductModal(){
+    document.getElementById('addProductBackdrop').style.display = 'flex';
+    clearAddAlert();
+  }
+
+  function closeAddProductModal(){
+    stopScan();
+    document.getElementById('addProductBackdrop').style.display = 'none';
+  }
+
+  function setAddAlert(msg, type){
+    const el = document.getElementById('addAlert');
+    el.className = 'alert ' + (type || '');
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+  function clearAddAlert(){
+    const el = document.getElementById('addAlert');
+    el.style.display = 'none';
+    el.textContent = '';
+    el.className = 'alert';
+  }
+
+  // ---------- Inventory ----------
+  async function loadProducts(){
+    const body = document.getElementById('productsBody');
+    const empty = document.getElementById('productsEmpty');
+    body.innerHTML = '';
+    empty.style.display = 'none';
+
+    try{
+      const res = await fetch('/api/products');
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      const items = data.products || [];
+
+      if(items.length === 0){
+        empty.style.display = 'block';
+        return;
+      }
+
+      for(const p of items){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || p.sku || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String((p.current_stock ?? p.quantity ?? '')))}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
+        `;
+        body.appendChild(tr);
+      }
+    }catch(e){
+      empty.style.display = 'block';
+      empty.textContent = 'Nie udało się pobrać listy produktów.';
+    }
+  }
+
+  // ---------- Audit ----------
+  async function loadAudit(){
+    const body = document.getElementById('auditBody');
+    const empty = document.getElementById('auditEmpty');
+    body.innerHTML = '';
+    empty.style.display = 'none';
+
+    try{
+      const res = await fetch('/api/audit');
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      const items = data.audit || data.data || [];
+
+      if(items.length === 0){
+        empty.style.display = 'block';
+        return;
+      }
+
+      for(const r of items){
+        const created = r.created_at ? String(r.created_at).replace('T',' ').replace('Z','') : '';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(created)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(r.qty ?? ''))}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.location ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.username ?? '')}</td>
+        `;
+        body.appendChild(tr);
+      }
+    }catch(e){
+      empty.style.display = 'block';
+      empty.textContent = 'Nie udało się pobrać logów audytu.';
+    }
+  }
+
+  // ---------- Save product ----------
+  async function saveProduct(){
+    clearAddAlert();
+    const product_id = document.getElementById('p_id').value.trim();
+    const name = document.getElementById('p_name').value.trim();
+    const quantity = Number(document.getElementById('p_qty').value || 0);
+    const location = document.getElementById('p_loc').value.trim();
+
+    if(!product_id){ setAddAlert('Podaj Product ID (ręcznie lub QR).', 'bad'); return; }
+    if(!name){ setAddAlert('Podaj nazwę produktu.', 'bad'); return; }
+    if(!location){ setAddAlert('Podaj lokację (ręcznie lub QR).', 'bad'); return; }
+
+    try{
+      const res = await fetch('/api/products', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          item_number: product_id,
+          name,
+          current_stock: quantity,
+          location_name: location,
+          // compat
+          product_id,
+          quantity,
+          location
+        })
+      });
+      const data = await res.json().catch(()=>({}));
+      if(!res.ok){
+        setAddAlert(data.error || ('Błąd zapisu (HTTP '+res.status+')'), 'bad');
+        return;
+      }
+
+      setAddAlert('Zapisano ✔', 'ok');
+      loadProducts();
+    }catch(e){
+      setAddAlert('Błąd połączenia podczas zapisu.', 'bad');
+    }
+  }
+
+  // ---------- QR Scan ----------
+  let scanMode = null;
+  let stream = null;
+  let detector = null;
+  let scanTimer = null;
+
+  async function startScan(mode){
+    scanMode = mode;
+
+    if(!('BarcodeDetector' in window)){
+      const pasted = prompt('Twoja przeglądarka nie wspiera skanowania. Wklej tekst z QR:');
+      if(pasted) applyScannedValue(pasted);
+      return;
+    }
+
+    try{
+      detector = new BarcodeDetector({ formats: ['qr_code'] });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
+
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+      await video.play();
+
+      document.getElementById('scannerBox').style.display = 'block';
+
+      scanTimer = setInterval(async () => {
+        try{
+          const barcodes = await detector.detect(video);
+          if(barcodes && barcodes.length){
+            const raw = barcodes[0].rawValue || '';
+            applyScannedValue(raw);
+            stopScan();
+          }
+        }catch(_){}
+      }, 250);
+
+    }catch(e){
+      stopScan();
+      const pasted = prompt('Nie udało się uruchomić kamery. Wklej tekst z QR:');
+      if(pasted) applyScannedValue(pasted);
+    }
+  }
+
+  function stopScan(){
+    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
+    if(stream){
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    document.getElementById('scannerBox').style.display = 'none';
+  }
+
+  function applyScannedValue(raw){
+    const text = (raw || '').trim();
+    if(!text) return;
+
+    if(scanMode === 'location'){
+      document.getElementById('p_loc').value = text;
+      return;
+    }
+
+    try{
+      if(text.startsWith('{') && text.endsWith('}')){
+        const obj = JSON.parse(text);
+        if(obj.id) document.getElementById('p_id').value = String(obj.id);
+        if(obj.name) document.getElementById('p_name').value = String(obj.name);
+        return;
+      }
+    }catch(_){}
+
+    if(text.includes('|')){
+      const parts = text.split('|');
+      const id = (parts[0] || '').trim();
+      const nm = (parts.slice(1).join('|') || '').trim();
+      if(id) document.getElementById('p_id').value = id;
+      if(nm) document.getElementById('p_name').value = nm;
+      return;
+    }
+
+    document.getElementById('p_id').value = text;
+  }
+
+  // ---------- Admin ----------
+  function setAdminAlert(msg, type){
+    const el = document.getElementById('adminAlert');
+    el.className = 'alert ' + (type || '');
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+
+  async function backupToGitHub(){
+    const candidates = [
+      '/api/admin/backup/github',
+      '/api/backup/github',
+      '/admin/backup/github'
+    ];
+
+    setAdminAlert('Backup: start...', '');
+
+    for (const url of candidates){
+      try{
+        const res = await fetch(url, { method:'POST' });
+        const data = await res.json().catch(()=>({}));
+        if(res.ok){
+          setAdminAlert(data.message || 'Backup OK ✔', 'ok');
+          return;
+        }
+        if(res.status !== 404){
+          setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
+          return;
+        }
+      }catch(_){}
+    }
+
+    setAdminAlert('Backup endpoint not found (404).', 'bad');
+  }
+
+  function showGitHubVerify(){
+    alert('GitHub → repo → Commits: po kliknięciu Backup powinien pojawić się nowy commit.');
+  }
+
+  // Initial
+  showView('dashboard');
+</script>
 </body>
 </html>
+
