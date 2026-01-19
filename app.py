@@ -13,7 +13,6 @@ from sqlalchemy import inspect, text as sql_text
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY") or "dev-secret"
 
-# Obsługa bazy danych (Postgres na Render lub lokalny SQLite)
 db_url = os.environ.get("DATABASE_URL")
 if db_url:
     if db_url.startswith("postgres://"): 
@@ -54,28 +53,42 @@ class AuditLog(db.Model):
 @login_manager.user_loader
 def load_user(user_id): return User.query.get(int(user_id))
 
-# --- AUTOMATYCZNA NAPRAWA BAZY (Dodawanie kolumn) ---
-def repair_database():
-    with app.app_context():
-        inspector = inspect(db.engine)
-        tables = inspector.get_table_names()
-        if 'product' in tables:
-            p_cols = [c['name'] for c in inspector.get_columns('product')]
-            if 'min_stock' not in p_cols:
-                with db.engine.begin() as conn:
-                    conn.execute(sql_text('ALTER TABLE product ADD COLUMN min_stock INTEGER DEFAULT 0'))
-
+# --- POPRAWIONA INICJALIZACJA I NAPRAWA ---
 with app.app_context():
+    # 1. Tworzymy tabele jeśli nie istnieją
     db.create_all()
-    repair_database()
-    if not User.query.filter_by(username="admin").first():
-        db.session.add(User(username="admin", password_hash=generate_password_hash("admin123"), is_admin=True))
-        db.session.commit()
+    
+    # 2. Ręcznie wymuszamy dodanie brakujących kolumn (Naprawa)
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    
+    if 'user' in tables:
+        u_cols = [c['name'] for c in inspector.get_columns('user')]
+        if 'is_admin' not in u_cols:
+            with db.engine.begin() as conn:
+                conn.execute(sql_text('ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN DEFAULT FALSE'))
+    
+    if 'product' in tables:
+        p_cols = [c['name'] for c in inspector.get_columns('product')]
+        if 'min_stock' not in p_cols:
+            with db.engine.begin() as conn:
+                conn.execute(sql_text('ALTER TABLE product ADD COLUMN min_stock INTEGER DEFAULT 0'))
+
+    # 3. Teraz bezpiecznie sprawdzamy/tworzymy admina
+    try:
+        if not User.query.filter_by(username="admin").first():
+            db.session.add(User(username="admin", password_hash=generate_password_hash("admin123"), is_admin=True))
+            db.session.commit()
+    except Exception as e:
+        print(f"Błąd przy tworzeniu admina: {e}")
 
 # --- TRASY (ROUTES) ---
 @app.route("/")
 @login_required
 def index(): return render_template("index.html")
+
+@app.route("/health")
+def health(): return "OK", 200
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
