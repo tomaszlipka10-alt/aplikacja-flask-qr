@@ -3,347 +3,442 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BTVenlo Storage</title>
+  <title>BTVenloStorage</title>
   <style>
     :root{
-      --bg: #f8fafc;
+      --bg: #ffffff;
       --card: #ffffff;
-      --text: #0f172a;
-      --muted: #64748b;
-      --border: #e2e8f0;
+      --text: #0b1b3a;
+      --muted: #5b6a88;
+      --border: rgba(17, 41, 84, .12);
+      --blue-700: #1d4ed8;
       --blue-600: #2563eb;
-      --sidebar: #1e293b;
-      --danger: #ef4444;
-      --success: #22c55e;
-      --radius: 12px;
+      --blue-500: #3b82f6;
+      --blue-100: #eaf2ff;
+      --sidebar: #0f2a5f;
+      --sidebar2:#123372;
+      --shadow: 0 10px 30px rgba(10, 25, 60, .10);
+      --radius: 16px;
     }
 
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{
-      margin:0; font-family: system-ui, sans-serif;
-      background: var(--bg); color: var(--text); display: flex; min-height: 100vh;
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: var(--bg);
     }
+
+    .app{display:flex; min-height:100vh;}
 
     /* Sidebar */
-    .sidebar {
-      width: 260px; background: var(--sidebar); color: white;
-      display: flex; flex-direction: column; padding: 20px;
+    .sidebar{
+      width:280px;
+      background:var(--sidebar);
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+      flex-shrink:0;
     }
-    .sidebar h2 { font-size: 20px; margin-bottom: 30px; color: #38bdf8; }
-    .nav-btn {
-      background: transparent; border: none; color: #94a3b8;
-      padding: 12px; text-align: left; cursor: pointer; font-size: 16px;
-      border-radius: 8px; margin-bottom: 5px; transition: 0.2s;
+    .sidebar-header{
+      padding:32px 24px;
+      font-size:20px;
+      font-weight:800;
+      letter-spacing:-0.02em;
+      display:flex;
+      align-items:center;
+      gap:12px;
     }
-    .nav-btn:hover, .nav-btn.active { background: #334155; color: white; }
+    .nav{padding:0 16px; flex:1}
+    .nav-item{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:14px 16px;
+      color:rgba(255,255,255,0.7);
+      text-decoration:none;
+      border-radius:12px;
+      margin-bottom:4px;
+      font-weight:500;
+      transition:0.2s;
+      cursor:pointer;
+    }
+    .nav-item:hover, .nav-item.active{
+      background:var(--sidebar2);
+      color:#fff;
+    }
 
-    /* Main Content */
-    .main { flex: 1; display: flex; flex-direction: column; }
-    
-    /* Topbar with Search */
-    .topbar {
-      height: 70px; background: white; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between; padding: 0 30px;
-    }
-    .search-box {
-      position: relative; width: 350px;
-    }
-    .search-box input {
-      width: 100%; padding: 10px 15px 10px 40px; border-radius: 20px;
-      border: 1px solid var(--border); background: #f1f5f9; outline: none;
-    }
-    .search-box::before {
-      content: "🔍"; position: absolute; left: 15px; top: 8px; opacity: 0.5;
+    /* Main */
+    .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+    .topbar{
+      height:80px;
+      background:#fff;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 40px;
     }
 
-    .container { padding: 30px; max-width: 1200px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-
-    /* Tiles */
-    .tile {
-      background: white; padding: 30px; border-radius: var(--radius);
-      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); cursor: pointer;
-      text-align: center; border: 1px solid transparent; transition: 0.2s;
+    /* SEARCH LUPKA */
+    .search-container {
+      position: relative;
+      width: 300px;
     }
-    .tile:hover { border-color: var(--blue-600); transform: translateY(-2px); }
-    .tile h3 { margin: 0; font-size: 18px; }
-    .tile p { color: var(--muted); margin: 10px 0 0; }
+    .search-container input {
+      width: 100%;
+      padding: 10px 15px 10px 40px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      outline: none;
+    }
+    .search-container::before {
+      content: "🔍";
+      position: absolute;
+      left: 15px;
+      top: 8px;
+      opacity: 0.5;
+    }
 
-    /* Tables */
-    table { width: 100%; border-collapse: collapse; background: white; border-radius: var(--radius); overflow: hidden; }
-    th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { background: #f1f5f9; font-weight: 600; }
-    .stock-low { color: var(--danger); font-weight: bold; background: #fee2e2; border-radius: 4px; padding: 2px 6px; }
+    .content{padding:40px; flex:1}
+    .view{display:none}
+    .view.active{display:block}
+
+    /* Dashboard */
+    .stats-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap:24px;
+      margin-bottom:40px;
+    }
+    .stat-card{
+      background:var(--card);
+      padding:24px;
+      border-radius:var(--radius);
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+      cursor:pointer;
+      transition: 0.2s;
+    }
+    .stat-card:hover { border-color: var(--blue-500); transform: translateY(-2px); }
+    .stat-card .label{font-size:14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em}
+    .stat-card .val{font-size:32px; font-weight:800; margin-top:8px; display:block}
+
+    /* Table */
+    .table-container{
+      background:#fff;
+      border-radius:var(--radius);
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    table{width:100%; border-collapse:collapse}
+    th{background:#f8f9fb; padding:16px 24px; text-align:left; font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase}
+    td{padding:18px 24px; border-top:1px solid var(--border); font-size:15px}
+    tr:hover td{background:#fcfdfe}
 
     /* Modals */
-    .modal-bg {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-      display: none; align-items: center; justify-content: center; z-index: 100;
+    .modal-overlay{
+      position:fixed; inset:0; background:rgba(11,27,58,0.4); backdrop-filter:blur(4px);
+      display:none; align-items:center; justify-content:center; z-index:1000;
     }
-    .modal {
-      background: white; padding: 30px; border-radius: var(--radius);
-      width: 100%; max-width: 450px; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    .modal{
+      background:#fff; width:100%; max-width:500px; border-radius:24px; padding:40px;
+      box-shadow:0 30px 60px rgba(0,0,0,0.2);
     }
-    input, select {
-      width: 100%; padding: 12px; margin: 10px 0 20px;
-      border: 1px solid var(--border); border-radius: 8px; outline: none;
+    .form-group{margin-bottom:20px}
+    .form-group label{display:block; font-size:14px; font-weight:600; margin-bottom:8px; color:var(--muted)}
+    input, select{
+      width:100%; padding:12px 16px; border-radius:12px; border:1px solid var(--border);
+      font-size:16px; outline:none; transition:0.2s;
     }
-    .btn-primary { background: var(--blue-600); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: 600; }
-    
-    /* Live Hint Box */
-    .live-hint {
-      background: #eff6ff; border: 1px solid #bfdbfe; padding: 10px;
-      border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px;
+    input:focus{border-color:var(--blue-500); box-shadow:0 0 0 4px var(--blue-100)}
+    .btn{
+      width:100%; padding:14px; border-radius:12px; font-weight:700; border:none; cursor:pointer;
+      transition:0.2s; font-size:16px;
     }
+    .btn-primary{background:var(--blue-600); color:#fff}
+    .btn-primary:hover{background:var(--blue-700)}
+
+    /* Scanner */
+    #scanner-container{
+      width:100%; height:300px; background:#000; border-radius:16px; overflow:hidden; margin-bottom:20px;
+      position:relative;
+    }
+    #scanner-video{width:100%; height:100%; object-fit:cover}
+
+    .status-pill{
+      padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;
+    }
+    .status-receive{background:#ecfdf5; color:#059669}
+    .status-issue{background:#fff1f2; color:#e11d48}
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
 <body>
 
-  <div class="sidebar">
-    <h2>BTV Warehouse</h2>
-    <button class="nav-btn active" onclick="showTab('dash')">Dashboard</button>
-    <button class="nav-btn" onclick="showTab('inv')">Inventory</button>
-    <button class="nav-btn" onclick="showTab('aud')">Audit Log</button>
-    <div style="margin-top:auto">
-       <a href="/logout" style="color:#94a3b8; text-decoration:none; font-size:14px;">Logout</a>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">📦 BTV Storage</div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="switchView('dashboard')">Dashboard</div>
+      <div class="nav-item" onclick="switchView('inventory')">Inventory</div>
+      <div class="nav-item" onclick="switchView('audit')">Audit Log</div>
+    </nav>
+    <div style="padding:24px; border-top:1px solid rgba(255,255,255,0.1)">
+      <a href="/logout" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:14px">Sign Out</a>
     </div>
-  </div>
+  </aside>
 
-  <div class="main">
+  <main class="main">
     <div class="topbar">
-      <div class="search-box">
-        <input type="text" id="globalSearch" placeholder="Search SKU or Name (e.g. M8)..." oninput="doGlobalSearch()">
+      <div class="search-container">
+        <input type="text" id="globalSearch" placeholder="Search SKU or Name..." onkeyup="doFilterTable()">
       </div>
-      <div id="user-info">Logged as: <strong>{{ current_user.username }}</strong></div>
+      <div style="font-weight:600">Admin Panel</div>
     </div>
 
-    <div class="container">
+    <div class="content">
       
-      <div id="tab-dash">
-        <h1 style="margin-top:0">Welcome, {{ current_user.username }}</h1>
-        <div class="grid">
-          <div class="tile" onclick="openModal('modal-receive')">
-            <div style="font-size:30px">📥</div>
-            <h3>Receive Material</h3>
-            <p>Add stock to existing item</p>
+      <div id="view-dashboard" class="view active">
+        <h2 style="font-size:28px; font-weight:800; margin-bottom:32px">Welcome Back</h2>
+        <div class="stats-grid">
+          <div class="stat-card" onclick="openModal('receive')">
+            <span class="label">Incoming</span>
+            <span class="val" style="color:var(--blue-600)">Receive Material</span>
           </div>
-          <div class="tile" onclick="openModal('modal-issue')">
-            <div style="font-size:30px">📤</div>
-            <h3>Issue Material</h3>
-            <p>Remove stock for production</p>
+          <div class="stat-card" onclick="openModal('issue')">
+            <span class="label">Outgoing</span>
+            <span class="val" style="color:var(--text)">Issue Material</span>
           </div>
-          <div class="tile" onclick="openModal('modal-add')">
-            <div style="font-size:30px">✨</div>
-            <h3>Add New Product</h3>
-            <p>Create SKU in database</p>
+          <div class="stat-card" onclick="openModal('add')">
+            <span class="label">Setup</span>
+            <span class="val" style="color:var(--blue-500)">+ Add Product</span>
           </div>
         </div>
       </div>
 
-      <div id="tab-inv" class="hidden">
-        <div style="display:flex; justify-content:space-between; align-items:center">
-          <h1>Inventory</h1>
-          <button onclick="loadInventory()" style="padding:8px 15px; border-radius:6px; border:1px solid #ccc; cursor:pointer">Refresh</button>
+      <div id="view-inventory" class="view">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px">
+          <h2 style="margin:0; font-size:24px; font-weight:800">Stock Inventory</h2>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>SKU / ID</th>
-              <th>Name</th>
-              <th>Location</th>
-              <th>Stock</th>
-              <th>Min Alert</th>
-            </tr>
-          </thead>
-          <tbody id="inventoryBody"></tbody>
-        </table>
+        <div class="table-container">
+          <table id="inventoryTable">
+            <thead>
+              <tr>
+                <th>SKU / ID</th>
+                <th>Product Name</th>
+                <th>Stock</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody"></tbody>
+          </table>
+        </div>
       </div>
 
-      <div id="tab-aud" class="hidden">
-        <h1>Audit Log</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Action</th>
-              <th>SKU</th>
-              <th>Qty</th>
-              <th>User</th>
-            </tr>
-          </thead>
-          <tbody id="auditBody"></tbody>
-        </table>
+      <div id="view-audit" class="view">
+        <h2 style="margin-bottom:24px; font-size:24px; font-weight:800">Activity Log</h2>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Action</th>
+                <th>SKU</th>
+                <th>Qty</th>
+                <th>User</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody"></tbody>
+          </table>
+        </div>
       </div>
 
     </div>
-  </div>
+  </main>
+</div>
 
-  <div id="modal-add" class="modal-bg">
-    <div class="modal">
-      <h2>Create New Product</h2>
-      <label>SKU / Item Number</label>
-      <input type="text" id="add_sku">
-      <label>Product Name</label>
-      <input type="text" id="add_name">
-      <label>Warehouse Location</label>
-      <input type="text" id="add_loc" placeholder="e.g. Rm1">
-      <label>Initial Stock</label>
-      <input type="number" id="add_qty" value="0">
-      <label>Min Stock Alert (Admin)</label>
-      <input type="number" id="add_min" value="0">
-      <button class="btn-primary" onclick="submitAdd()">Save Product</button>
-      <button onclick="closeModals()" style="background:none; border:none; color:var(--muted); margin-top:15px; cursor:pointer; width:100%">Cancel</button>
+<div id="modal-add" class="modal-overlay">
+  <div class="modal">
+    <h3 style="margin-top:0">Add New Product</h3>
+    <div class="form-group"><label>SKU</label><input type="text" id="p_id"></div>
+    <div class="form-group"><label>Name</label><input type="text" id="p_name"></div>
+    <div class="form-group"><label>Initial Stock</label><input type="number" id="p_qty" value="0"></div>
+    <div class="form-group"><label>Location</label><input type="text" id="p_loc" value="MAG-1"></div>
+    <button class="btn btn-primary" onclick="saveProduct()">Create Product</button>
+    <button onclick="closeModal()" style="background:none; border:none; color:var(--muted); margin-top:16px; width:100%; cursor:pointer">Cancel</button>
+  </div>
+</div>
+
+<div id="modal-receive" class="modal-overlay">
+  <div class="modal">
+    <h3>Receive Material</h3>
+    <div style="display:flex; gap:8px">
+      <div class="form-group" style="flex:1"><label>SKU</label><input type="text" id="r_item"></div>
+      <button onclick="startScan('r_item')" style="height:46px; margin-top:28px; padding:0 12px; border-radius:12px; border:1px solid var(--border)">📷</button>
     </div>
+    <div class="form-group"><label>Quantity to Add</label><input type="number" id="r_qty" value="1"></div>
+    <button class="btn btn-primary" onclick="submitStock('receive')">Confirm Receipt</button>
+    <button onclick="closeModal()" style="background:none; border:none; color:var(--muted); margin-top:16px; width:100%; cursor:pointer">Cancel</button>
   </div>
+</div>
 
-  <div id="modal-receive" class="modal-bg">
-    <div class="modal">
-      <h2>Receive Material</h2>
-      <label>Scan or Type SKU</label>
-      <input type="text" id="rec_sku" oninput="fetchProductHint(this.value, 'rec_hint')">
-      <div id="rec_hint" class="live-hint"></div>
-      <label>Amount to Add</label>
-      <input type="number" id="rec_amt" value="1">
-      <button class="btn-primary" onclick="submitStock('receive')">Confirm Receipt</button>
-      <button onclick="closeModals()" style="background:none; border:none; color:var(--muted); margin-top:15px; cursor:pointer; width:100%">Cancel</button>
+<div id="modal-issue" class="modal-overlay">
+  <div class="modal">
+    <h3>Issue Material</h3>
+    <div style="display:flex; gap:8px">
+      <div class="form-group" style="flex:1"><label>SKU</label><input type="text" id="i_item"></div>
+      <button onclick="startScan('i_item')" style="height:46px; margin-top:28px; padding:0 12px; border-radius:12px; border:1px solid var(--border)">📷</button>
     </div>
+    <div class="form-group"><label>Quantity to Issue</label><input type="number" id="i_qty" value="1"></div>
+    <button class="btn btn-primary" style="background:var(--text)" onclick="submitStock('issue')">Confirm Issue</button>
+    <button onclick="closeModal()" style="background:none; border:none; color:var(--muted); margin-top:16px; width:100%; cursor:pointer">Cancel</button>
   </div>
+</div>
 
-  <div id="modal-issue" class="modal-bg">
-    <div class="modal">
-      <h2>Issue Material</h2>
-      <label>Scan or Type SKU</label>
-      <input type="text" id="iss_sku" oninput="fetchProductHint(this.value, 'iss_hint')">
-      <div id="iss_hint" class="live-hint"></div>
-      <label>Amount to Issue</label>
-      <input type="number" id="iss_amt" value="1">
-      <button class="btn-primary" style="background:var(--text)" onclick="submitStock('issue')">Confirm Issue</button>
-      <button onclick="closeModals()" style="background:none; border:none; color:var(--muted); margin-top:15px; cursor:pointer; width:100%">Cancel</button>
-    </div>
+<div id="modal-scanner" class="modal-overlay">
+  <div class="modal" style="max-width:400px">
+    <h3>Scan QR Code</h3>
+    <div id="scanner-container"><video id="scanner-video"></video></div>
+    <button class="btn" onclick="stopScan()" style="background:#f1f5f9">Cancel Scan</button>
   </div>
+</div>
 
-  <script>
-    let allProducts = [];
+<script>
+  // --- NAVIGATION ---
+  function switchView(viewId){
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-' + viewId).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    event.target.classList.add('active');
+    if(viewId === 'inventory') loadInventory();
+    if(viewId === 'audit') loadAudit();
+  }
 
-    function showTab(tab) {
-      document.getElementById('tab-dash').classList.add('hidden');
-      document.getElementById('tab-inv').classList.add('hidden');
-      document.getElementById('tab-aud').classList.add('hidden');
-      document.getElementById('tab-' + tab).classList.remove('hidden');
-      
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      event?.target?.classList?.add('active');
+  function openModal(type){ document.getElementById('modal-' + type).style.display = 'flex'; }
+  function closeModal(){ document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); stopScan(); }
 
-      if(tab === 'inv') loadInventory();
-      if(tab === 'aud') loadAudit();
-    }
+  // --- FILTER TABLE ---
+  function doFilterTable() {
+    let input = document.getElementById("globalSearch");
+    let filter = input.value.toUpperCase();
+    let table = document.getElementById("inventoryTable");
+    let tr = table.getElementsByTagName("tr");
 
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-    function closeModals() { 
-      document.querySelectorAll('.modal-bg').forEach(m => m.style.display = 'none');
-      document.querySelectorAll('.live-hint').forEach(h => h.style.display = 'none');
-    }
-
-    // Search Logic
-    function doGlobalSearch() {
-      const query = document.getElementById('globalSearch').value.toLowerCase();
-      if(query.length > 0) {
-        showTab('inv');
-        const rows = document.querySelectorAll('#inventoryBody tr');
-        rows.forEach(row => {
-          const text = row.innerText.toLowerCase();
-          row.style.display = text.includes(query) ? '' : 'none';
-        });
+    for (let i = 1; i < tr.length; i++) {
+      let tdSku = tr[i].getElementsByTagName("td")[0];
+      let tdName = tr[i].getElementsByTagName("td")[1];
+      if (tdSku || tdName) {
+        let txt = (tdSku.textContent || tdSku.innerText) + " " + (tdName.textContent || tdName.innerText);
+        tr[i].style.display = txt.toUpperCase().indexOf(filter) > -1 ? "" : "none";
       }
     }
+    // Jeśli użytkownik jest na Dashboardzie i zacznie pisać, przełącz go na Inventory
+    if(filter.length > 0 && document.getElementById('view-dashboard').classList.contains('active')) {
+      switchView('inventory');
+    }
+  }
 
-    // Live Hints for Modals
-    function fetchProductHint(sku, hintId) {
-      const hintDiv = document.getElementById(hintId);
-      const product = allProducts.find(p => p.item_number === sku.trim());
-      if(product) {
-        hintDiv.style.display = 'block';
-        hintDiv.innerHTML = `🔍 <b>Found:</b> ${product.name}<br>📍 <b>Loc:</b> ${product.location_name} | 📦 <b>Stock:</b> ${product.current_stock}`;
-      } else {
-        hintDiv.style.display = 'none';
+  // --- API ---
+  async function loadInventory(){
+    const res = await fetch('/api/products');
+    const d = await res.json();
+    const body = document.getElementById('inventoryBody');
+    body.innerHTML = '';
+    (d.products || []).forEach(p => {
+      body.innerHTML += `<tr>
+        <td><b>${p.item_number}</b></td>
+        <td>${p.name}</td>
+        <td>${p.current_stock}</td>
+        <td>${p.location_name}</td>
+      </tr>`;
+    });
+  }
+
+  async function saveProduct(){
+    const p = {
+      item_number: document.getElementById('p_id').value,
+      name: document.getElementById('p_name').value,
+      current_stock: document.getElementById('p_qty').value,
+      location_name: document.getElementById('p_loc').value
+    };
+    await fetch('/api/products', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(p)
+    });
+    closeModal(); loadInventory();
+  }
+
+  async function submitStock(type){
+    const sku = document.getElementById(type === 'receive' ? 'r_item' : 'i_item').value;
+    const amt = document.getElementById(type === 'receive' ? 'r_qty' : 'i_qty').value;
+    const res = await fetch('/api/stock/' + type, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({item_number:sku, amount:amt})
+    });
+    if(res.ok){ closeModal(); loadInventory(); } else { alert('Error updating stock'); }
+  }
+
+  async function loadAudit(){
+    const res = await fetch('/api/audit');
+    const d = await res.json();
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '';
+    (d.data || []).forEach(a => {
+      const pill = a.type === 'RECEIVE' ? 'status-receive' : 'status-issue';
+      body.innerHTML += `<tr>
+        <td style="color:var(--muted)">${a.created_at.split('T')[0]}</td>
+        <td><span class="status-pill ${pill}">${a.type}</span></td>
+        <td>${a.item_number}</td>
+        <td>${a.quantity}</td>
+        <td>${a.username}</td>
+      </tr>`;
+    });
+  }
+
+  // --- SCANNER ---
+  let scannerActive = false;
+  let videoStream = null;
+
+  async function startScan(targetId) {
+    const video = document.getElementById('scanner-video');
+    document.getElementById('modal-scanner').style.display = 'flex';
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = videoStream;
+      video.setAttribute("playsinline", true);
+      video.play();
+      scannerActive = true;
+      requestAnimationFrame(() => tick(targetId));
+    } catch (err) { alert("Camera error: " + err); }
+  }
+
+  function tick(targetId) {
+    if (!scannerActive) return;
+    const video = document.getElementById('scanner-video');
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      const canvas = document.createElement("canvas");
+      canvas.height = video.videoHeight; canvas.width = video.videoWidth;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imgData.data, imgData.width, imgData.height);
+      if (code) {
+        document.getElementById(targetId).value = code.data;
+        stopScan(); return;
       }
     }
+    requestAnimationFrame(() => tick(targetId));
+  }
 
-    async function loadInventory() {
-      const res = await fetch('/api/products');
-      const data = await res.json();
-      allProducts = data.products || [];
-      const body = document.getElementById('inventoryBody');
-      body.innerHTML = '';
-      
-      allProducts.forEach(p => {
-        const isLow = p.current_stock <= (p.min_stock || 0);
-        body.innerHTML += `
-          <tr>
-            <td><b>${p.item_number}</b></td>
-            <td>${p.name}</td>
-            <td>${p.location_name || '---'}</td>
-            <td><span class="${isLow ? 'stock-low' : ''}">${p.current_stock}</span></td>
-            <td style="color:#94a3b8; font-size:12px">${p.min_stock || 0}</td>
-          </tr>
-        `;
-      });
-    }
+  function stopScan() {
+    if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+    document.getElementById('modal-scanner').style.display = 'none';
+    scannerActive = false;
+  }
 
-    async function submitAdd() {
-      const payload = {
-        item_number: document.getElementById('add_sku').value,
-        name: document.getElementById('add_name').value,
-        location_name: document.getElementById('add_loc').value,
-        current_stock: document.getElementById('add_qty').value,
-        min_stock: document.getElementById('add_min').value
-      };
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-      });
-      if(res.ok) { alert('Product Saved'); closeModals(); loadInventory(); }
-    }
-
-    async function submitStock(action) {
-      const sku = document.getElementById(action === 'receive' ? 'rec_sku' : 'iss_sku').value;
-      const amt = document.getElementById(action === 'receive' ? 'rec_amt' : 'iss_amt').value;
-      const res = await fetch(`/api/stock/${action}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ item_number: sku, amount: amt })
-      });
-      const data = await res.json();
-      if(res.ok) {
-        alert(`${action.toUpperCase()} Successful. New stock: ${data.current_stock}`);
-        closeModals();
-        loadInventory();
-      } else {
-        alert('Error: ' + data.error);
-      }
-    }
-
-    async function loadAudit() {
-      const res = await fetch('/api/audit');
-      const data = await res.json();
-      const body = document.getElementById('auditBody');
-      body.innerHTML = '';
-      (data.data || []).forEach(a => {
-        body.innerHTML += `
-          <tr>
-            <td style="font-size:12px">${a.created_at.split('T')[0]}</td>
-            <td>${a.type}</td>
-            <td>${a.item_number}</td>
-            <td>${a.quantity}</td>
-            <td>${a.username}</td>
-          </tr>
-        `;
-      });
-    }
-
-    // Initial load
-    loadInventory();
-  </script>
+  loadInventory();
+</script>
 </body>
 </html>

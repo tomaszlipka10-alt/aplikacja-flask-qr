@@ -99,9 +99,9 @@ def _sb_list_audit(limit: int = 200) -> list[dict]:
     rows = _supabase_request("GET", os.getenv("SUPABASE_AUDIT_TABLE", "audit_log"), params={"select": "id,action,item_number,name,qty,location,username,created_at", "order": "created_at.desc", "limit": str(limit)}) or []
     return [{"created_at": r.get("created_at"), "type": r.get("action"), "item_number": r.get("item_number"), "quantity": r.get("qty"), "location_name": r.get("location"), "username": r.get("username")} for r in rows]
 
-# ------------------------------------------------------------
-# App Config
-# ------------------------------------------------------------
+# ----------------------------
+# App
+# ----------------------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY") or "dev-secret"
 
@@ -162,11 +162,10 @@ with app.app_context():
         db.session.add(User(username="admin", password_hash=generate_password_hash("admin123"), is_admin=True))
         db.session.commit()
 
-# ------------------------------------------------------------
-# Routes
-# ------------------------------------------------------------
+# --- HEALTH CHECK FOR RENDER ---
 @app.route("/health")
-def health(): return "OK", 200
+def health():
+    return "OK", 200
 
 @app.route("/")
 @login_required
