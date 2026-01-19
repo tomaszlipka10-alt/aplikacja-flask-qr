@@ -1,241 +1,553 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>BTV Inventory</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background:#0f172a;
-            color:#e5e7eb;
-            margin:0;
-        }
-        header {
-            padding:16px;
-            background:#020617;
-            text-align:center;
-            font-size:22px;
-            font-weight:bold;
-        }
-        .dashboard {
-            display:grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
-            gap:16px;
-            padding:20px;
-        }
-        .tile {
-            background:#020617;
-            border:1px solid #1e293b;
-            border-radius:12px;
-            padding:40px 20px;
-            text-align:center;
-            font-size:20px;
-            cursor:pointer;
-            transition:.2s;
-        }
-        .tile:hover {
-            background:#020617;
-            border-color:#38bdf8;
-        }
-        .hidden { display:none; }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BTVenloStorage</title>
+  <style>
+    :root{
+      --bg: #ffffff;
+      --card: #ffffff;
+      --text: #0b1b3a;
+      --muted: #5b6a88;
+      --border: rgba(17, 41, 84, .12);
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-100: #eaf2ff;
+      --sidebar: #0f2a5f;
+      --sidebar2:#123372;
+      --shadow: 0 10px 30px rgba(10, 25, 60, .10);
+      --radius: 16px;
+    }
 
-        .panel {
-            padding:20px;
-        }
-        button {
-            background:#38bdf8;
-            color:#020617;
-            border:none;
-            padding:10px 16px;
-            border-radius:8px;
-            cursor:pointer;
-            font-size:14px;
-            margin-right:8px;
-        }
-        button.secondary {
-            background:#64748b;
-            color:white;
-        }
-        table {
-            width:100%;
-            border-collapse:collapse;
-            margin-top:16px;
-        }
-        th, td {
-            border:1px solid #1e293b;
-            padding:8px;
-            text-align:left;
-        }
-        th {
-            background:#020617;
-        }
-        input {
-            padding:8px;
-            border-radius:6px;
-            border:1px solid #1e293b;
-            background:#020617;
-            color:white;
-            margin-right:8px;
-        }
-    </style>
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: var(--bg);
+    }
+
+    .app{display:flex; min-height:100vh;}
+
+    .sidebar{
+      position:sticky;
+      top:0;
+      height:100vh;
+      width:72px;
+      flex: 0 0 72px;
+      background: linear-gradient(180deg, var(--sidebar), var(--sidebar2));
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:10px 8px;
+      gap:10px;
+    }
+
+    .nav{
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-top:6px;
+      flex: 1;
+      align-items:center;
+    }
+
+    .navbtn{
+      width:52px;
+      height:52px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      user-select:none;
+      font-size:22px;
+      transition: transform .05s ease, background .15s ease;
+    }
+    .navbtn:active{transform:scale(.98)}
+    .navbtn:hover{background: rgba(255,255,255,.10)}
+    .navbtn.active{background: rgba(59,130,246,.26); border-color: rgba(255,255,255,.22)}
+
+    .navbottom{width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; padding-bottom:6px;}
+
+    .main{flex:1; min-width:0;}
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid var(--border);
+    }
+
+    .topbar-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* STYL LUPKI ZAMIAST PRZYCISKU */
+    .search-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search-container input {
+      padding: 10px 15px 10px 38px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #f1f5f9;
+      outline: none;
+      width: 220px;
+      font-size: 14px;
+      transition: width 0.3s;
+    }
+    .search-container input:focus {
+      width: 280px;
+      border-color: var(--blue-500);
+      background: #fff;
+    }
+    .search-container::before {
+      content: "🔍";
+      position: absolute;
+      left: 12px;
+      font-size: 14px;
+      opacity: 0.5;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:800;
+      letter-spacing:.2px;
+      font-size:20px;
+    }
+
+    .brand-dot{
+      width:12px;height:12px;border-radius:999px;
+      background: var(--blue-600);
+      box-shadow: 0 0 0 5px rgba(37,99,235,.18);
+    }
+
+    .container{
+      max-width:1100px;
+      margin: 0 auto;
+      padding:16px;
+    }
+
+    .hint{color:var(--muted); margin: 6px 0 14px; font-size:14px}
+
+    .card{
+      background: var(--card);
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:16px;
+    }
+
+    .card h2{margin:0 0 6px; font-size:18px}
+
+    .pillgrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 14px;
+      border:1px solid var(--border);
+      border-radius: 14px;
+      background: #fff;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .pill:hover{background: var(--blue-100)}
+
+    .pill .left{display:flex; align-items:center; gap:10px}
+    .pill .ic{width:32px;height:32px;border-radius:12px;background: var(--blue-100); display:flex;align-items:center;justify-content:center; font-size:18px}
+
+    .small{font-size:13px; color:var(--muted)}
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(10,25,60,.35);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+      padding:16px;
+    }
+    .modal{
+      width: min(560px, 100%);
+      background:#fff;
+      border-radius: 18px;
+      border:1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,.18);
+      overflow:hidden;
+    }
+    .modal-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 16px;
+      border-bottom:1px solid var(--border);
+      background: #fbfdff;
+    }
+    .modal-title{font-weight:800}
+    .modal-body{padding:16px}
+    .row{display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:12px}
+    label{font-size:12px; color:var(--muted); font-weight:700}
+    input{
+      width:100%;
+      padding:12px 12px;
+      border-radius: 12px;
+      border:1px solid var(--border);
+      outline:none;
+      font-size:14px;
+    }
+    input:focus{border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 4px rgba(37,99,235,.12)}
+
+    .scanrow{display:flex; gap:10px}
+    .scanrow input{flex:1}
+    .scanbtn{white-space:nowrap}
+
+    .modal-footer{display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--border); background:#fbfdff}
+
+    .alert{margin-top:10px; padding:10px 12px; border-radius: 12px; border:1px solid var(--border); background:#f7fbff; color: var(--text); font-size:13px; display:none}
+    .alert.bad{background:#fff5f5; border-color: rgba(220,38,38,.25); color:#7a1a1a}
+    .alert.ok{background:#f0fff6; border-color: rgba(22,163,74,.25); color:#0f5132}
+
+    .scanner{
+      display:none;
+      margin-top:12px;
+      border:1px solid var(--border);
+      border-radius: 14px;
+      overflow:hidden;
+      background:#000;
+    }
+    video{width:100%; height:auto; display:block}
+
+    @media (max-width: 520px){
+      .topbar-inner{padding:12px}
+      .container{padding:12px}
+      .brand{font-size:18px}
+      .sidebar{width:64px; flex-basis:64px}
+      .navbtn{width:48px;height:48px;border-radius:14px}
+      .search-container input { width: 150px; }
+      .search-container input:focus { width: 180px; }
+    }
+  </style>
 </head>
 <body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="nav" aria-label="Primary">
+      <button class="navbtn active" id="nav-dashboard" title="Dashboard" onclick="showView('dashboard')">🏠</button>
+      <button class="navbtn" id="nav-inventory" title="Inventory" onclick="showView('inventory')">📦</button>
+      <button class="navbtn" id="nav-audit" title="Audit" onclick="showView('audit')">✅</button>
+      <button class="navbtn" id="nav-admin" title="Admin" onclick="showView('admin')">⚙️</button>
+    </div>
 
-<header>BTV Inventory</header>
+    <div class="navbottom">
+      <button class="navbtn" title="Logout" onclick="logout()">🚪</button>
+    </div>
+  </aside>
 
-<!-- DASHBOARD -->
-<div class="dashboard" id="dashboard">
-    <div class="tile" onclick="openPanel('receive')">Receive</div>
-    <div class="tile" onclick="openPanel('issue')">Issue</div>
-    <div class="tile" onclick="openPanel('inventory')">Inventory</div>
-    <div class="tile" onclick="openPanel('audit')">Audit</div>
-</div>
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand" aria-label="App name">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <span id="pageTitle">BTVenloStorage</span>
+        </div>
+        <div class="search-container">
+          <input type="text" id="topSearch" placeholder="Search SKU or Name..." onkeyup="filterInventory()">
+        </div>
+      </div>
+    </header>
 
-<!-- RECEIVE -->
-<div class="panel hidden" id="receive">
-    <h2>Receive</h2>
-    <input id="r_item" placeholder="Item number">
-    <input id="r_name" placeholder="Name">
-    <input id="r_qty" type="number" placeholder="Qty">
-    <input id="r_loc" placeholder="Location">
-    <br><br>
-    <button onclick="saveReceive()">Receive</button>
-    <button class="secondary" onclick="saveDelivery()">Delivery</button>
-    <button class="secondary" onclick="goBack()">Back</button>
-</div>
+    <div class="container">
+      <div class="hint" id="pageHint">Tip: add products first (ID + name + qty + location).</div>
 
-<!-- ISSUE -->
-<div class="panel hidden" id="issue">
-    <h2>Issue</h2>
-    <input id="i_item" placeholder="Item number">
-    <input id="i_qty" type="number" placeholder="Qty">
-    <br><br>
-    <button onclick="saveIssue()">Issue</button>
-    <button class="secondary" onclick="goBack()">Back</button>
-</div>
+      <section id="view-dashboard" class="view">
+        <div class="card">
+          <h2>Dashboard</h2>
+          <div class="small">Wybierz akcję:</div>
+          <div class="pillgrid" style="margin-top:12px">
+            <div class="pill" onclick="openAddProductModal()">
+              <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
+              <div class="small">ID + name + qty + location</div>
+            </div>
+            <div class="pill" onclick="openStockModal('receive')">
+              <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
+              <div class="small">Scan & Add</div>
+            </div>
+            <div class="pill" onclick="openStockModal('issue')">
+              <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
+              <div class="small">Scan & Remove</div>
+            </div>
+            <div class="pill" onclick="comingSoon('Picking lists')">
+              <div class="left"><div class="ic">📋</div><div>Picking lists</div></div>
+              <div class="small">Wkrótce</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-<!-- INVENTORY -->
-<div class="panel hidden" id="inventory">
-    <h2>Inventory</h2>
-    <table>
-        <thead>
-        <tr>
-            <th>Item</th>
-            <th>Name</th>
-            <th>Qty</th>
-            <th>Location</th>
-        </tr>
-        </thead>
-        <tbody id="inventoryBody"></tbody>
-    </table>
-    <br>
-    <button class="secondary" onclick="goBack()">Back</button>
-</div>
+      <section id="view-inventory" class="view" style="display:none">
+        <div class="card">
+          <h2>Inventory</h2>
+          <div class="small">Produkty w bazie:</div>
+          <div style="overflow:auto; margin-top:12px">
+            <table style="width:100%; border-collapse:collapse; font-size:14px" id="invTable">
+              <thead>
+                <tr style="text-align:left; color:var(--muted)">
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
+                </tr>
+              </thead>
+              <tbody id="productsBody"></tbody>
+            </table>
+          </div>
+          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">Brak produktów.</div>
+        </div>
+      </section>
 
-<!-- AUDIT -->
-<div class="panel hidden" id="audit">
-    <h2>Audit</h2>
-    <table>
-        <thead>
-        <tr>
-            <th>Time</th>
-            <th>Type</th>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Location</th>
-        </tr>
-        </thead>
-        <tbody id="auditBody"></tbody>
-    </table>
-    <br>
-    <button class="secondary" onclick="goBack()">Back</button>
+      <section id="view-audit" class="view" style="display:none">
+        <div class="card">
+          <h2>Audit</h2>
+          <div class="small">Logi działań.</div>
+          <div style="overflow:auto; margin-top:12px">
+            <table style="width:100%; border-collapse:collapse; font-size:14px">
+              <thead>
+                <tr style="text-align:left; color:var(--muted)">
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Time</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Action</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">User</th>
+                </tr>
+              </thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">Brak wpisów.</div>
+        </div>
+      </section>
+
+      <section id="view-admin" class="view" style="display:none">
+        <div class="card">
+          <h2>Admin</h2>
+          <div class="small">Zarządzanie systemem.</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+            <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
+          </div>
+          <div class="alert" id="adminAlert"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="addProductBackdrop">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">Add Product</div>
+          <button class="btn" onclick="closeAddProductModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <label>Product ID</label>
+            <div class="scanrow">
+              <input id="p_id" placeholder="ID">
+              <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
+            </div>
+            <label>Name</label>
+            <input id="p_name" placeholder="Name">
+            <label>Initial Quantity</label>
+            <input id="p_qty" type="number" value="0">
+            <label>Location</label>
+            <div class="scanrow">
+              <input id="p_loc" placeholder="Location">
+              <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
+            </div>
+          </div>
+          <div class="scanner" id="scannerBox"><video id="video" playsinline></video></div>
+          <div class="alert" id="addAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeAddProductModal()">Cancel</button>
+          <button class="btn primary" onclick="saveProduct()">Save Product</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="stockBackdrop">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title" id="stockTitle">Stock</div>
+          <button class="btn" onclick="closeStockModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <label>Product ID</label>
+            <div class="scanrow">
+              <input id="s_id" placeholder="ID">
+              <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
+            </div>
+            <label>Quantity</label>
+            <input id="s_qty" type="number" placeholder="Qty">
+          </div>
+          <div class="scanner" id="stockScannerBox"><video id="stockVideo" playsinline></video></div>
+          <div class="alert" id="stockAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeStockModal()">Cancel</button>
+          <button class="btn primary" onclick="submitStock()">Save Change</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
 <script>
-function openPanel(id){
-    document.getElementById('dashboard').classList.add('hidden');
-    document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-    if(id==='inventory') loadInventory();
-    if(id==='audit') loadAudit();
-}
-function goBack(){
-    document.getElementById('dashboard').classList.remove('hidden');
-    document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
-}
+  // --- FILTROWANIE I LUPKA ---
+  function filterInventory() {
+    let input = document.getElementById("topSearch");
+    let filter = input.value.toUpperCase();
+    
+    // Jeśli użytkownik wpisuje coś na Dashboardzie, przenieś go do Inventory
+    if (filter.length > 0 && document.getElementById('view-dashboard').style.display !== 'none') {
+      showView('inventory');
+    }
 
-async function saveReceive(){
-    await fetch('/api/products',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            item_number:r_item.value,
-            name:r_name.value,
-            current_stock:r_qty.value,
-            location_name:r_loc.value,
-            action:'receive'
-        })
+    let table = document.getElementById("productsBody");
+    let tr = table.getElementsByTagName("tr");
+    for (let i = 0; i < tr.length; i++) {
+      let tdID = tr[i].getElementsByTagName("td")[0];
+      let tdName = tr[i].getElementsByTagName("td")[1];
+      if (tdID || tdName) {
+        let txtValue = (tdID.textContent || tdID.innerText) + " " + (tdName.textContent || tdName.innerText);
+        tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+      }
+    }
+  }
+
+  // --- NAWIGACJA I WIDOKI ---
+  function showView(name){
+    const views = ['dashboard','inventory','audit','admin'];
+    views.forEach(v => {
+      document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
+      document.getElementById('nav-'+v).classList.toggle('active', v===name);
     });
-    alert('Received');
-}
+    if (name === 'inventory') loadProducts();
+    if (name === 'audit') loadAudit();
+  }
 
-async function saveDelivery(){
-    await fetch('/api/audit',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            type:'delivery',
-            item_number:r_item.value,
-            quantity:r_qty.value,
-            location_name:r_loc.value
-        })
-    });
-    alert('Delivery saved');
-}
-
-async function saveIssue(){
-    await fetch('/api/audit',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-            type:'issue',
-            item_number:i_item.value,
-            quantity:i_qty.value
-        })
-    });
-    alert('Issued');
-}
-
-async function loadInventory(){
-    const res = await fetch('/api/products');
-    const json = await res.json();
-    inventoryBody.innerHTML='';
-    (json.products||[]).forEach(p=>{
-        inventoryBody.innerHTML+=`<tr>
-            <td>${p.item_number}</td>
-            <td>${p.name}</td>
-            <td>${p.current_stock}</td>
-            <td>${p.location_name}</td>
+  // --- OBSŁUGA PRODUKTÓW I STOCK ---
+  async function loadProducts(){
+    const body = document.getElementById('productsBody');
+    body.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const items = data.products || [];
+      body.innerHTML = '';
+      if(items.length === 0) document.getElementById('productsEmpty').style.display = 'block';
+      items.forEach(p => {
+        body.innerHTML += `<tr>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.item_number}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.name}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.current_stock}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.location_name}</td>
         </tr>`;
-    });
-}
+      });
+      filterInventory(); // Odśwież filtr po załadowaniu
+    } catch(e) { body.innerHTML = 'Error loading inventory.'; }
+  }
 
-async function loadAudit(){
+  async function saveProduct(){
+    const payload = {
+      item_number: document.getElementById('p_id').value,
+      name: document.getElementById('p_name').value,
+      current_stock: document.getElementById('p_qty').value,
+      location_name: document.getElementById('p_loc').value
+    };
+    const res = await fetch('/api/products', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(res.ok) { closeAddProductModal(); loadProducts(); }
+  }
+
+  let stockMode = 'receive';
+  function openStockModal(mode) { 
+    stockMode = mode; 
+    document.getElementById('stockTitle').textContent = mode === 'receive' ? 'Receive' : 'Issue';
+    document.getElementById('stockBackdrop').style.display = 'flex'; 
+  }
+  function closeStockModal() { document.getElementById('stockBackdrop').style.display = 'none'; stopStockScan(); }
+  function openAddProductModal() { document.getElementById('addProductBackdrop').style.display = 'flex'; }
+  function closeAddProductModal() { document.getElementById('addProductBackdrop').style.display = 'none'; stopScan(); }
+
+  async function submitStock(){
+    const payload = {
+      item_number: document.getElementById('s_id').value,
+      amount: document.getElementById('s_qty').value
+    };
+    const res = await fetch('/api/stock/' + stockMode, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if(res.ok) { closeStockModal(); loadProducts(); }
+  }
+
+  async function loadAudit(){
     const res = await fetch('/api/audit');
-    const json = await res.json();
-    auditBody.innerHTML='';
-    (json.data||[]).forEach(a=>{
-        auditBody.innerHTML+=`<tr>
-            <td>${a.created_at}</td>
-            <td>${a.type}</td>
-            <td>${a.item_number}</td>
-            <td>${a.quantity}</td>
-            <td>${a.location_name||''}</td>
-        </tr>`;
+    const data = await res.json();
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '';
+    (data.data || []).forEach(r => {
+      body.innerHTML += `<tr>
+        <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${r.created_at}</td>
+        <td>${r.type}</td><td>${r.item_number}</td><td>-</td><td>${r.quantity}</td><td>${r.location_name}</td><td>${r.username}</td>
+      </tr>`;
     });
-}
-</script>
+  }
 
+  // --- SKANER (uproszczony placeholder) ---
+  function startScan(m) { alert('Skanowanie: ' + m + ' (wersja demo)'); }
+  function stopScan() {}
+  function startScanStock(id) { alert('Skanowanie SKU (wersja demo)'); }
+  function stopStockScan() {}
+  function logout() { window.location.href = '/logout'; }
+  function comingSoon(m) { alert(m + ' coming soon'); }
+  async function backupToGitHub() { alert('Backup started...'); }
+
+  showView('dashboard');
+</script>
 </body>
 </html>
