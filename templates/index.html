@@ -275,28 +275,28 @@
     </header>
 
     <div class="container">
-      <div class="hint" id="pageHint">Tip: dodaj produkty do bazy, a następnie używaj Przyjęcia/Wydania.</div>
+      <div class="hint" id="pageHint">Tip: Add products to the database first, then use Receive/Issue actions.</div>
 
       <section id="view-dashboard" class="view">
         <div class="card">
           <h2>Dashboard</h2>
-          <div class="small">Wybierz akcję:</div>
+          <div class="small">Choose an action:</div>
           <div class="pillgrid" style="margin-top:12px">
             <div class="pill" onclick="openAddProductModal()">
               <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
-              <div class="small">Dodaj nowy SKU do bazy</div>
+              <div class="small">Register new SKU in database</div>
             </div>
             <div class="pill" onclick="openStockModal('receive')">
-              <div class="left"><div class="ic">⬇️</div><div>Przyjęcie materiału</div></div>
-              <div class="small">Zwiększ stan (Dostawa)</div>
+              <div class="left"><div class="ic">⬇️</div><div>Receive Goods</div></div>
+              <div class="small">Increase stock (Delivery)</div>
             </div>
             <div class="pill" onclick="openStockModal('issue')">
-              <div class="left"><div class="ic">⬆️</div><div>Wydanie materiału</div></div>
-              <div class="small">Zmniejsz stan (Wydanie)</div>
+              <div class="left"><div class="ic">⬆️</div><div>Issue Goods</div></div>
+              <div class="small">Decrease stock (Usage)</div>
             </div>
             <div class="pill" onclick="comingSoon('Picking lists')">
               <div class="left"><div class="ic">📋</div><div>Picking lists</div></div>
-              <div class="small">Wkrótce</div>
+              <div class="small">Coming soon</div>
             </div>
           </div>
         </div>
@@ -305,12 +305,12 @@
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
-          <div class="small">Produkty w bazie:</div>
+          <div class="small">Current stock in database:</div>
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
                 <tr style="text-align:left; color:var(--muted)">
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID / SKU</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
@@ -319,21 +319,21 @@
               <tbody id="productsBody"></tbody>
             </table>
           </div>
-          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">Brak produktów.</div>
+          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">No products found.</div>
         </div>
       </section>
 
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
-          <h2>Audit</h2>
-          <div class="small">Ostatnie logi działań.</div>
+          <h2>Audit Log</h2>
+          <div class="small">History of recent activities.</div>
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
                 <tr style="text-align:left; color:var(--muted)">
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Time</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Action</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">SKU</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
                 </tr>
@@ -341,14 +341,14 @@
               <tbody id="auditBody"></tbody>
             </table>
           </div>
-          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">Brak wpisów.</div>
+          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">No logs available.</div>
         </div>
       </section>
 
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
-          <h2>Admin</h2>
-          <div class="small">Backup do GitHub tworzy commit w repo.</div>
+          <h2>Admin Tools</h2>
+          <div class="small">GitHub backup creates a commit in your repository.</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
             <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
             <button class="btn" onclick="showGitHubVerify()">How to verify</button>
@@ -367,7 +367,7 @@
         <div class="modal-body">
           <div class="row">
             <div>
-              <label>Product ID (manual or QR)</label>
+              <label>Product ID (manual or SKU|Name QR)</label>
               <div class="scanrow">
                 <input id="p_id" placeholder="e.g. 100234" />
                 <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
@@ -378,7 +378,7 @@
               <input id="p_name" placeholder="e.g. Screw M6" />
             </div>
             <div>
-              <label>Quantity</label>
+              <label>Initial Quantity</label>
               <input id="p_qty" type="number" min="0" placeholder="e.g. 10" />
             </div>
             <div>
@@ -396,7 +396,7 @@
         </div>
         <div class="modal-footer">
           <button class="btn" onclick="closeAddProductModal()">Cancel</button>
-          <button class="btn primary" onclick="saveProduct()">Save</button>
+          <button class="btn primary" onclick="saveProduct()">Save Product</button>
         </div>
       </div>
     </div>
@@ -428,7 +428,7 @@
         </div>
         <div class="modal-footer">
           <button class="btn" onclick="closeStockModal()">Cancel</button>
-          <button class="btn primary" onclick="submitStock()">Save Action</button>
+          <button class="btn primary" onclick="submitStock()">Confirm Action</button>
         </div>
       </div>
     </div>
@@ -455,9 +455,10 @@
 
   function openAddProductModal(){ document.getElementById('addProductBackdrop').style.display = 'flex'; clearAddAlert(); }
   function closeAddProductModal(){ stopScan(); document.getElementById('addProductBackdrop').style.display = 'none'; }
+  
   function openStockModal(mode){
     stockMode = mode;
-    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Przyjęcie (Receive)' : 'Wydanie (Issue)';
+    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Receive Goods' : 'Issue Goods';
     document.getElementById('stockBackdrop').style.display = 'flex';
     document.getElementById('s_id').value = '';
     document.getElementById('s_qty').value = '';
@@ -469,6 +470,7 @@
   function clearAddAlert(){ document.getElementById('addAlert').style.display = 'none'; }
   function setStockAlert(m, t){ const e = document.getElementById('stockAlert'); e.className = 'alert ' + (t||''); e.style.display = 'block'; e.textContent = m; }
   function clearStockAlert(){ document.getElementById('stockAlert').style.display = 'none'; }
+  function setAdminAlert(m, t){ const e = document.getElementById('adminAlert'); e.className = 'alert ' + (t||''); e.style.display = 'block'; e.textContent = m; }
 
   async function loadProducts(){
     const body = document.getElementById('productsBody');
@@ -476,12 +478,16 @@
     const res = await fetch('/api/products');
     const data = await res.json();
     body.innerHTML = '';
-    (data.products || []).forEach(p => {
+    const prods = data.products || data.data || [];
+    if(prods.length === 0) document.getElementById('productsEmpty').style.display = 'block';
+    else document.getElementById('productsEmpty').style.display = 'none';
+
+    prods.forEach(p => {
       body.innerHTML += `<tr>
         <td>${p.item_number}</td>
         <td>${p.name}</td>
         <td>${p.current_stock}</td>
-        <td>${p.location_name}</td>
+        <td>${p.location_name || ''}</td>
       </tr>`;
     });
   }
@@ -491,7 +497,11 @@
     const res = await fetch('/api/audit');
     const data = await res.json();
     body.innerHTML = '';
-    (data.data || []).forEach(a => {
+    const logs = data.data || [];
+    if(logs.length === 0) document.getElementById('auditEmpty').style.display = 'block';
+    else document.getElementById('auditEmpty').style.display = 'none';
+
+    logs.forEach(a => {
       body.innerHTML += `<tr>
         <td>${a.created_at.slice(0,16).replace('T',' ')}</td>
         <td>${a.type || a.action}</td>
@@ -513,8 +523,8 @@
         location_name: document.getElementById('p_loc').value
       })
     });
-    if(res.ok) { setAddAlert('Saved ✔', 'ok'); loadProducts(); }
-    else setAddAlert('Error saving', 'bad');
+    if(res.ok) { setAddAlert('Saved successfully ✔', 'ok'); loadProducts(); }
+    else { const e = await res.json(); setAddAlert(e.error || 'Error saving', 'bad'); }
   }
 
   async function submitStock(){
@@ -523,49 +533,71 @@
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         item_number: document.getElementById('s_id').value,
-        qty: document.getElementById('s_qty').value
+        amount: document.getElementById('s_qty').value
       })
     });
-    if(res.ok) { setStockAlert('Action Success ✔', 'ok'); loadProducts(); }
+    if(res.ok) { setStockAlert('Action confirmed ✔', 'ok'); loadProducts(); }
     else { const e = await res.json(); setStockAlert(e.error || 'Error', 'bad'); }
   }
 
   async function startScan(mode){
     scanMode = mode;
-    if(!('BarcodeDetector' in window)) return alert('Scanner not supported in this browser');
+    if(!('BarcodeDetector' in window)) return alert('Scanner not supported in this browser (use Chrome/Edge on Android)');
     detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const v = document.getElementById('video');
-    v.srcObject = stream; v.play();
-    document.getElementById('scannerBox').style.display = 'block';
-    scanTimer = setInterval(async () => {
-      const codes = await detector.detect(v);
-      if(codes.length > 0) {
-        applyValue(codes[0].rawValue);
-        stopScan();
-      }
-    }, 300);
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        const v = document.getElementById('video');
+        v.srcObject = stream; v.play();
+        document.getElementById('scannerBox').style.display = 'block';
+        scanTimer = setInterval(async () => {
+          const codes = await detector.detect(v);
+          if(codes.length > 0) {
+            applyValue(codes[0].rawValue);
+            stopScan();
+          }
+        }, 300);
+    } catch(e) { alert('Camera error: ' + e.message); }
   }
 
   async function startScanStock(id){
     if(!('BarcodeDetector' in window)) return alert('Scanner not supported');
     detector = new BarcodeDetector({ formats: ['qr_code', 'code_128'] });
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const v = document.getElementById('stockVideo');
-    v.srcObject = stream; v.play();
-    document.getElementById('stockScannerBox').style.display = 'block';
-    scanTimer = setInterval(async () => {
-      const codes = await detector.detect(v);
-      if(codes.length > 0) {
-        document.getElementById(id).value = codes[0].rawValue;
-        stopScan();
-      }
-    }, 300);
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        const v = document.getElementById('stockVideo');
+        v.srcObject = stream; v.play();
+        document.getElementById('stockScannerBox').style.display = 'block';
+        scanTimer = setInterval(async () => {
+          const codes = await detector.detect(v);
+          if(codes.length > 0) {
+            applyValueStock(codes[0].rawValue, id);
+            stopScan();
+          }
+        }, 300);
+    } catch(e) { alert('Camera error: ' + e.message); }
   }
 
+  // --- FIX DLA ROZDZIELANIA SKU|NAME ---
   function applyValue(val){
-    if(scanMode === 'location') document.getElementById('p_loc').value = val;
-    else document.getElementById('p_id').value = val;
+    if(scanMode === 'location') {
+        document.getElementById('p_loc').value = val.trim();
+    } else {
+        if(val.includes('|')) {
+            const parts = val.split('|');
+            document.getElementById('p_id').value = parts[0].trim();
+            if(parts[1]) document.getElementById('p_name').value = parts[1].trim();
+        } else {
+            document.getElementById('p_id').value = val.trim();
+        }
+    }
+  }
+
+  function applyValueStock(val, targetId){
+    if(val.includes('|')) {
+        document.getElementById(targetId).value = val.split('|')[0].trim();
+    } else {
+        document.getElementById(targetId).value = val.trim();
+    }
   }
 
   function stopScan(){
@@ -579,11 +611,13 @@
     setAdminAlert('Starting backup...', '');
     const res = await fetch('/api/admin/backup/github', {method: 'POST'});
     const d = await res.json();
-    setAdminAlert(d.message, res.ok ? 'ok' : 'bad');
+    setAdminAlert(d.message || (res.ok ? 'Backup OK' : 'Error'), res.ok ? 'ok' : 'bad');
   }
 
+  function showGitHubVerify(){ alert('Check your GitHub repository commits to verify backup.'); }
   function logout(){ window.location.href = '/logout'; }
   function comingSoon(m){ alert(m + ' coming soon'); }
+  
   showView('dashboard');
 </script>
 </body>
