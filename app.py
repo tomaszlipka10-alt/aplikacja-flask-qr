@@ -297,13 +297,10 @@ def api_admin_backup_github():
 # Database Init
 # ----------------------------
 with app.app_context():
-    # UWAGA: Ta linia usunie starą bazę z błędem i stworzy nową poprawną.
-    # Po jednym poprawnym uruchomieniu możesz ją usunąć lub zakomentować.
+    # Ta linia JEDEN RAZ wyczyści wszystko i stworzy bazę od nowa z kolumną is_admin
     db.drop_all() 
-    
     db.create_all()
     
-    # Lista użytkowników do utworzenia
     users_to_create = [
         {"username": "TomaszLipka", "password": "Welkom01", "is_admin": True},
         {"username": "JulesvdHam", "password": "Welkom01", "is_admin": True},
@@ -311,14 +308,12 @@ with app.app_context():
     ]
     
     for u_data in users_to_create:
-        existing = User.query.filter_by(username=u_data["username"]).first()
-        if not existing:
-            new_user = User(
-                username=u_data["username"],
-                password_hash=generate_password_hash(u_data["password"]),
-                is_admin=u_data["is_admin"]
-            )
-            db.session.add(new_user)
+        new_user = User(
+            username=u_data["username"],
+            password_hash=generate_password_hash(u_data["password"]),
+            is_admin=u_data["is_admin"]
+        )
+        db.session.add(new_user)
     
     db.session.commit()
 
