@@ -418,32 +418,8 @@ def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, mess
 # ------------------------------------------------------------
 # Boot-time schema init
 # ------------------------------------------------------------
-def ensure_schema():
-    with app.app_context():
-        db.create_all()
-        insp = inspect(db.engine)
-        tables = set(insp.get_table_names())
-
-        if "user" in tables:
-            # Sprawdzamy i dodajemy brakujące kolumny w tabeli user
-            if not _has_column("user", "password_hash"):
-                db.session.execute(sql_text("ALTER TABLE user ADD COLUMN password_hash VARCHAR(255)"))
-            if not _has_column("user", "is_admin"):
-                db.session.execute(sql_text("ALTER TABLE user ADD COLUMN is_admin BOOLEAN DEFAULT 0"))
-            if not _has_column("user", "full_name"):
-                db.session.execute(sql_text("ALTER TABLE user ADD COLUMN full_name VARCHAR(100)"))
-            
-            db.session.commit()
-
-        # Inicjalizacja admina jeśli nie istnieje
-        if not User.query.filter_by(username="admin").first():
-            db.session.add(User(
-                username="admin",
-                password_hash=generate_password_hash(os.environ.get("ADMIN_PASSWORD", "admin123")),
-                full_name="Administrator",
-                is_admin=True
-            ))
-            db.session.commit()
+with app.app_context():
+    ensure_schema()
 
 
 # ------------------------------------------------------------
