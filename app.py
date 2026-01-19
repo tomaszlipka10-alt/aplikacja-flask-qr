@@ -36,83 +36,90 @@ def _supabase_enabled() -> bool:
 def _supabase_request(method: str, table: str, params: Optional[dict] = None, json_body: Optional[Union[dict, list]] = None, prefer: Optional[str] = None) -> Any:
     base = (os.getenv("SUPABASE_URL") or "").rstrip("/")
     key = _supabase_key()
-    url = f"{base}/rest/v1/{table.lstrip('/')}"
+    url = f"{base}/rest/v1/{table}"
     if params:
-        query = urllib.parse.urlencode(params, doseq=True, safe=",:")
-        url = f"{url}?{query}"
-    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Accept": "application/json"}
-    body = None
+        url += "?" + urllib.parse.urlencode(params)
+    
+    data = None
     if json_body is not None:
-        headers["Content-Type"] = "application/json"
-        body = json.dumps(json_body).encode("utf-8")
-        headers["Prefer"] = prefer or "return=representation"
-    elif prefer:
-        headers["Prefer"] = prefer
-    req = urllib.request.Request(url, data=body, headers=headers, method=method.upper())
-    try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            raw = resp.read()
-            return json.loads(raw.decode("utf-8")) if raw else None
-    except Exception as e:
-        print(f"Supabase error: {e}")
-        return None
+        data = json.dumps(json_body).encode("utf-8")
+    
+    req = urllib.request.Request(url, data=data, method=method)
+    req.add_header("apikey", key)
+    req.add_header("Authorization", f"Bearer {key}")
+    req.add_header("Content-Type", "application/json")
+    if prefer:
+        req.add_header("Prefer", prefer)
+    
+    with urllib.request.urlopen(req) as response:
+        if response.status in [201, 204]:
+            return {}
+        return json.loads(response.read().decode("utf-8"))
 
-def _sb_row_to_api(row: dict) -> dict:
-    return {
-        "id": row.get("id"),
-        "item_number": row.get("sku"),
-        "name": row.get("name"),
-        "current_stock": row.get("quantity", 0),
-        "location_name": row.get("location"),
-        "created_at": row.get("created_at"),
+def _sb_list_products():
+    return _supabase_request("GET", "products", params={"select": "*", "order": "item_number"})
+
+def _sb_upsert_product(data: dict):
+    return _supabase_request("POST", "products", json_body=data, prefer="resolution=merge-duplicates")
+
+def _sb_get_product(sku: str):
+    res = _supabase_request("GET", "products", params={"item_number": f"eq.{sku}", "select": "*"})
+    return res[0] if res else None
+
+def _sb_set_product_quantity(sku: str, new_qty: int):
+    return _supabase_request("PATCH", "products", params={"item_number": f"eq.{sku}"}, json_body={"current_stock": new_qty})
+
+def _sb_list_audit():
+    return _supabase_request("GET", "audit_log", params={"select": "*", "order": "created_at.desc", "limit": "100"})
+
+def _sb_insert_audit(action: str, sku: str, name: str, qty: int, loc: str, user: str):
+    body = {
+        "action": action,
+        "item_number": sku,
+        "name": name,
+        "qty": qty,
+        "location": loc,
+        "username": user
     }
-
-def _sb_list_products(limit: int = 500) -> List[dict]:
-    rows = _supabase_request("GET", "products", params={"select": "id,sku,name,quantity,location,created_at", "order": "created_at.desc", "limit": str(limit)}) or []
-    return [_sb_row_to_api(r) for r in rows]
-
-def _sb_upsert_product(payload: dict) -> dict:
-    row = {
-        "sku": payload.get("item_number"),
-        "name": payload.get("name"),
-        "quantity": payload.get("current_stock", 0),
-        "location": payload.get("location_name"),
-    }
-    created = _supabase_request("POST", "products", params={"on_conflict": "sku"}, json_body=row, prefer="return=representation,resolution=merge-duplicates") or []
-    return _sb_row_to_api(created[0]) if created else _sb_row_to_api(row)
-
-def _sb_get_product_by_sku(sku: str) -> Optional[dict]:
-    rows = _supabase_request("GET", "products", params={"select": "*", "sku": f"eq.{sku}", "limit": "1"}) or []
-    return rows[0] if rows else None
-
-def _sb_set_product_quantity(sku: str, new_qty: int) -> dict:
-    updated = _supabase_request("PATCH", "products", params={"sku": f"eq.{sku}"}, json_body={"quantity": new_qty}) or []
-    return updated[0] if updated else {}
-
-def _sb_insert_audit(action, item_number, name, qty, location, username):
-    payload = {"action": action, "item_number": item_number, "name": name, "qty": qty, "location": location, "username": username}
-    _supabase_request("POST", "audit_log", json_body={k: v for k, v in payload.items() if v is not None})
-
-def _sb_list_audit(limit=100):
-    rows = _supabase_request("GET", "audit_log", params={"select": "*", "order": "created_at.desc", "limit": str(limit)}) or []
-    return [{"created_at": r.get("created_at"), "type": r.get("action"), "item_number": r.get("item_number"), "quantity": r.get("qty"), "username": r.get("username")} for r in rows]
+    return _supabase_request("POST", "audit_log", json_body=body)
 
 # ----------------------------
-# App Setup
+# GitHub Helpers
+# ----------------------------
+def github_put_file(repo: str, path: str, token: str, content_bytes: bytes, message: str, branch: str = "main"):
+    base_url = f"https://api.github.com/repos/{repo}/contents/{path}"
+    sha = None
+    try:
+        req_get = Request(base_url)
+        req_get.add_header("Authorization", f"token {token}")
+        with urlopen(req_get) as r:
+            curr = json.loads(r.read().decode("utf-8"))
+            sha = curr.get("sha")
+    except Exception:
+        pass
+
+    data = {
+        "message": message,
+        "content": base64.b64encode(content_bytes).decode("utf-8"),
+        "branch": branch
+    }
+    if sha:
+        data["sha"] = sha
+
+    req_put = Request(base_url, data=json.dumps(data).encode("utf-8"), method="PUT")
+    req_put.add_header("Authorization", f"token {token}")
+    req_put.add_header("Content-Type", "application/json")
+    with urlopen(req_put) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+# ----------------------------
+# Flask App Setup
 # ----------------------------
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-
-db_url = os.environ.get("DATABASE_URL")
-if db_url:
-    if db_url.startswith("postgres://"): db_url = db_url.replace("postgres://", "postgresql://", 1)
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-else:
-    sqlite_dir = Path("/var/data") if Path("/var/data").exists() else Path("/tmp")
-    sqlite_dir.mkdir(parents=True, exist_ok=True)
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{(sqlite_dir / 'warehouse.db').as_posix()}"
-
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-123")
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///warehouse.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -122,114 +129,105 @@ login_manager.login_view = "login"
 # ----------------------------
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    full_name = db.Column(db.String(100), default="")
-    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+    username = db.Column(db.String(100), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    item_number = db.Column(db.String(50), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    current_stock = db.Column(db.Integer, default=0, nullable=False)
-    location_name = db.Column(db.String(100), default="WH-1", nullable=False)
+    item_number = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(200))
+    current_stock = db.Column(db.Integer, default=0)
+    location_name = db.Column(db.String(100))
 
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, nullable=True)
-    action = db.Column(db.String(20), nullable=False)
-    amount = db.Column(db.Integer, nullable=False, default=0)
-    username = db.Column(db.String(80), nullable=False, default="")
-    created_at = db.Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
+    action = db.Column(db.String(50))
+    amount = db.Column(db.Integer)
+    username = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=dt.datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def admin_required(fn):
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not current_user.is_authenticated or not getattr(current_user, "is_admin", False):
-            return jsonify({"message": "Admin only"}), 403
-        return fn(*args, **kwargs)
-    return wrapper
-
-def ensure_schema():
-    with app.app_context():
-        db.create_all()
-        if not User.query.filter_by(username="admin").first():
-            db.session.add(User(username="admin", password_hash=generate_password_hash(os.environ.get("ADMIN_PASSWORD", "admin123")), full_name="Administrator", is_admin=True))
-            db.session.commit()
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            return jsonify({"error": "Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # ----------------------------
-# Routes & API
+# Routes
 # ----------------------------
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html", user=current_user)
+    return render_template("index.html")
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        user = User.query.filter_by(username=request.form.get("username", "").strip()).first()
-        if user and check_password_hash(user.password_hash, request.form.get("password", "")):
-            login_user(user)
-            return redirect(request.args.get("next") or url_for("index"))
+        u = User.query.filter_by(username=request.form.get("username")).first()
+        if u and check_password_hash(u.password_hash, request.form.get("password")):
+            login_user(u)
+            return redirect(url_for("index"))
         return render_template("login.html", error="Invalid credentials")
     return render_template("login.html")
 
 @app.route("/logout")
-@login_required
 def logout():
     logout_user()
     return redirect(url_for("login"))
 
+# API
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
-    if request.method == "GET":
-        if _supabase_enabled(): return jsonify({"ok": True, "products": _sb_list_products()})
-        prods = Product.query.order_by(Product.item_number.asc()).all()
-        mapped = [{"id":p.id,"item_number":p.item_number,"name":p.name,"current_stock":p.current_stock,"location_name":p.location_name} for p in prods]
-        return jsonify({"ok": True, "products": mapped})
-
-    data = request.get_json(force=True, silent=True) or {}
-    sku = data.get("item_number", "").strip()
-    name = data.get("name", "").strip()
-    if not sku or not name: return jsonify({"ok":False,"error":"Missing SKU or Name"}), 400
+    if request.method == "POST":
+        data = request.json
+        sku = data.get("item_number")
+        if _supabase_enabled():
+            _sb_upsert_product(data)
+            _sb_insert_audit("CREATE/UPDATE", sku, data.get("name",""), data.get("current_stock",0), data.get("location_name",""), current_user.username)
+            return jsonify({"ok": True})
+        
+        p = Product.query.filter_by(item_number=sku).first()
+        if p:
+            p.name = data.get("name", p.name)
+            p.current_stock = data.get("current_stock", p.current_stock)
+            p.location_name = data.get("location_name", p.location_name)
+        else:
+            p = Product(item_number=sku, name=data.get("name"), current_stock=data.get("current_stock"), location_name=data.get("location_name"))
+            db.session.add(p)
+        db.session.commit()
+        return jsonify({"ok": True})
 
     if _supabase_enabled():
-        res = _sb_upsert_product(data)
-        _sb_insert_audit("CREATE", sku, name, data.get("current_stock", 0), data.get("location_name"), current_user.username)
-        return jsonify({"ok": True, "product": res})
-
-    p = Product.query.filter_by(item_number=sku).first()
-    if p:
-        p.name, p.location_name, p.current_stock = name, data.get("location_name", "WH-1"), data.get("current_stock", 0)
-    else:
-        p = Product(item_number=sku, name=name, location_name=data.get("location_name", "WH-1"), current_stock=data.get("current_stock", 0))
-        db.session.add(p)
-    db.session.commit()
-    db.session.add(AuditLog(product_id=p.id, action="upsert", amount=p.current_stock, username=current_user.username))
-    db.session.commit()
-    return jsonify({"ok": True})
+        return jsonify({"products": _sb_list_products()})
+    prods = Product.query.all()
+    return jsonify({"products": [{"item_number": p.item_number, "name": p.name, "current_stock": p.current_stock, "location_name": p.location_name} for p in prods]})
 
 @app.route("/api/stock/<action>", methods=["POST"])
 @login_required
 def api_stock(action):
-    data = request.get_json(force=True, silent=True) or {}
-    sku = data.get("item_number", "").strip()
+    data = request.json
+    sku = data.get("item_number")
     amount = int(data.get("amount", 0))
-    if amount <= 0: return jsonify({"ok": False, "error": "Invalid amount"}), 400
 
     if _supabase_enabled():
-        row = _sb_get_product_by_sku(sku)
-        if not row: return jsonify({"ok":False,"error":"Product not found"}), 404
-        new_q = (row['quantity'] + amount) if action == "receive" else (row['quantity'] - amount)
-        if new_q < 0: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
+        row = _sb_get_product(sku)
+        if not row: return jsonify({"ok":False, "error":"Product not found in Supabase"}), 404
+        curr_q = int(row.get('current_stock') or 0)
+        if action == "receive": new_q = curr_q + amount
+        else:
+            new_q = curr_q - amount
+            if new_q < 0: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
         _sb_set_product_quantity(sku, new_q)
-        _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
+        _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location_name'], current_user.username)
         return jsonify({"ok":True, "current_stock": new_q})
 
     p = Product.query.filter_by(item_number=sku).first()
@@ -247,14 +245,73 @@ def api_stock(action):
 def api_audit():
     if _supabase_enabled(): return jsonify({"ok": True, "data": _sb_list_audit()})
     logs = db.session.query(AuditLog, Product).outerjoin(Product, AuditLog.product_id == Product.id).order_by(AuditLog.created_at.desc()).limit(100).all()
-    out = [{"created_at": l.AuditLog.created_at.isoformat(), "type": l.AuditLog.action, "item_number": l.Product.item_number if l.Product else "N/A", "quantity": l.AuditLog.amount, "username": l.AuditLog.username} for l in logs]
-    return jsonify({"ok": True, "data": out})
+    out = []
+    for l in logs:
+        out.append({
+            "created_at": l.AuditLog.created_at.isoformat(),
+            "action": l.AuditLog.action,
+            "item_number": l.Product.item_number if l.Product else "N/A",
+            "name": l.Product.name if l.Product else "N/A",
+            "qty": l.AuditLog.amount,
+            "location": l.Product.location_name if l.Product else "N/A",
+            "username": l.AuditLog.username
+        })
+    return jsonify({"audit": out})
 
-@app.route("/health")
-def health(): return "OK", 200
+def export_warehouse_json():
+    if _supabase_enabled():
+        return {"products": _sb_list_products(), "audit": _sb_list_audit(), "exported_at_utc": dt.datetime.utcnow().isoformat()}
+    prods = Product.query.all()
+    logs = AuditLog.query.all()
+    return {
+        "products": [{"item_number": p.item_number, "name": p.name, "current_stock": p.current_stock, "location": p.location_name} for p in prods],
+        "audit": [{"action": l.action, "amount": l.amount, "user": l.username, "time": l.created_at.isoformat()} for l in logs],
+        "exported_at_utc": dt.datetime.utcnow().isoformat()
+    }
+
+@app.route("/api/admin/backup/github", methods=["POST"])
+@login_required
+@admin_required
+def api_admin_backup_github():
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    repo = os.environ.get("GITHUB_REPO", "").strip()
+    backup_path = os.environ.get("GITHUB_BACKUP_PATH", "backups/warehouse-backup.json").strip()
+    if not token or not repo:
+        return jsonify({"message": "Missing GITHUB_TOKEN or GITHUB_REPO"}), 400
+
+    payload = export_warehouse_json()
+    content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    msg = f"Backup warehouse ({payload['exported_at_utc']})"
+    try:
+        github_put_file(repo=repo, path=backup_path, token=token, content_bytes=content, message=msg)
+        return jsonify({"message": "Backup to GitHub successful"})
+    except Exception as e:
+        return jsonify({"message": f"Backup failed: {str(e)}"}), 500
+
+# ----------------------------
+# Database Init
+# ----------------------------
+with app.app_context():
+    db.create_all()
+    
+    # Lista użytkowników do utworzenia
+    users_to_create = [
+        {"username": "TomaszLipka", "password": "Welkom01", "is_admin": True},
+        {"username": "JulesvdHam", "password": "Welkom01", "is_admin": True},
+        {"username": "CristianJipa", "password": "Welkom01", "is_admin": False},
+    ]
+    
+    for u_data in users_to_create:
+        existing = User.query.filter_by(username=u_data["username"]).first()
+        if not existing:
+            new_user = User(
+                username=u_data["username"],
+                password_hash=generate_password_hash(u_data["password"]),
+                is_admin=u_data["is_admin"]
+            )
+            db.session.add(new_user)
+    
+    db.session.commit()
 
 if __name__ == "__main__":
-    ensure_schema()
     app.run(debug=True)
-else:
-    ensure_schema()
