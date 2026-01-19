@@ -277,7 +277,6 @@
     <div class="container">
       <div class="hint" id="pageHint">Tip: add products first (ID + name + qty + location). Receive/Issue i picking dodamy później.</div>
 
-      <!-- DASHBOARD -->
       <section id="view-dashboard" class="view">
         <div class="card">
           <h2>Dashboard</h2>
@@ -303,7 +302,6 @@
         </div>
       </section>
 
-      <!-- INVENTORY -->
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
@@ -325,7 +323,6 @@
         </div>
       </section>
 
-      <!-- AUDIT -->
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
           <h2>Audit</h2>
@@ -352,7 +349,6 @@
         </div>
       </section>
 
-      <!-- ADMIN -->
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
           <h2>Admin</h2>
@@ -367,7 +363,6 @@
       </section>
     </div>
 
-    <!-- ADD PRODUCT MODAL -->
     <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-header">
@@ -421,7 +416,6 @@
   </main>
 </div>
 
-<!-- RECEIVE / ISSUE MODAL -->
 <div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
   <div class="modal">
     <div class="modal-header">
@@ -516,9 +510,9 @@
 
       setStockAlert('Zapisano ✔', 'ok');
 
-      // refresh inventory + audit if user is viewing them
+      // Odświeżenie danych jeśli widoczne
       loadProducts();
-      if (document.getElementById('view-audit').style.display !== 'none' && typeof loadAudit === 'function') {
+      if (document.getElementById('view-audit').style.display !== 'none') {
         loadAudit();
       }
     }catch(e){
@@ -551,7 +545,6 @@
           if(barcodes && barcodes.length){
             const raw = (barcodes[0].rawValue || '').trim();
             if(raw){
-              // If QR is JSON or ID|NAME — we take only ID part for stock move
               let idOnly = raw;
               try{
                 if(raw.startsWith('{') && raw.endsWith('}')){
@@ -588,6 +581,7 @@
 
 <script>
   function escapeHtml(s){
+    if(!s) return "";
     return String(s)
       .replaceAll('&','&amp;')
       .replaceAll('<','&lt;')
@@ -684,7 +678,7 @@
     }
   }
 
-  // ---------- Audit ----------
+  // ---------- Audit (FIXED) ----------
   async function loadAudit(){
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmpty');
@@ -695,7 +689,9 @@
       const res = await fetch('/api/audit');
       if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
-      const items = data.audit || data.data || [];
+      
+      // Obsługa różnych formatów odpowiedzi API
+      const items = data.audit || data.data || (Array.isArray(data) ? data : []);
 
       if(items.length === 0){
         empty.style.display = 'block';
@@ -703,20 +699,22 @@
       }
 
       for(const r of items){
-        const created = r.created_at ? String(r.created_at).replace('T',' ').replace('Z','') : '';
+        // Formatowanie daty: usuwamy T i Z dla czytelności
+        const created = r.created_at ? String(r.created_at).replace('T',' ').split('.')[0] : '';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(created)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name)}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(r.qty ?? ''))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.location ?? '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.username ?? '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.location)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.username)}</td>
         `;
         body.appendChild(tr);
       }
     }catch(e){
+      console.error("Audit load error:", e);
       empty.style.display = 'block';
       empty.textContent = 'Nie udało się pobrać logów audytu.';
     }
@@ -743,7 +741,6 @@
           name,
           current_stock: quantity,
           location_name: location,
-          // compat
           product_id,
           quantity,
           location
@@ -757,6 +754,7 @@
 
       setAddAlert('Zapisano ✔', 'ok');
       loadProducts();
+      if(document.getElementById('view-audit').style.display !== 'none') loadAudit();
     }catch(e){
       setAddAlert('Błąd połączenia podczas zapisu.', 'bad');
     }
@@ -888,4 +886,3 @@
 </script>
 </body>
 </html>
-
