@@ -291,7 +291,16 @@ def api_admin_backup_github():
 # ----------------------------
 # Database Init
 # ----------------------------
+# ... (reszta kodu bez zmian aż do sekcji Database Init) ...
+
+# ----------------------------
+# Database Init
+# ----------------------------
 with app.app_context():
+    # UWAGA: Ta linia usunie starą bazę z błędem i stworzy nową poprawną.
+    # Po jednym poprawnym uruchomieniu możesz ją usunąć lub zakomentować.
+    db.drop_all() 
+    
     db.create_all()
     
     # Lista użytkowników do utworzenia
