@@ -155,7 +155,6 @@ function openPanel(id){
     if(id==='inventory') loadInventory();
     if(id==='audit') loadAudit();
 }
-
 function goBack(){
     document.getElementById('dashboard').classList.remove('hidden');
     document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
@@ -169,11 +168,10 @@ async function saveReceive(){
             item_number: document.getElementById('r_item').value,
             name: document.getElementById('r_name').value,
             current_stock: document.getElementById('r_qty').value,
-            location_name: document.getElementById('r_loc').value,
-            action:'receive'
+            location_name: document.getElementById('r_loc').value
         })
     });
-    if(res.ok) alert('Received');
+    if(res.ok) alert('Product updated/added');
     else alert('Error saving product');
 }
 
@@ -200,10 +198,7 @@ async function saveIssue(){
         })
     });
     if(res.ok) alert('Issued');
-    else {
-        const err = await res.json();
-        alert('Error: ' + (err.error || 'Check stock'));
-    }
+    else alert('Error: Check stock or SKU');
 }
 
 async function loadInventory(){
@@ -233,7 +228,7 @@ async function loadAudit(){
             <td>${a.action || a.type}</td>
             <td>${a.item_number}</td>
             <td>${a.qty || a.quantity}</td>
-            <td>${a.location || a.location_name || ''}</td>
+            <td>${a.location_name||''}</td>
         </tr>`;
     });
 }
