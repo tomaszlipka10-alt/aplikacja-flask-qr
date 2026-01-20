@@ -6,775 +6,171 @@
   <title>BTVenloStorage</title>
   <style>
     :root{
-      --bg: #ffffff;
+      --bg: #f8fafc;
       --card: #ffffff;
       --text: #0b1b3a;
-      --muted: #5b6a88;
-      --border: rgba(17, 41, 84, .12);
-      --blue-700: #1d4ed8;
+      --muted: #64748b;
+      --border: #e2e8f0;
       --blue-600: #2563eb;
-      --blue-500: #3b82f6;
-      --blue-100: #eaf2ff;
-      --sidebar: #0f2a5f;
-      --sidebar2:#123372;
-      --shadow: 0 10px 30px rgba(10, 25, 60, .10);
-      --radius: 16px;
+      --sidebar: #0f172a;
+      --radius: 12px;
     }
-
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      color:var(--text);
-      background: var(--bg);
-    }
-
-    .app{display:flex; min-height:100vh;}
-
-    .sidebar{
-      position:sticky;
-      top:0;
-      height:100vh;
-      width:72px;
-      flex: 0 0 72px;
-      background: linear-gradient(180deg, var(--sidebar), var(--sidebar2));
-      color:#fff;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      padding:10px 8px;
-      gap:10px;
-    }
-
-    .nav{
-      width:100%;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      margin-top:6px;
-      flex: 1;
-      align-items:center;
-    }
-
-    .navbtn{
-      width:52px;
-      height:52px;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      user-select:none;
-      font-size:22px;
-      transition: transform .05s ease, background .15s ease;
-    }
-    .navbtn:active{transform:scale(.98)}
-    .navbtn:hover{background: rgba(255,255,255,.10)}
-    .navbtn.active{background: rgba(59,130,246,.26); border-color: rgba(255,255,255,.22)}
-
-    .navbottom{width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; padding-bottom:6px;}
-
-    .main{flex:1; min-width:0;}
-
-    .topbar{
-      position:sticky;
-      top:0;
-      z-index:10;
-      background: rgba(255,255,255,.92);
-      backdrop-filter: blur(10px);
-      border-bottom:1px solid var(--border);
-    }
-
-    .topbar-inner{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      padding:14px 16px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .brand{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      font-weight:800;
-      letter-spacing:.2px;
-      font-size:20px;
-    }
-
-    .brand-dot{
-      width:12px;height:12px;border-radius:999px;
-      background: var(--blue-600);
-      box-shadow: 0 0 0 5px rgba(37,99,235,.18);
-    }
-
-    .actions{display:flex; gap:10px; align-items:center;}
-
-    /* Style dla pola wyszukiwania w topbarze */
-    .search-container {
-      display: none; /* Ukryte domyślnie, pokazywane w Inventory */
-      align-items: center;
-      background: #f1f5f9;
-      border-radius: 12px;
-      padding: 4px 10px;
-      border: 1px solid var(--border);
-    }
-    .search-container input {
-      border: none;
-      background: transparent;
-      padding: 6px;
-      outline: none;
-      width: 150px;
-      font-size: 14px;
-    }
-    .search-icon { font-size: 18px; color: var(--muted); }
-
-    .btn{
-      border:1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      padding:10px 12px;
-      border-radius: 12px;
-      cursor:pointer;
-      font-weight:600;
-    }
-    .btn:hover{background: #f7faff}
-
-    .btn.primary{
-      background: var(--blue-600);
-      border-color: rgba(37,99,235,.35);
-      color:#fff;
-    }
-    .btn.primary:hover{background: var(--blue-700)}
-
-    .container{
-      max-width:1100px;
-      margin: 0 auto;
-      padding:16px;
-    }
-
-    .hint{color:var(--muted); margin: 6px 0 14px; font-size:14px}
-
-    .card{
-      background: var(--card);
-      border:1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding:16px;
-    }
-
-    .card h2{margin:0 0 6px; font-size:18px}
-
-    .pillgrid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:12px;
-    }
-
-    .pill{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 14px;
-      border:1px solid var(--border);
-      border-radius: 14px;
-      background: #fff;
-      cursor:pointer;
-      font-weight:700;
-    }
-    .pill:hover{background: var(--blue-100)}
-
-    .pill .left{display:flex; align-items:center; gap:10px}
-    .pill .ic{width:32px;height:32px;border-radius:12px;background: var(--blue-100); display:flex;align-items:center;justify-content:center; font-size:18px}
-
-    .small{font-size:13px; color:var(--muted)}
-
-    .modal-backdrop{
-      position:fixed;
-      inset:0;
-      background: rgba(10,25,60,.35);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index:50;
-      padding:16px;
-    }
-    .modal{
-      width: min(560px, 100%);
-      background:#fff;
-      border-radius: 18px;
-      border:1px solid var(--border);
-      box-shadow: 0 20px 60px rgba(0,0,0,.18);
-      overflow:hidden;
-    }
-    .modal-header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 16px;
-      border-bottom:1px solid var(--border);
-      background: #fbfdff;
-    }
-    .modal-title{font-weight:800}
-    .modal-body{padding:16px}
-    .row{display:grid; grid-template-columns: 1fr; gap:10px; margin-bottom:12px}
-    label{font-size:12px; color:var(--muted); font-weight:700}
-    input{
-      width:100%;
-      padding:12px 12px;
-      border-radius: 12px;
-      border:1px solid var(--border);
-      outline:none;
-      font-size:14px;
-    }
-    input:focus{border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 4px rgba(37,99,235,.12)}
-
-    .scanrow{display:flex; gap:10px}
-    .scanrow input{flex:1}
-    .scanbtn{white-space:nowrap}
-
-    .modal-footer{display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--border); background:#fbfdff}
-
-    .alert{margin-top:10px; padding:10px 12px; border-radius: 12px; border:1px solid var(--border); background:#f7fbff; color: var(--text); font-size:13px; display:none}
-    .alert.bad{background:#fff5f5; border-color: rgba(220,38,38,.25); color:#7a1a1a}
-    .alert.ok{background:#f0fff6; border-color: rgba(22,163,74,.25); color:#0f5132}
-
-    .scanner{
-      display:none;
-      margin-top:12px;
-      border:1px solid var(--border);
-      border-radius: 14px;
-      overflow:hidden;
-      background:#000;
-    }
-    video{width:100%; height:auto; display:block}
-
-    @media (max-width: 520px){
-      .topbar-inner{padding:12px}
-      .container{padding:12px}
-      .brand{font-size:18px}
-      .btn{padding:10px 10px}
-      .sidebar{width:64px; flex-basis:64px}
-      .navbtn{width:48px;height:48px;border-radius:14px}
-      .search-container input { width: 100px; }
-    }
+    body{margin:0; font-family: sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh;}
+    
+    .sidebar{width: 260px; background: var(--sidebar); color: white; padding: 20px; display: flex; flex-direction: column;}
+    .sidebar h2{font-size: 1.2rem; margin-bottom: 30px;}
+    .nav-btn{background: none; border: none; color: #cbd5e1; padding: 12px; text-align: left; cursor: pointer; width: 100%; font-size: 1rem; border-radius: 8px;}
+    .nav-btn:hover, .nav-btn.active{background: rgba(255,255,255,0.1); color: white;}
+    
+    .main{flex: 1; padding: 30px; overflow-y: auto;}
+    .view{display: none;}
+    .view.active{display: block;}
+    
+    .card{background: white; padding: 20px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px;}
+    
+    table{width: 100%; border-collapse: collapse; margin-top: 10px;}
+    th, td{text-align: left; padding: 12px; border-bottom: 1px solid var(--border);}
+    th{background: #f1f5f9; font-weight: 600;}
+    
+    input, select{width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px;}
+    .btn-action{background: var(--blue-600); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%;}
+    
+    .badge{padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold;}
+    .badge-in{background: #dcfce7; color: #166534;}
+    .badge-out{background: #fee2e2; color: #991b1b;}
   </style>
 </head>
 <body>
-<div class="app">
-  <aside class="sidebar">
-    <div class="nav" aria-label="Primary">
-      <button class="navbtn active" id="nav-dashboard" title="Dashboard" onclick="showView('dashboard')">🏠</button>
-      <button class="navbtn" id="nav-inventory" title="Inventory" onclick="showView('inventory')">📦</button>
-      <button class="navbtn" id="nav-audit" title="Audit" onclick="showView('audit')">✅</button>
-      <button class="navbtn" id="nav-admin" title="Admin" onclick="showView('admin')">⚙️</button>
-    </div>
 
-    <div class="navbottom">
-      <button class="navbtn" title="Logout" onclick="logout()">🚪</button>
-    </div>
-  </aside>
-
-  <main class="main">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="brand" aria-label="App name">
-          <span class="brand-dot" aria-hidden="true"></span>
-          <span id="pageTitle">BTVenloStorage</span>
-        </div>
-        <div class="actions">
-          <div class="search-container" id="searchWrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="inventorySearch" placeholder="Search..." onkeyup="filterInventory()">
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <div class="container">
-      <div class="hint" id="pageHint">Tip: Add products first (ID + Name + Qty + Location).</div>
-
-      <section id="view-dashboard" class="view">
-        <div class="card">
-          <h2>Dashboard</h2>
-          <div class="small">Choose an action:</div>
-          <div class="pillgrid" style="margin-top:12px">
-            <div class="pill" onclick="openAddProductModal()">
-              <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
-              <div class="small">ID + Name + Qty + Location</div>
-            </div>
-            <div class="pill" onclick="openStockModal('receive')">
-              <div class="left"><div class="ic">⬇️</div><div>Receive Material</div></div>
-              <div class="small">Incoming stock</div>
-            </div>
-            <div class="pill" onclick="openStockModal('issue')">
-              <div class="left"><div class="ic">⬆️</div><div>Issue Material</div></div>
-              <div class="small">Outgoing stock</div>
-            </div>
-            <div class="pill" onclick="comingSoon('Picking lists')">
-              <div class="left"><div class="ic">📋</div><div>Picking Lists</div></div>
-              <div class="small">Coming soon</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-inventory" class="view" style="display:none">
-        <div class="card">
-          <h2>Inventory</h2>
-          <div class="small">Products in database:</div>
-          <div style="overflow:auto; margin-top:12px">
-            <table style="width:100%; border-collapse:collapse; font-size:14px" id="inventoryTable">
-              <thead>
-                <tr style="text-align:left; color:var(--muted)">
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
-                </tr>
-              </thead>
-              <tbody id="productsBody"></tbody>
-            </table>
-          </div>
-          <div class="small" id="productsEmpty" style="margin-top:10px; display:none">No products found.</div>
-        </div>
-      </section>
-
-      <section id="view-audit" class="view" style="display:none">
-        <div class="card">
-          <h2>Audit</h2>
-          <div class="small">Activity logs (Supabase audit_log).</div>
-
-          <div style="overflow:auto; margin-top:12px">
-            <table style="width:100%; border-collapse:collapse; font-size:14px">
-              <thead>
-                <tr style="text-align:left; color:var(--muted)">
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Time</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Action</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">User</th>
-                </tr>
-              </thead>
-              <tbody id="auditBody"></tbody>
-            </table>
-          </div>
-
-          <div class="small" id="auditEmpty" style="margin-top:10px; display:none">No logs found.</div>
-        </div>
-      </section>
-
-      <section id="view-admin" class="view" style="display:none">
-        <div class="card">
-          <h2>Admin</h2>
-          <div class="small">GitHub backup creates a commit in the repository.</div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
-            <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
-            <button class="btn" onclick="showGitHubVerify()">How to verify</button>
-          </div>
-          <div class="small" style="margin-top:10px">If backup fails: check Render → Environment: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.</div>
-          <div class="alert" id="adminAlert"></div>
-        </div>
-      </section>
-    </div>
-
-    <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
-      <div class="modal">
-        <div class="modal-header">
-          <div class="modal-title">Add Product</div>
-          <button class="btn" onclick="closeAddProductModal()">✕</button>
-        </div>
-        <div class="modal-body">
-
-          <div class="row">
-            <div>
-              <label>Product ID (Manual or QR)</label>
-              <div class="scanrow">
-                <input id="p_id" placeholder="e.g. 100234" />
-                <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
-              </div>
-            </div>
-
-            <div>
-              <label>Product Name (Manual or from QR)</label>
-              <input id="p_name" placeholder="e.g. Screw M6" />
-            </div>
-
-            <div>
-              <label>Quantity</label>
-              <input id="p_qty" type="number" min="0" step="1" placeholder="e.g. 10" />
-            </div>
-
-            <div>
-              <label>Location (Manual or QR)</label>
-              <div class="scanrow">
-                <input id="p_loc" placeholder="e.g. A-01-02" />
-                <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="scanner" id="scannerBox">
-            <video id="video" playsinline></video>
-          </div>
-
-          <div class="alert" id="addAlert"></div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn" onclick="closeAddProductModal()">Cancel</button>
-          <button class="btn primary" onclick="saveProduct()">Save</button>
-        </div>
-      </div>
-    </div>
-
-  </main>
+<div class="sidebar">
+  <h2>BTVenlo Storage</h2>
+  <button class="nav-btn active" onclick="showView('scan')">📦 Receive / Release</button>
+  <button class="nav-btn" onclick="showView('inventory')">📊 Inventory</button>
+  <button class="nav-btn" onclick="showView('audit')">🕒 Audit Logs</button>
+  <div style="margin-top: auto;">
+    <button class="nav-btn" onclick="location.href='/logout'">🚪 Logout</button>
+  </div>
 </div>
 
-<div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="stockTitle">Stock</div>
-      <button class="btn" onclick="closeStockModal()">✕</button>
+<div class="main">
+  <div id="view-scan" class="view active">
+    <h1>Stock Operation</h1>
+    <div class="card">
+      <label>Product SKU</label>
+      <input type="text" id="p_id" placeholder="Scan or type SKU...">
+      <label>Operation Type</label>
+      <select id="p_action">
+        <option value="receive">RECEIVE (Add to stock)</option>
+        <option value="release">RELEASE (Take from stock)</option>
+      </select>
+      <label>Amount</label>
+      <input type="number" id="p_amount" value="1" min="1">
+      <button class="btn-action" onclick="submitStock()">Submit Operation</button>
     </div>
-    <div class="modal-body">
+  </div>
 
-      <div class="row">
-        <div>
-          <label>Product ID (Manual or QR)</label>
-          <div class="scanrow">
-            <input id="s_id" placeholder="e.g. 100234" />
-            <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
-          </div>
-        </div>
-
-        <div>
-          <label>Quantity</label>
-          <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
-        </div>
-      </div>
-
-      <div class="scanner" id="stockScannerBox">
-        <video id="stockVideo" playsinline></video>
-      </div>
-
-      <div class="alert" id="stockAlert"></div>
+  <div id="view-inventory" class="view">
+    <h1>Current Inventory</h1>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Stock</th>
+          </tr>
+        </thead>
+        <tbody id="inventory-list"></tbody>
+      </table>
     </div>
+  </div>
 
-    <div class="modal-footer">
-      <button class="btn" onclick="closeStockModal()">Cancel</button>
-      <button class="btn primary" onclick="submitStock()">Save</button>
+  <div id="view-audit" class="view">
+    <h1>Audit Logs</h1>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Action</th>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>User</th>
+          </tr>
+        </thead>
+        <tbody id="audit-list"></tbody>
+      </table>
     </div>
   </div>
 </div>
 
 <script>
-  // --- Wyszukiwanie produktów ---
-  function filterInventory() {
-    const input = document.getElementById('inventorySearch');
-    const filter = input.value.toLowerCase();
-    const table = document.getElementById('inventoryTable');
-    const tr = table.getElementsByTagName('tr');
-
-    for (let i = 1; i < tr.length; i++) {
-      let visible = false;
-      const tds = tr[i].getElementsByTagName('td');
-      for (let j = 0; j < tds.length; j++) {
-        if (tds[j] && tds[j].textContent.toLowerCase().indexOf(filter) > -1) {
-          visible = true;
-          break;
-        }
-      }
-      tr[i].style.display = visible ? "" : "none";
-    }
-  }
-
-  // --- Stock modal (receive/issue) ---
-  let stockMode = "receive"; 
-  let stockStream = null;
-  let stockDetector = null;
-  let stockScanTimer = null;
-
-  function setStockAlert(msg, type){
-    const el = document.getElementById('stockAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
-  function clearStockAlert(){
-    const el = document.getElementById('stockAlert');
-    el.style.display = 'none';
-    el.textContent = '';
-    el.className = 'alert';
-  }
-
-  function openStockModal(mode){
-    stockMode = mode;
-    clearStockAlert();
-    document.getElementById('s_id').value = '';
-    document.getElementById('s_qty').value = '';
-    document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Receive Material' : 'Issue Material';
-    document.getElementById('stockBackdrop').style.display = 'flex';
-  }
-
-  function closeStockModal(){
-    stopStockScan();
-    document.getElementById('stockBackdrop').style.display = 'none';
-  }
-
-  async function submitStock(){
-    clearStockAlert();
-    const item_number = document.getElementById('s_id').value.trim();
-    const amount = Number(document.getElementById('s_qty').value || 0);
-
-    if(!item_number){ setStockAlert('Please provide Product ID.', 'bad'); return; }
-    if(!amount || amount <= 0){ setStockAlert('Amount must be > 0.', 'bad'); return; }
-
-    try{
-      const res = await fetch('/api/stock/' + stockMode, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ item_number, amount })
-      });
-      const data = await res.json().catch(()=>({}));
-
-      if(!res.ok){
-        setStockAlert(data.error || ('Error (HTTP '+res.status+')'), 'bad');
-        return;
-      }
-
-      setStockAlert('Saved successfully ✔', 'ok');
-      loadProducts();
-    }catch(e){
-      setStockAlert('Connection error.', 'bad');
-    }
-  }
-
-  async function startScanStock(targetInputId){
-    clearStockAlert();
-    if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Scanning not supported. Paste QR text here:');
-      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
-      return;
-    }
-    try{
-      stockDetector = new BarcodeDetector({ formats: ['qr_code'] });
-      stockStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-      const video = document.getElementById('stockVideo');
-      video.srcObject = stockStream;
-      await video.play();
-      document.getElementById('stockScannerBox').style.display = 'block';
-      stockScanTimer = setInterval(async () => {
-        try{
-          const barcodes = await stockDetector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = (barcodes[0].rawValue || '').trim();
-            if(raw){
-              let idOnly = raw;
-              try{
-                if(raw.startsWith('{') && raw.endsWith('}')){
-                  const obj = JSON.parse(raw);
-                  if(obj.id) idOnly = String(obj.id).trim();
-                } else if(raw.includes('|')) {
-                  idOnly = raw.split('|')[0].trim();
-                }
-              }catch(_){}
-              document.getElementById(targetInputId).value = idOnly;
-            }
-            stopStockScan();
-          }
-        }catch(_){}
-      }, 250);
-    }catch(e){
-      stopStockScan();
-    }
-  }
-
-  function stopStockScan(){
-    if(stockScanTimer){ clearInterval(stockScanTimer); stockScanTimer = null; }
-    if(stockStream){
-      stockStream.getTracks().forEach(t => t.stop());
-      stockStream = null;
-    }
-    document.getElementById('stockScannerBox').style.display = 'none';
-  }
-</script>
-
-<script>
-  function escapeHtml(s){
-    if(!s) return "";
-    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
-  }
-
-  function showView(name){
-    const views = ['dashboard','inventory','audit','admin'];
-    for (const v of views){
-      document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
-      document.getElementById('nav-'+v).classList.toggle('active', v===name);
-    }
-
-    // Pokaż lupkę tylko w widoku Inventory
-    const searchWrapper = document.getElementById('searchWrapper');
-    searchWrapper.style.display = (name === 'inventory') ? 'flex' : 'none';
-
-    const hint = document.getElementById('pageHint');
-    if (name === 'dashboard') hint.textContent = 'Choose an action. Use "Add Product" to register new items.';
-    else if (name === 'inventory') hint.textContent = 'List of products. Use the search icon to filter.';
-    else if (name === 'audit') hint.textContent = 'View recent activity logs.';
-    else if (name === 'admin') hint.textContent = 'Administration and backup settings.';
+  function showView(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-' + viewId).classList.add('active');
     
-    if (name === 'inventory') {
-        document.getElementById('inventorySearch').value = '';
-        loadProducts();
-    }
-    if (name === 'audit') loadAudit();
+    if(viewId === 'inventory') loadInventory();
+    if(viewId === 'audit') loadAudit();
   }
 
-  function logout(){ window.location.href = '/logout'; }
-  function comingSoon(label){ alert(label + ' — coming soon.'); }
-
-  function openAddProductModal(){
-    document.getElementById('addProductBackdrop').style.display = 'flex';
-    clearAddAlert();
-  }
-  function closeAddProductModal(){
-    stopScan();
-    document.getElementById('addProductBackdrop').style.display = 'none';
-  }
-
-  function setAddAlert(msg, type){
-    const el = document.getElementById('addAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
-  function clearAddAlert(){
-    const el = document.getElementById('addAlert');
-    el.style.display = 'none';
-    el.className = 'alert';
+  async function loadInventory() {
+    const res = await fetch('/api/products');
+    const json = await res.json();
+    const tbody = document.getElementById('inventory-list');
+    tbody.innerHTML = '';
+    json.data.forEach(p => {
+      tbody.innerHTML += `<tr>
+        <td><b>${p.item_number}</b></td>
+        <td>${p.name}</td>
+        <td>${p.location}</td>
+        <td>${p.current_stock}</td>
+      </tr>`;
+    });
   }
 
-  async function loadProducts(){
-    const body = document.getElementById('productsBody');
-    const empty = document.getElementById('productsEmpty');
-    body.innerHTML = '';
-    empty.style.display = 'none';
-    try{
-      const res = await fetch('/api/products');
-      const data = await res.json();
-      const items = data.products || [];
-      if(items.length === 0){ empty.style.display = 'block'; return; }
-      for(const p of items){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.sku || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(p.current_stock ?? p.quantity ?? ''))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
-        `;
-        body.appendChild(tr);
-      }
-    }catch(e){ empty.style.display = 'block'; }
+  async function loadAudit() {
+    const res = await fetch('/api/audit');
+    const json = await res.json();
+    const tbody = document.getElementById('audit-list');
+    tbody.innerHTML = '';
+    json.data.forEach(l => {
+      const badgeClass = l.type === 'RECEIVE' ? 'badge-in' : 'badge-out';
+      tbody.innerHTML += `<tr>
+        <td>${new Date(l.created_at).toLocaleString()}</td>
+        <td><span class="badge ${badgeClass}">${l.type}</span></td>
+        <td>${l.item_number} - ${l.name}</td>
+        <td>${l.amount}</td>
+        <td>${l.username}</td>
+      </tr>`;
+    });
   }
 
-  async function loadAudit(){
-    const body = document.getElementById('auditBody');
-    const empty = document.getElementById('auditEmpty');
-    body.innerHTML = '';
-    empty.style.display = 'none';
-    try{
-      const res = await fetch('/api/audit');
-      const data = await res.json();
-      const items = data.audit || data.data || [];
-      if(items.length === 0){ empty.style.display = 'block'; return; }
-      for(const r of items){
-        const created = r.created_at ? String(r.created_at).replace('T',' ').split('.')[0] : '';
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(created)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String(r.qty ?? ''))}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.location)}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.username)}</td>
-        `;
-        body.appendChild(tr);
-      }
-    }catch(e){ empty.style.display = 'block'; }
-  }
+  async function submitStock() {
+    const sku = document.getElementById('p_id').value;
+    const action = document.getElementById('p_action').value;
+    const amount = document.getElementById('p_amount').value;
 
-  async function saveProduct(){
-    clearAddAlert();
-    const product_id = document.getElementById('p_id').value.trim();
-    const name = document.getElementById('p_name').value.trim();
-    const quantity = Number(document.getElementById('p_qty').value || 0);
-    const location = document.getElementById('p_loc').value.trim();
-    if(!product_id || !name || !location){ setAddAlert('Required fields missing.', 'bad'); return; }
-    try{
-      const res = await fetch('/api/products', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ item_number: product_id, name, current_stock: quantity, location_name: location })
-      });
-      if(res.ok){ setAddAlert('Saved ✔', 'ok'); loadProducts(); }
-      else { setAddAlert('Error saving.', 'bad'); }
-    }catch(e){ setAddAlert('Connection error.', 'bad'); }
-  }
+    if(!sku) { alert('Enter SKU'); return; }
 
-  let scanMode = null;
-  let stream = null;
-  let scanTimer = null;
-  async function startScan(mode){
-    scanMode = mode;
-    if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Paste QR:');
-      if(pasted) applyScannedValue(pasted);
-      return;
-    }
-    try{
-      const detector = new BarcodeDetector({ formats: ['qr_code'] });
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      const video = document.getElementById('video');
-      video.srcObject = stream;
-      await video.play();
-      document.getElementById('scannerBox').style.display = 'block';
-      scanTimer = setInterval(async () => {
-        const barcodes = await detector.detect(video);
-        if(barcodes.length){ applyScannedValue(barcodes[0].rawValue); stopScan(); }
-      }, 250);
-    }catch(e){ stopScan(); }
-  }
-  function stopScan(){
-    if(scanTimer) clearInterval(scanTimer);
-    if(stream) stream.getTracks().forEach(t => t.stop());
-    document.getElementById('scannerBox').style.display = 'none';
-  }
-  function applyScannedValue(raw){
-    const text = (raw || '').trim();
-    if(scanMode === 'location') { document.getElementById('p_loc').value = text; return; }
-    if(text.includes('|')){
-      const p = text.split('|');
-      document.getElementById('p_id').value = p[0].trim();
-      document.getElementById('p_name').value = p[1].trim();
-    } else { document.getElementById('p_id').value = text; }
-  }
+    const res = await fetch('/api/stock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ item_number: sku, action: action, amount: amount })
+    });
 
-  async function backupToGitHub(){
-    const res = await fetch('/api/admin/backup/github', { method:'POST' });
     const data = await res.json();
-    alert(data.message || 'Backup complete');
+    if(data.ok) {
+      alert('Success! New stock: ' + data.current_stock);
+      document.getElementById('p_id').value = '';
+      loadInventory(); // Refresh background data
+    } else {
+      alert('Error: ' + data.error);
+    }
   }
-  function showGitHubVerify(){ alert('Check GitHub commits.'); }
-
-  showView('dashboard');
 </script>
+
 </body>
 </html>
