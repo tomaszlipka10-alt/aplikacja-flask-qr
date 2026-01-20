@@ -61,7 +61,7 @@ def login():
         if res and check_password_hash(res[0]['password_hash'], p):
             login_user(User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False)))
             return redirect(url_for("index"))
-return render_template("login.html")
+    return render_template("login.html")
 
 @app.route("/register", methods=["POST"])
 def register():
