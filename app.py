@@ -62,7 +62,6 @@ def _supabase_request(method: str, table: str, params: Optional[dict] = None, js
         return None
 
 def _sb_list_products():
-    # Zwraca stock jako 'current_stock' dla zgodności z frontendem
     return _supabase_request("GET", "products", params={"select": "*", "order": "item_number"}) or []
 
 def _sb_get_product(sku: str):
@@ -194,18 +193,18 @@ def api_stock():
 
     if _supabase_enabled():
         row = _sb_get_product(sku)
-        if not row: return jsonify({"ok":False,"error":"Not found in Supabase"}), 404
+        if not row: return jsonify({"ok":False,"error":"Not found"}), 404
         new_q = row['current_stock'] + amount if action == "receive" else row['current_stock'] - amount
-        if new_q < 0: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
+        if new_q < 0: return jsonify({"ok":False,"error":"Low stock"}), 400
         _sb_set_product_quantity(sku, new_q)
         _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
         return jsonify({"ok":True, "current_stock": new_q})
 
     p = Product.query.filter_by(item_number=sku).first()
-    if not p: return jsonify({"ok":False,"error":"Product not found"}), 404
+    if not p: return jsonify({"ok":False,"error":"Not found"}), 404
     if action == "receive": p.current_stock += amount
     else:
-        if p.current_stock < amount: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
+        if p.current_stock < amount: return jsonify({"ok":False,"error":"Low stock"}), 400
         p.current_stock -= amount
     db.session.add(AuditLog(product_id=p.id, action=action.upper(), amount=amount, username=current_user.username))
     db.session.commit()
@@ -272,7 +271,8 @@ def api_backup_github():
 # Database Init
 # ----------------------------
 with app.app_context():
-    # USUNIĘTO db.drop_all() - dane pozostają bezpieczne
+    # WYMUSZONY RESET (usuwa starą bazę i tworzy nową z kolumną is_admin)
+    db.drop_all() 
     db.create_all()
     
     admins = [
@@ -281,8 +281,7 @@ with app.app_context():
         {"u": "TwanvanHeeswijk", "p": "Welkom01"}
     ]
     for a in admins:
-        if not User.query.filter_by(username=a["u"]).first():
-            db.session.add(User(username=a["u"], password_hash=generate_password_hash(a["p"]), is_admin=True))
+        db.session.add(User(username=a["u"], password_hash=generate_password_hash(a["p"]), is_admin=True))
     db.session.commit()
 
 if __name__ == "__main__":
