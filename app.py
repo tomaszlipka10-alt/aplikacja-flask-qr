@@ -24,12 +24,9 @@ def _supabase_url():
     return (os.getenv("SUPABASE_URL") or "").rstrip("/")
 
 def _supabase_key():
-    # Pobiera Service Role Key dla pełnego dostępu
-    return (
-        os.getenv("SUPABASE_SERVICE_ROLE_KEY") or 
-        os.getenv("SUPABASE_SERVICE_KEY") or 
-        os.getenv("SUPABASE_KEY") or ""
-    )
+    return (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or 
+            os.getenv("SUPABASE_SERVICE_KEY") or 
+            os.getenv("SUPABASE_KEY") or "")
 
 def _supabase_request(method, table, params=None, json_body=None, prefer=None):
     base = _supabase_url()
@@ -44,8 +41,7 @@ def _supabase_request(method, table, params=None, json_body=None, prefer=None):
     req.add_header("apikey", key)
     req.add_header("Authorization", f"Bearer {key}")
     req.add_header("Content-Type", "application/json")
-    if prefer:
-        req.add_header("Prefer", prefer)
+    if prefer: req.add_header("Prefer", prefer)
     
     body_data = json.dumps(json_body).encode("utf-8") if json_body is not None else None
 
@@ -56,11 +52,15 @@ def _supabase_request(method, table, params=None, json_body=None, prefer=None):
             elif response.status == 204:
                 return []
             return None
+    except urllib.error.HTTPError as e:
+        error_msg = e.read().decode("utf-8")
+        print(f"Supabase HTTP Error {e.code}: {error_msg}")
+        return None
     except Exception as e:
-        print(f"Supabase Error: {e}")
+        print(f"Supabase Connection Error: {e}")
         return None
 
-# Logika skanera i produktów
+# Pomocnicy Supabase
 def _sb_get_product(sku):
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     return res[0] if res and len(res) > 0 else None
@@ -175,7 +175,7 @@ def api_stock():
     if not row: return jsonify({"ok":False,"error":"Produkt nie istnieje"}), 404
     
     new_q = row['current_stock'] + amount if action == "receive" else row['current_stock'] - amount
-    if new_q < 0: return jsonify({"ok":False,"error":"Brak towaru"}), 400
+    if new_q < 0: return jsonify({"ok":False,"error":"Brak wystarczającej ilości towaru"}), 400
     
     _sb_set_product_quantity(sku, new_q)
     _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
@@ -200,9 +200,9 @@ def api_audit():
 @app.route("/api/admin/backup/github", methods=["POST"])
 @login_required
 def api_backup_github():
-    if not current_user.is_admin: return jsonify({"message":"Brak uprawnień"}), 403
+    if not current_user.is_admin: return jsonify({"message":"Forbidden"}), 403
     token, repo = os.getenv("GITHUB_TOKEN"), os.getenv("GITHUB_REPO")
-    if not token or not repo: return jsonify({"message": "Błąd konfiguracji zmiennych środowiskowych"}), 400
+    if not token or not repo: return jsonify({"message": "Missing Config"}), 400
     try:
         prods = _supabase_request("GET", "products")
         logs = _supabase_request("GET", "audit_logs")
