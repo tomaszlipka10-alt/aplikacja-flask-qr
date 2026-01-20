@@ -39,9 +39,7 @@ def _supabase_request(method, table, params=None, json_body=None, prefer=None):
         with urllib.request.urlopen(req, data=body_data) as response:
             if response.status in [200, 201]: return json.loads(response.read().decode("utf-8"))
             return [] if response.status == 204 else None
-    except Exception as e:
-        print(f"Supabase Error: {e}")
-        return None
+    except Exception: return None
 
 # --- Auth ---
 class User(UserMixin):
@@ -72,14 +70,6 @@ def login():
             return redirect(url_for("index"))
     return render_template("login.html")
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if request.method == "POST":
-        u, p = request.form.get("username"), request.form.get("password")
-        _supabase_request("POST", "users", json_body={"username": u, "password_hash": generate_password_hash(p), "is_admin": False})
-        return redirect(url_for("login"))
-    return render_template("login.html", register_mode=True)
-
 @app.route("/logout")
 def logout(): logout_user(); return redirect(url_for("login"))
 
@@ -88,7 +78,12 @@ def logout(): logout_user(); return redirect(url_for("login"))
 def api_products():
     if request.method == "POST":
         d = request.json
-        body = {"item_number": d.get("item_number"), "name": d.get("name"), "current_stock": int(d.get("current_stock", 0)), "location": d.get("location")}
+        body = {
+            "item_number": d.get("item_number"), 
+            "name": d.get("name"), 
+            "current_stock": int(d.get("current_stock") or 0), 
+            "location": d.get("location")
+        }
         res = _supabase_request("POST", "products", json_body=body)
         return jsonify({"ok": res is not None})
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
@@ -98,14 +93,17 @@ def api_products():
 @login_required
 def api_stock(action):
     d = request.json
-    sku, amt = d.get("item_number"), int(d.get("amount", 0))
+    sku, amt = d.get("item_number"), int(d.get("amount") or 0)
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
-    if not res: return jsonify({"ok":False, "error":"Product not found"}), 404
+    if not res: return jsonify({"ok":False, "error":"Produkt nie istnieje"}), 404
     p = res[0]
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
-    if new_q < 0: return jsonify({"ok":False, "error":"Low stock"}), 400
+    if new_q < 0: return jsonify({"ok":False, "error":"Brak towaru"}), 400
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
-    _supabase_request("POST", "audit_logs", json_body={"product_sku": sku, "product_name": p['name'], "action": action.upper(), "amount": amt, "location": p['location'], "username": current_user.username})
+    _supabase_request("POST", "audit_logs", json_body={
+        "product_sku": sku, "product_name": p['name'], "action": action.upper(), 
+        "amount": amt, "location": p['location'], "username": current_user.username
+    })
     return jsonify({"ok":True, "current_stock": new_q})
 
 @app.route("/api/audit")
@@ -117,7 +115,7 @@ def api_audit():
 @app.route("/api/admin/backup/github", methods=["POST"])
 @login_required
 def api_backup():
-    if not current_user.is_admin: return jsonify({"message":"Forbidden"}), 403
+    if not current_user.is_admin: return jsonify({"message":"Brak uprawnień"}), 403
     t, r = os.getenv("GITHUB_TOKEN"), os.getenv("GITHUB_REPO")
     prods = _supabase_request("GET", "products")
     logs = _supabase_request("GET", "audit_logs")
@@ -132,7 +130,7 @@ def api_backup():
     p_data = {"message": "Backup", "content": base64.b64encode(content).decode("utf-8")}
     if sha: p_data["sha"] = sha
     req = urllib.request.Request(url, data=json.dumps(p_data).encode("utf-8"), headers=headers, method="PUT")
-    with urllib.request.urlopen(req): return jsonify({"message": "Backup OK"})
+    with urllib.request.urlopen(req): return jsonify({"message": "Backup wykonany"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
