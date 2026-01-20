@@ -303,7 +303,9 @@
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
-          <div class="small">Products in database:</div>
+          <div style="margin-top: 10px; margin-bottom: 10px;">
+            <input type="text" id="inventorySearch" placeholder="Search by ID, Name or Location..." onkeyup="filterInventory()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+          </div>
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
@@ -593,6 +595,22 @@
     const el = document.getElementById('addAlert');
     el.style.display = 'none';
     el.className = 'alert';
+  }
+  function filterInventory() {
+    const input = document.getElementById('inventorySearch');
+    const filter = input.value.toLowerCase();
+    const table = document.querySelector('#view-inventory table');
+    const tr = table.getElementsByTagName('tr');
+
+    // Zaczynamy od i=1, żeby pominąć nagłówek tabeli
+    for (let i = 1; i < tr.length; i++) {
+      const rowText = tr[i].textContent.toLowerCase();
+      if (rowText.indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
   }
 
   async function loadProducts(){
