@@ -24,6 +24,7 @@ def _supabase_url():
     return (os.getenv("SUPABASE_URL") or "").rstrip("/")
 
 def _supabase_key():
+    # Pobiera Service Role Key dla pełnego dostępu
     return (
         os.getenv("SUPABASE_SERVICE_ROLE_KEY") or 
         os.getenv("SUPABASE_SERVICE_KEY") or 
@@ -59,7 +60,7 @@ def _supabase_request(method, table, params=None, json_body=None, prefer=None):
         print(f"Supabase Error: {e}")
         return None
 
-# Funkcje pomocnicze dla logiki skanera i produktów
+# Logika skanera i produktów
 def _sb_get_product(sku):
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     return res[0] if res and len(res) > 0 else None
@@ -90,7 +91,7 @@ class User(UserMixin):
 @login_manager.user_loader
 def load_user(user_id):
     res = _supabase_request("GET", "users", {"id": f"eq.{user_id}"})
-    if res:
+    if res and len(res) > 0:
         return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
     return None
 
@@ -112,7 +113,7 @@ def github_put_file(repo, path, token, content_bytes, message):
     with urllib.request.urlopen(req) as r: return r.status
 
 # ----------------------------
-# Routes (API & Views)
+# Routes
 # ----------------------------
 @app.route("/health")
 def health(): return "OK", 200
@@ -127,10 +128,11 @@ def login():
         u_name = request.form.get("username")
         pwd = request.form.get("password")
         res = _supabase_request("GET", "users", {"username": f"eq.{u_name}"})
-        if res and check_password_hash(res[0]['password_hash'], pwd):
-            userobj = User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
-            login_user(userobj)
-            return redirect(url_for("index"))
+        if res and len(res) > 0:
+            if check_password_hash(res[0]['password_hash'], pwd):
+                userobj = User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
+                login_user(userobj)
+                return redirect(url_for("index"))
         return render_template("login.html", error="Błędny login lub hasło")
     return render_template("login.html")
 
@@ -167,13 +169,13 @@ def api_stock():
     sku = data.get("item_number")
     action = data.get("action")
     amount = int(data.get("amount", 0))
-    if amount <= 0: return jsonify({"ok":False,"error":"Invalid amount"}), 400
+    if amount <= 0: return jsonify({"ok":False,"error":"Nieprawidłowa ilość"}), 400
 
     row = _sb_get_product(sku)
-    if not row: return jsonify({"ok":False,"error":"Product not found"}), 404
+    if not row: return jsonify({"ok":False,"error":"Produkt nie istnieje"}), 404
     
     new_q = row['current_stock'] + amount if action == "receive" else row['current_stock'] - amount
-    if new_q < 0: return jsonify({"ok":False,"error":"Low stock"}), 400
+    if new_q < 0: return jsonify({"ok":False,"error":"Brak towaru"}), 400
     
     _sb_set_product_quantity(sku, new_q)
     _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
@@ -198,9 +200,9 @@ def api_audit():
 @app.route("/api/admin/backup/github", methods=["POST"])
 @login_required
 def api_backup_github():
-    if not current_user.is_admin: return jsonify({"message":"Forbidden"}), 403
+    if not current_user.is_admin: return jsonify({"message":"Brak uprawnień"}), 403
     token, repo = os.getenv("GITHUB_TOKEN"), os.getenv("GITHUB_REPO")
-    if not token or not repo: return jsonify({"message": "Missing Config"}), 400
+    if not token or not repo: return jsonify({"message": "Błąd konfiguracji zmiennych środowiskowych"}), 400
     try:
         prods = _supabase_request("GET", "products")
         logs = _supabase_request("GET", "audit_logs")
@@ -211,7 +213,7 @@ def api_backup_github():
         }
         content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         github_put_file(repo, "backups/warehouse_data.json", token, content, f"Backup {payload['exported_at_utc']}")
-        return jsonify({"message": "Backup OK"})
+        return jsonify({"message": "Backup wykonany pomyślnie"})
     except Exception as e: return jsonify({"message": str(e)}), 500
 
 if __name__ == "__main__":
