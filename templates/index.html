@@ -368,35 +368,28 @@
           <button class="btn" onclick="closeAddProductModal()">✕</button>
         </div>
         <div class="modal-body">
-
           <div class="row">
             <div>
               <label>Product ID (Manual or QR)</label>
               <div class="scanrow">
-                <input id="p_id" placeholder="e.g. 100234" />
-                <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
+                <input id="s_id" placeholder="e.g. 100234" oninput="checkCurrentStock(this.value)" />
+                <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
               </div>
-              <div class="small">QR can contain: <b>ID|NAME</b> or JSON {"id":"...","name":"..."}.</div>
-            </div>
-
-            <div>
-              <label>Product Name (Manual or from QR)</label>
-              <input id="p_name" placeholder="e.g. Screw M6" />
+              <div id="stock_info" class="small" style="margin-top: 8px; color: var(--blue-600); font-weight: bold; display: none; padding: 4px 0;"></div>
             </div>
 
             <div>
               <label>Quantity</label>
-              <input id="p_qty" type="number" min="0" step="1" placeholder="e.g. 10" />
-            </div>
-
-            <div>
-              <label>Location (Manual or QR)</label>
-              <div class="scanrow">
-                <input id="p_loc" placeholder="e.g. A-01-02" />
-                <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
-              </div>
+              <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
             </div>
           </div>
+
+          <div class="scanner" id="stockScannerBox">
+            <video id="stockVideo" playsinline></video>
+          </div>
+
+          <div class="alert" id="stockAlert"></div>
+        </div>
 
           <div class="scanner" id="scannerBox">
             <video id="video" playsinline></video>
@@ -476,8 +469,37 @@
     clearStockAlert();
     document.getElementById('s_id').value = '';
     document.getElementById('s_qty').value = '';
+    // Resetowanie widoku informacji o stanie
+    document.getElementById('stock_info').style.display = 'none';
+    document.getElementById('stock_info').textContent = '';
+    
     document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Receive Material' : 'Issue Material';
     document.getElementById('stockBackdrop').style.display = 'flex';
+  }
+
+  // FUNKCJA SPRAWDZAJĄCA STAN W BAZIE
+  async function checkCurrentStock(val) {
+    const infoBox = document.getElementById('stock_info');
+    const id = val.trim();
+    if (!id) { infoBox.style.display = 'none'; return; }
+
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const items = data.data || data.products || [];
+      const p = items.find(item => String(item.item_number) === id || String(item.product_id) === id);
+
+      if (p) {
+        const qty = p.current_stock ?? p.quantity ?? 0;
+        const loc = p.location_name || p.location || '-';
+        infoBox.textContent = `Current Stock: ${qty} | Location: ${loc}`;
+        infoBox.style.color = "var(--blue-600)";
+      } else {
+        infoBox.textContent = "Product not found.";
+        infoBox.style.color = "red";
+      }
+      infoBox.style.display = 'block';
+    } catch (e) { console.error(e); }
   }
 
   function closeStockModal(){
@@ -505,72 +527,51 @@
         setStockAlert(data.error || ('Error (HTTP '+res.status+')'), 'bad');
         return;
       }
-
       setStockAlert('Saved successfully ✔', 'ok');
-
+      checkCurrentStock(item_number); // Odśwież stan po zapisie
       loadProducts();
-      if (document.getElementById('view-audit').style.display !== 'none') {
-        loadAudit();
-      }
-    }catch(e){
-      setStockAlert('Connection error.', 'bad');
-    }
+      if (document.getElementById('view-audit').style.display !== 'none') loadAudit();
+    }catch(e){ setStockAlert('Connection error.', 'bad'); }
   }
 
   async function startScanStock(targetInputId){
     clearStockAlert();
-
     if(!('BarcodeDetector' in window)){
       const pasted = prompt('Scanning not supported. Paste QR text here:');
-      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
+      if(pasted) { 
+        document.getElementById(targetInputId).value = pasted.trim();
+        checkCurrentStock(pasted.trim());
+      }
       return;
     }
-
     try{
       stockDetector = new BarcodeDetector({ formats: ['qr_code'] });
       stockStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
       const video = document.getElementById('stockVideo');
       video.srcObject = stockStream;
       await video.play();
-
       document.getElementById('stockScannerBox').style.display = 'block';
-
       stockScanTimer = setInterval(async () => {
         try{
           const barcodes = await stockDetector.detect(video);
           if(barcodes && barcodes.length){
             const raw = (barcodes[0].rawValue || '').trim();
-            if(raw){
-              let idOnly = raw;
-              try{
-                if(raw.startsWith('{') && raw.endsWith('}')){
-                  const obj = JSON.parse(raw);
-                  if(obj.id) idOnly = String(obj.id).trim();
-                } else if(raw.includes('|')) {
-                  idOnly = raw.split('|')[0].trim();
-                }
-              }catch(_){}
-              document.getElementById(targetInputId).value = idOnly;
-            }
+            let idOnly = raw;
+            if(raw.startsWith('{')){ try{ idOnly = JSON.parse(raw).id; }catch(e){}}
+            else if(raw.includes('|')){ idOnly = raw.split('|')[0]; }
+            
+            document.getElementById(targetInputId).value = idOnly;
+            checkCurrentStock(idOnly); // Sprawdź stan po skanie
             stopStockScan();
           }
         }catch(_){}
       }, 250);
-
-    }catch(e){
-      stopStockScan();
-      const pasted = prompt('Camera access failed. Paste QR text here:');
-      if(pasted) document.getElementById(targetInputId).value = (pasted || '').trim();
-    }
+    }catch(e){ stopStockScan(); }
   }
 
   function stopStockScan(){
     if(stockScanTimer){ clearInterval(stockScanTimer); stockScanTimer = null; }
-    if(stockStream){
-      stockStream.getTracks().forEach(t => t.stop());
-      stockStream = null;
-    }
+    if(stockStream){ stockStream.getTracks().forEach(t => t.stop()); stockStream = null; }
     document.getElementById('stockScannerBox').style.display = 'none';
   }
 </script>
