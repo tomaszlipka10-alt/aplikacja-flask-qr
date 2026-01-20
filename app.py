@@ -14,18 +14,14 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-123")
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
-# --- Supabase Helpers ---
 def _supabase_url():
     return (os.getenv("SUPABASE_URL") or "").rstrip("/")
 
 def _supabase_key():
-    return (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or 
-            os.getenv("SUPABASE_SERVICE_KEY") or 
-            os.getenv("SUPABASE_KEY") or "")
+    return (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or "")
 
-def _supabase_request(method, table, params=None, json_body=None, prefer=None):
-    base = _supabase_url()
-    key = _supabase_key()
+def _supabase_request(method, table, params=None, json_body=None):
+    base, key = _supabase_url(), _supabase_key()
     if not base or not key: return None
     url = f"{base}/rest/v1/{table}"
     if params: url += "?" + urllib.parse.urlencode(params)
@@ -33,15 +29,13 @@ def _supabase_request(method, table, params=None, json_body=None, prefer=None):
     req.add_header("apikey", key)
     req.add_header("Authorization", f"Bearer {key}")
     req.add_header("Content-Type", "application/json")
-    if prefer: req.add_header("Prefer", prefer)
     body_data = json.dumps(json_body).encode("utf-8") if json_body is not None else None
     try:
         with urllib.request.urlopen(req, data=body_data) as response:
             if response.status in [200, 201]: return json.loads(response.read().decode("utf-8"))
             return [] if response.status == 204 else None
-    except Exception: return None
+    except: return None
 
-# --- Auth ---
 class User(UserMixin):
     def __init__(self, id, username, is_admin):
         self.id, self.username, self.is_admin = id, username, is_admin
@@ -51,10 +45,6 @@ def load_user(user_id):
     res = _supabase_request("GET", "users", {"id": f"eq.{user_id}"})
     if res: return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
     return None
-
-# --- Routes ---
-@app.route("/health")
-def health(): return "OK", 200
 
 @app.route("/")
 @login_required
@@ -78,12 +68,7 @@ def logout(): logout_user(); return redirect(url_for("login"))
 def api_products():
     if request.method == "POST":
         d = request.json
-        body = {
-            "item_number": d.get("item_number"), 
-            "name": d.get("name"), 
-            "current_stock": int(d.get("current_stock") or 0), 
-            "location": d.get("location")
-        }
+        body = {"item_number": d.get("item_number"), "name": d.get("name"), "current_stock": int(d.get("current_stock") or 0), "location": d.get("location")}
         res = _supabase_request("POST", "products", json_body=body)
         return jsonify({"ok": res is not None})
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
@@ -95,15 +80,12 @@ def api_stock(action):
     d = request.json
     sku, amt = d.get("item_number"), int(d.get("amount") or 0)
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
-    if not res: return jsonify({"ok":False, "error":"Produkt nie istnieje"}), 404
+    if not res: return jsonify({"ok":False, "error":"Brak SKU"}), 404
     p = res[0]
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
     if new_q < 0: return jsonify({"ok":False, "error":"Brak towaru"}), 400
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
-    _supabase_request("POST", "audit_logs", json_body={
-        "product_sku": sku, "product_name": p['name'], "action": action.upper(), 
-        "amount": amt, "location": p['location'], "username": current_user.username
-    })
+    _supabase_request("POST", "audit_logs", json_body={"product_sku": sku, "product_name": p['name'], "action": action.upper(), "amount": amt, "location": p['location'], "username": current_user.username})
     return jsonify({"ok":True, "current_stock": new_q})
 
 @app.route("/api/audit")
@@ -115,10 +97,9 @@ def api_audit():
 @app.route("/api/admin/backup/github", methods=["POST"])
 @login_required
 def api_backup():
-    if not current_user.is_admin: return jsonify({"message":"Brak uprawnień"}), 403
+    if not current_user.is_admin: return jsonify({"message":"Forbidden"}), 403
     t, r = os.getenv("GITHUB_TOKEN"), os.getenv("GITHUB_REPO")
-    prods = _supabase_request("GET", "products")
-    logs = _supabase_request("GET", "audit_logs")
+    prods, logs = _supabase_request("GET", "products"), _supabase_request("GET", "audit_logs")
     content = json.dumps({"exported_at": dt.datetime.utcnow().isoformat(), "products": prods, "audit": logs}, indent=2).encode("utf-8")
     url = f"https://api.github.com/repos/{r}/contents/backups/warehouse_data.json"
     headers = {"Authorization": f"token {t}", "Accept": "application/vnd.github.v3+json"}
@@ -130,7 +111,7 @@ def api_backup():
     p_data = {"message": "Backup", "content": base64.b64encode(content).decode("utf-8")}
     if sha: p_data["sha"] = sha
     req = urllib.request.Request(url, data=json.dumps(p_data).encode("utf-8"), headers=headers, method="PUT")
-    with urllib.request.urlopen(req): return jsonify({"message": "Backup wykonany"})
+    with urllib.request.urlopen(req): return jsonify({"message": "Backup OK"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

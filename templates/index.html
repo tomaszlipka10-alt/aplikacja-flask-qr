@@ -5,62 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BTVenloStorage</title>
   <style>
-    :root{
-      --bg: #ffffff; --card: #ffffff; --text: #0b1b3a; --muted: #5b6a88;
-      --border: rgba(17, 41, 84, .12); --blue-600: #2563eb; --blue-100: #eaf2ff;
-      --sidebar: #0f2a5f; --sidebar2:#123372; --shadow: 0 10px 30px rgba(10, 25, 60, .10); --radius: 16px;
-    }
+    :root{ --bg: #ffffff; --text: #0b1b3a; --border: rgba(17, 41, 84, .12); --blue: #2563eb; --sidebar: #0f2a5f; --radius: 16px; }
     *{box-sizing:border-box}
-    body{margin:0; font-family: system-ui, sans-serif; color:var(--text); background: var(--bg); display:flex; min-height:100vh;}
-    
-    .sidebar{width:72px; background: linear-gradient(180deg, var(--sidebar), var(--sidebar2)); color:#fff; display:flex; flex-direction:column; align-items:center; padding:20px 8px; gap:15px; position:sticky; top:0; height:100vh;}
-    .navbtn{width:48px; height:48px; border-radius:12px; border:1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05); color:#fff; cursor:pointer; font-size:20px; transition:0.2s;}
-    .navbtn.active{background: var(--blue-600); border-color: transparent;}
-    .navbtn:hover{background: rgba(255,255,255,.15);}
-
-    .main{flex:1; min-width:0;}
-    .topbar{position:sticky; top:0; background: rgba(255,255,255,.8); backdrop-filter: blur(10px); border-bottom:1px solid var(--border); z-index:10; padding:15px 25px;}
-    .container{max-width:1100px; margin:0 auto; padding:25px;}
-    
-    .card{background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:20px;}
-    .btn{padding:12px 18px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer; font-weight:600; transition: 0.2s;}
-    .btn-primary{background:var(--blue-600); color:#fff; border:0;}
-    .btn-primary:hover{opacity: 0.9;}
-
+    body{margin:0; font-family: system-ui, sans-serif; background: var(--bg); display:flex; min-height:100vh;}
+    .sidebar{width:72px; background: var(--sidebar); color:#fff; display:flex; flex-direction:column; align-items:center; padding:20px 0; gap:15px; position:fixed; height:100vh;}
+    .navbtn{width:48px; height:48px; border-radius:12px; border:none; background: rgba(255,255,255,.1); color:#fff; cursor:pointer; font-size:20px;}
+    .navbtn.active{background: var(--blue);}
+    .main{margin-left:72px; flex:1;}
+    .topbar{padding:15px 25px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:#fff; position:sticky; top:0; z-index:10;}
+    .search-btn{font-size:24px; cursor:pointer; background:none; border:none;}
+    .container{padding:25px; max-width:1100px; margin:0 auto;}
+    .card{background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow: 0 4px 20px rgba(0,0,0,.05); margin-bottom:20px;}
+    .btn{padding:12px 20px; border-radius:10px; border:1px solid var(--border); cursor:pointer; font-weight:600;}
+    .btn-primary{background:var(--blue); color:#fff; border:none;}
     table{width:100%; border-collapse:collapse;}
     th,td{text-align:left; padding:14px; border-bottom:1px solid var(--border);}
-    th{color:var(--muted); font-size:13px; text-transform:uppercase; letter-spacing:1px;}
-
-    .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:50;}
-    .modal{background:#fff; width:min(450px, 90%); border-radius:20px; padding:25px; box-shadow: var(--shadow);}
+    .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:100;}
+    .modal{background:#fff; width:min(450px, 90%); border-radius:20px; padding:25px;}
     input{width:100%; padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px; font-size:16px;}
-    .alert{padding:12px; border-radius:10px; margin-bottom:15px; display:none; font-size:14px;}
   </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <button class="navbtn active" id="btn-dash" onclick="showView('dashboard')">🏠</button>
-    <button class="navbtn" id="btn-inv" onclick="showView('inventory')">📦</button>
-    <button class="navbtn" id="btn-aud" onclick="showView('audit')">🕒</button>
-    <button class="navbtn" id="btn-adm" onclick="showView('admin')">⚙️</button>
+  <nav class="sidebar">
+    <button class="navbtn active" onclick="showView('dashboard')">🏠</button>
+    <button class="navbtn" onclick="showView('inventory')">📦</button>
+    <button class="navbtn" onclick="showView('audit')">🕒</button>
+    <button class="navbtn" onclick="showView('admin')">⚙️</button>
     <button class="navbtn" style="margin-top:auto" onclick="location.href='/logout'">🚪</button>
-  </aside>
+  </nav>
 
   <main class="main">
     <header class="topbar">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong style="font-size:20px;">BTVenlo Storage</strong>
-        <button class="btn btn-primary" onclick="openModal('add')">+ Add Product</button>
-      </div>
+      <strong>BTVenlo Storage</strong>
+      <button class="search-btn" onclick="openModal('add')">🔍</button>
     </header>
 
     <div class="container">
       <section id="view-dashboard" class="view">
         <div class="card">
-          <h2>Actions</h2>
+          <h2>Stock Actions</h2>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-            <button class="btn" style="padding:30px" onclick="openModal('receive')">⬇️ Receive Stock</button>
-            <button class="btn" style="padding:30px" onclick="openModal('issue')">⬆️ Issue Stock</button>
+            <button class="btn" style="padding:40px" onclick="openModal('receive')">⬇️ Receive</button>
+            <button class="btn" style="padding:40px" onclick="openModal('issue')">⬆️ Issue</button>
           </div>
         </div>
       </section>
@@ -79,7 +65,7 @@
         <div class="card">
           <h2>Audit Logs</h2>
           <table>
-            <thead><tr><th>Date</th><th>Action</th><th>SKU</th><th>Qty</th><th>User</th></tr></thead>
+            <thead><tr><th>Date</th><th>Action</th><th>SKU</th><th>Qty</th></tr></thead>
             <tbody id="auditTable"></tbody>
           </table>
         </div>
@@ -88,7 +74,7 @@
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
           <h2>Admin</h2>
-          <button class="btn btn-primary" onclick="runBackup()">Run GitHub Backup</button>
+          <button class="btn btn-primary" onclick="runBackup()">Backup to GitHub</button>
         </div>
       </section>
     </div>
@@ -96,70 +82,62 @@
 
   <div id="modal" class="modal-backdrop">
     <div class="modal">
-      <h2 id="modalTitle">Stock Action</h2>
-      <div id="fields-add" style="display:none">
-        <input id="p_sku" placeholder="SKU (Scan now)">
-        <input id="p_name" placeholder="Product Name">
-        <input id="p_qty" type="number" placeholder="Initial Stock">
+      <h2 id="modalTitle">Scan / Action</h2>
+      <div id="f-add" style="display:none">
+        <input id="p_sku" placeholder="SKU (Scan here)">
+        <input id="p_name" placeholder="Name">
+        <input id="p_qty" type="number" placeholder="Initial Qty">
         <input id="p_loc" placeholder="Location">
       </div>
-      <div id="fields-stock" style="display:none">
-        <input id="s_sku" placeholder="SKU (Scan now)">
+      <div id="f-stock" style="display:none">
+        <input id="s_sku" placeholder="SKU (Scan here)">
         <input id="s_qty" type="number" placeholder="Amount">
       </div>
-      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button class="btn" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="handleExecute()">Confirm</button>
+        <button class="btn btn-primary" onclick="handleSave()">Confirm</button>
       </div>
     </div>
   </div>
 
   <script>
-    let currentMode = '';
-    let barcodeBuffer = "";
-    let lastKeyTime = 0;
+    let mode = '';
+    let buffer = "";
+    let lastTime = 0;
 
-    // --- SCANNER ---
+    // --- SCANNER LOGIC ---
     window.addEventListener("keydown", (e) => {
       const now = Date.now();
-      if (now - lastKeyTime > 100) barcodeBuffer = "";
-      lastKeyTime = now;
+      if (now - lastTime > 100) buffer = "";
+      lastTime = now;
       if (e.key === "Enter") {
-        if (barcodeBuffer.length > 2) {
-          handleGlobalScan(barcodeBuffer);
-          barcodeBuffer = "";
-        }
-      } else if (e.key.length === 1) {
-        barcodeBuffer += e.key;
-      }
+        if (buffer.length > 2) { handleScan(buffer); buffer = ""; }
+      } else if (e.key.length === 1) { buffer += e.key; }
     });
 
-    function handleGlobalScan(text) {
-      const skuField = currentMode === 'add' ? document.getElementById('p_sku') : document.getElementById('s_sku');
-      const nameField = document.getElementById('p_name');
-
+    function handleScan(text) {
+      const skuInput = mode === 'add' ? document.getElementById('p_sku') : document.getElementById('s_sku');
       if (text.includes("|")) {
-        const parts = text.split("|");
-        skuField.value = parts[0].trim();
-        if (currentMode === 'add' && parts[1]) nameField.value = parts[1].trim();
+        const p = text.split("|");
+        skuInput.value = p[0].trim();
+        if(mode === 'add' && p[1]) document.getElementById('p_name').value = p[1].trim();
       } else {
-        skuField.value = text.trim();
+        skuInput.value = text.trim();
       }
     }
 
     function showView(v) {
       document.querySelectorAll('.view').forEach(e => e.style.display = 'none');
-      document.querySelectorAll('.navbtn').forEach(b => b.classList.remove('active'));
       document.getElementById('view-' + v).style.display = 'block';
       if(v === 'inventory') loadProducts();
       if(v === 'audit') loadAudit();
     }
 
     function openModal(m) {
-      currentMode = m;
+      mode = m;
       document.getElementById('modalTitle').innerText = m.toUpperCase();
-      document.getElementById('fields-add').style.display = m === 'add' ? 'block' : 'none';
-      document.getElementById('fields-stock').style.display = m !== 'add' ? 'block' : 'none';
+      document.getElementById('f-add').style.display = m === 'add' ? 'block' : 'none';
+      document.getElementById('f-stock').style.display = m !== 'add' ? 'block' : 'none';
       document.getElementById('modal').style.display = 'flex';
     }
 
@@ -174,34 +152,23 @@
     async function loadAudit() {
       const res = await fetch('/api/audit');
       const j = await res.json();
-      document.getElementById('auditTable').innerHTML = j.data.map(a => `<tr><td>${a.created_at.split('T')[0]}</td><td>${a.action}</td><td>${a.product_sku}</td><td>${a.amount}</td><td>${a.username}</td></tr>`).join('');
+      document.getElementById('auditTable').innerHTML = j.data.map(a => `<tr><td>${a.created_at.split('T')[0]}</td><td>${a.action}</td><td>${a.product_sku}</td><td>${a.amount}</td></tr>`).join('');
     }
 
-    async function handleExecute() {
-      if (currentMode === 'add') {
-        const data = {
-          item_number: document.getElementById('p_sku').value,
-          name: document.getElementById('p_name').value,
-          current_stock: document.getElementById('p_qty').value,
-          location: document.getElementById('p_loc').value
-        };
-        const res = await fetch('/api/products', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-        if(res.ok) { alert('Dodano!'); closeModal(); loadProducts(); }
+    async function handleSave() {
+      if (mode === 'add') {
+        const body = { item_number: document.getElementById('p_sku').value, name: document.getElementById('p_name').value, current_stock: document.getElementById('p_qty').value, location: document.getElementById('p_loc').value };
+        await fetch('/api/products', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
       } else {
-        const data = {
-          item_number: document.getElementById('s_sku').value,
-          amount: document.getElementById('s_qty').value
-        };
-        const res = await fetch(`/api/stock/${currentMode}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-        if(res.ok) { alert('Zaktualizowano!'); closeModal(); loadProducts(); }
-        else alert('Błąd! Sprawdź SKU lub stan.');
+        const body = { item_number: document.getElementById('s_sku').value, amount: document.getElementById('s_qty').value };
+        await fetch(`/api/stock/${mode}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
       }
+      closeModal(); loadProducts();
     }
 
     async function runBackup() {
       const res = await fetch('/api/admin/backup/github', {method:'POST'});
-      const j = await res.json();
-      alert(j.message);
+      const j = await res.json(); alert(j.message);
     }
   </script>
 </body>
