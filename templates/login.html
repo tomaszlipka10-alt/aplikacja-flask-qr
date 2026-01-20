@@ -1,45 +1,43 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ 'Nowe konto' if register_mode else 'Logowanie' }}</title>
+  <title>Login</title>
   <style>
-    body{font-family:system-ui,-apple-system,sans-serif;background:#0b1220;color:#e5e7eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-    .card{width:min(420px,92vw);background:#0f172a;border:1px solid #24324a;border-radius:16px;padding:25px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
-    h1{margin:0 0 10px 0;font-size:26px;text-align:center}
-    .hint{text-align:center;opacity:0.7;margin-bottom:20px;font-size:14px}
-    label{display:block;margin-bottom:8px;font-weight:600}
-    input{width:100%;padding:12px;margin-bottom:15px;border-radius:10px;border:1px solid #2b3a55;background:#0b1324;color:#fff;box-sizing:border-box}
-    button{width:100%;padding:12px;border-radius:10px;border:0;background:#2563eb;color:white;font-weight:700;cursor:pointer;margin-top:10px}
-    .error{background:#450a0a;color:#fecaca;padding:12px;border-radius:8px;margin-bottom:15px;font-size:14px;border:1px solid #7f1d1d}
-    .switch{margin-top:25px;text-align:center;font-size:14px;border-top:1px solid #24324a;padding-top:20px}
-    .switch a{color:#3b82f6;text-decoration:none;font-weight:bold}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1220;color:#e5e7eb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+    .card{width:min(420px,92vw);background:#0f172a;border:1px solid #24324a;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+    h1{margin:0 0 14px 0;font-size:26px}
+    .hint{opacity:.8;margin:0 0 16px 0}
+    label{display:block;margin-top:10px;margin-bottom:6px;font-weight:600}
+    input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2b3a55;background:#0b1324;color:#e5e7eb}
+    button{margin-top:16px;width:100%;padding:10px 12px;border-radius:10px;border:0;background:#2563eb;color:white;font-weight:700;cursor:pointer}
+    .error{margin-top:12px;background:#3b0a0a;border:1px solid #7f1d1d;color:#fecaca;padding:10px 12px;border-radius:10px}
+    .note{margin-top:14px;font-size:12px;opacity:.85}
+    code{background:#111827;border:1px solid #24324a;border-radius:8px;padding:2px 6px}
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>{{ 'Rejestracja' if register_mode else 'BTVenlo Storage' }}</h1>
-    <p class="hint">System Zarządzania Magazynem</p>
+    <h1>Login</h1>
+    <p class="hint">Sign in to your WMS.</p>
 
-    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ url_for('login') }}">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required />
 
-    <form method="POST" action="{{ url_for('register') if register_mode else url_for('login') }}">
-      <label>Użytkownik</label>
-      <input type="text" name="username" placeholder="Wpisz nazwę..." required autofocus>
-      
-      <label>Hasło</label>
-      <input type="password" name="password" placeholder="••••••••" required>
-      
-      <button type="submit">{{ 'Załóż konto pracownika' if register_mode else 'Zaloguj się' }}</button>
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+      <button type="submit">Sign in</button>
     </form>
 
-    <div class="switch">
-      {% if register_mode %}
-        Masz już konto? <a href="{{ url_for('login') }}">Wróć do logowania</a>
-      {% else %}
-        Nowy pracownik? <a href="{{ url_for('register') }}">Zarejestruj się tutaj</a>
-      {% endif %}
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <div class="note">
+      Default admin (auto-created if missing): <code>admin</code> / <code>admin123</code>
     </div>
   </div>
 </body>
