@@ -20,273 +20,442 @@
       --shadow: 0 10px 30px rgba(10, 25, 60, .10);
       --radius: 16px;
     }
+
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0; font-family: ui-sans-serif, system-ui, sans-serif; color:var(--text); background: var(--bg);}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      color:var(--text);
+      background: var(--bg);
+    }
+
     .app{display:flex; min-height:100vh;}
-    .sidebar{width:72px; background: var(--sidebar); display:flex; flex-direction:column; align-items:center; padding:20px 0; gap:15px; position:fixed; height:100vh; z-index:100;}
-    .nav-btn{width:48px; height:48px; border-radius:12px; border:none; background:transparent; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:20px; transition:all .2s;}
-    .nav-btn:hover{background:rgba(255,255,255,.1)}
-    .nav-btn.active{background:var(--blue-600); box-shadow:0 4px 12px rgba(37,99,235,0.3)}
-    .main{margin-left:72px; flex:1; display:flex; flex-direction:column;}
-    .topbar{padding:15px 25px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; background:#fff;}
-    .content{padding:25px; flex:1;}
-    .card{background:var(--card); border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow); overflow:hidden;}
-    .table-header{padding:20px 25px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;}
-    table{width:100%; border-collapse:collapse;}
-    th{text-align:left; padding:12px 25px; background:#f8fafc; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em;}
-    td{padding:16px 25px; border-bottom:1px solid var(--border); font-size:14px;}
-    .btn{padding:10px 18px; border-radius:10px; border:none; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; font-size:14px;}
-    .btn-blue{background:var(--blue-600); color:#fff;}
-    .btn-blue:hover{background:var(--blue-700);}
-    .modal-backdrop{position:fixed; inset:0; background:rgba(11,27,58,0.4); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px;}
-    .modal{background:#fff; width:100%; max-width:440px; border-radius:20px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;}
-    .modal-header{padding:20px 25px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;}
-    .modal-body{padding:25px;}
-    .form-group{margin-bottom:18px;}
-    .form-group label{display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text);}
-    .form-group input{width:100%; padding:11px 14px; border-radius:10px; border:1px solid var(--border); font-size:14px;}
-    #reader{width:100%; max-width:400px; margin:0 auto 15px; border-radius:12px; overflow:hidden; display:none;}
+
+    .sidebar{
+      width:72px;
+      background: var(--sidebar);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      padding:20px 0;
+      gap:15px;
+      position:fixed;
+      height:100vh;
+      z-index:100;
+    }
+
+    .nav-btn{
+      width:48px;
+      height:48px;
+      border-radius:12px;
+      border:none;
+      background:transparent;
+      color:#fff;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:20px;
+      transition:all .2s;
+    }
+    .nav-btn:hover{ background: rgba(255,255,255,.1); }
+    .nav-btn.active{
+      background: var(--blue-600);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .main{ margin-left:72px; flex:1; display:flex; flex-direction:column; }
+    .topbar{
+      height:64px;
+      padding:0 25px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      background:#fff;
+      position:sticky;
+      top:0;
+      z-index:90;
+    }
+
+    .content{ padding:25px; flex:1; }
+
+    .view-section{ display:none; animation: fadeIn .2s ease-out; }
+    .view-section.active{ display:block; }
+
+    @keyframes fadeIn{ from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:translateY(0)} }
+
+    .card{
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .table-header{
+      padding:20px 25px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    table{ width:100%; border-collapse:collapse; }
+    th{
+      text-align:left;
+      padding:12px 25px;
+      background: #f8fafc;
+      font-size:12px;
+      font-weight:600;
+      color: var(--muted);
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+    td{ padding:16px 25px; border-bottom:1px solid var(--border); font-size:14px; }
+    tr:last-child td{ border-bottom:none; }
+
+    .btn{
+      padding:10px 18px;
+      border-radius:10px;
+      border:none;
+      font-weight:600;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      transition:all .2s;
+      font-size:14px;
+    }
+    .btn-blue{ background: var(--blue-600); color:#fff; }
+    .btn-blue:hover{ background: var(--blue-700); }
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(11, 27, 58, 0.4);
+      backdrop-filter: blur(4px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:1000;
+      padding:20px;
+    }
+    .modal{
+      background: #fff;
+      width:100%;
+      max-width:440px;
+      border-radius: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+      overflow:hidden;
+    }
+    .modal-header{
+      padding:20px 25px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .modal-body{ padding:25px; }
+
+    .form-group{ margin-bottom:18px; }
+    .form-group label{ display:block; font-size:13px; font-weight:600; margin-bottom:6px; color:var(--text); }
+    .form-group input{
+      width:100%;
+      padding:11px 14px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      font-size:14px;
+      transition: border-color .2s;
+    }
+    .form-group input:focus{ outline:none; border-color:var(--blue-500); }
+
+    #reader{ width:100%; max-width:400px; margin: 0 auto 15px; border-radius:12px; overflow:hidden; display:none; }
+
+    .alert{
+      padding:12px 16px;
+      border-radius:10px;
+      margin-bottom:15px;
+      font-size:14px;
+      display:none;
+    }
+    .alert.ok{ background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+    .alert.bad{ background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
   </style>
 </head>
 <body>
-  <div class="app">
-    <nav class="sidebar">
-      <div style="font-weight:800; font-size:22px; color:#fff; margin-bottom:20px;">BT</div>
-      <button class="nav-btn active" onclick="showView('inventory')" title="Inventory">📦</button>
-      <button class="nav-btn" onclick="showView('audit')" title="History">🕒</button>
-      {% if current_user.is_admin %}
-      <button class="nav-btn" onclick="showView('admin')" title="Admin">⚙️</button>
-      {% endif %}
-      <button class="nav-btn" style="margin-top:auto" onclick="location.href='/logout'" title="Logout">🚪</button>
-    </nav>
 
-    <div class="main">
-      <header class="topbar">
-        <h1 style="font-size:18px; margin:0; font-weight:700;">Warehouse Management</h1>
-        <div style="display:flex; align-items:center; gap:12px;">
-          <span style="font-size:13px; font-weight:500; color:var(--muted)">{{ current_user.username }}</span>
-          <div style="width:36px; height:36px; border-radius:50%; background:var(--blue-100); color:var(--blue-600); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px;">{{ current_user.username[0]|upper }}</div>
+<div class="app">
+  <nav class="sidebar">
+    <div style="font-weight:800; font-size:22px; color:#fff; margin-bottom:20px; font-family:serif;">BT</div>
+    <button class="nav-btn active" onclick="showView('inventory')" id="nav-inventory">📦</button>
+    <button class="nav-btn" onclick="showView('audit')" id="nav-audit">🕒</button>
+    {% if current_user.is_admin %}
+    <button class="nav-btn" onclick="showView('admin')" id="nav-admin">⚙️</button>
+    {% endif %}
+    <button class="nav-btn" style="margin-top:auto" onclick="location.href='/logout'">🚪</button>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <div style="font-weight:700; font-size:18px;">BT Venlo Storage</div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="text-align:right">
+          <div style="font-size:14px; font-weight:600;">{{ current_user.username }}</div>
+          <div style="font-size:11px; color:var(--muted)">{% if current_user.is_admin %}Administrator{% else %}Operator{% endif %}</div>
         </div>
-      </header>
-
-      <div class="content">
-        <div id="view-inventory" class="view-section">
-          <div class="card">
-            <div class="table-header">
-              <h2 style="font-size:16px; margin:0;">Inventory List</h2>
-              <div style="display:flex; gap:10px;">
-                <button class="btn btn-blue" onclick="openModal('add')"><span>+</span> Add Product</button>
-                <button class="btn" style="background:#f1f5f9;" onclick="openModal('receive')">📥 In</button>
-                <button class="btn" style="background:#f1f5f9;" onclick="openModal('release')">📤 Out</button>
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>SKU / Item Number</th>
-                  <th>Product Name</th>
-                  <th>Location</th>
-                  <th>Current Stock</th>
-                </tr>
-              </thead>
-              <tbody id="prodTable">
-                <tr><td colspan="4" style="text-align:center; color:var(--muted); padding:40px;">Loading data...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div id="view-audit" class="view-section" style="display:none">
-          <div class="card">
-            <div class="table-header">
-              <h2 style="font-size:16px; margin:0;">Operation History</h2>
-              <button class="btn" style="background:#f1f5f9;" onclick="exportAudit()">💾 Export CSV</button>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Action</th>
-                  <th>Item Number</th>
-                  <th>Qty</th>
-                  <th>User</th>
-                </tr>
-              </thead>
-              <tbody id="auditTable"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div id="view-admin" class="view-section" style="display:none">
-          <div class="card">
-            <div class="table-header"><h2 style="font-size:16px; margin:0;">Admin Panel</h2></div>
-            <div style="padding:25px;">
-              <p style="font-size:14px; color:var(--muted); margin-bottom:20px;">System backups and maintenance.</p>
-              <button class="btn btn-blue" onclick="runBackup()">🚀 Backup to GitHub</button>
-              <div id="adminAlert" style="margin-top:20px; padding:15px; border-radius:10px; display:none; font-size:14px;"></div>
-            </div>
-          </div>
+        <div style="width:38px; height:38px; border-radius:12px; background:var(--blue-100); color:var(--blue-600); display:flex; align-items:center; justify-content:center; font-weight:700;">
+          {{ current_user.username[0]|upper }}
         </div>
       </div>
+    </header>
+
+    <div class="content">
+      <section id="view-inventory" class="view-section active">
+        <div class="card">
+          <div class="table-header">
+            <h2 style="font-size:16px; margin:0;">Inventory</h2>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-blue" onclick="openModal('add')"><span>+</span> Add Product</button>
+              <button class="btn" style="background:#f1f5f9;" onclick="openModal('receive')">📥 In</button>
+              <button class="btn" style="background:#f1f5f9;" onclick="openModal('release')">📤 Out</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item Number</th>
+                <th>Product Name</th>
+                <th>Location</th>
+                <th>Stock</th>
+              </tr>
+            </thead>
+            <tbody id="prodTable">
+              <tr><td colspan="4" style="text-align:center; padding:40px; color:var(--muted);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-audit" class="view-section">
+        <div class="card">
+          <div class="table-header">
+            <h2 style="font-size:16px; margin:0;">History</h2>
+            <button class="btn" style="background:#f1f5f9;" onclick="exportAudit()">💾 Export CSV</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Action</th>
+                <th>Item Number</th>
+                <th>Qty</th>
+                <th>User</th>
+              </tr>
+            </thead>
+            <tbody id="auditTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="view-admin" class="view-section">
+        <div class="card">
+          <div class="table-header"><h2 style="font-size:16px; margin:0;">Admin Panel</h2></div>
+          <div style="padding:25px;">
+            <div id="adminAlert" class="alert"></div>
+            <button class="btn btn-blue" onclick="backupToGitHub()">🚀 Backup to GitHub</button>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
+</div>
 
-  <div id="modalBackdrop" class="modal-backdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="modalTitle" style="margin:0; font-size:17px;">Add Product</h3>
-        <button onclick="closeModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--muted);">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="reader"></div>
-        <div style="display:flex; justify-content:center; margin-bottom:15px;">
-          <button id="scanBtn" class="btn" style="background:var(--blue-100); color:var(--blue-600);" onclick="toggleScanner()">📷 Scan QR/Barcode</button>
-        </div>
-        
-        <div id="form-full">
-          <div class="form-group"><label>Item Number</label><input id="p_id" placeholder="Scan or type..."></div>
-          <div class="form-group" id="group-name"><label>Product Name</label><input id="p_name"></div>
-          <div class="form-group"><label>Quantity</label><input id="p_qty" type="number" value="1"></div>
-          <div class="form-group" id="group-loc"><label>Location</label><input id="p_loc"></div>
-        </div>
-        
-        <button class="btn btn-blue" style="width:100%; justify-content:center; margin-top:10px;" onclick="handleSave()">Confirm Action</button>
-      </div>
+<div id="modalBackdrop" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle" style="margin:0; font-size:17px;">Action</h3>
+      <button onclick="closeModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--muted);">&times;</button>
     </div>
-  </div>
-
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script>
-    let currentMode = 'add';
-    let scanner = null;
-
-    function showView(v) {
-      document.querySelectorAll('.view-section').forEach(s => s.style.display = 'none');
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('view-' + v).style.display = 'block';
-      event.currentTarget.classList.add('active');
-      if(v === 'inventory') loadProducts();
-      if(v === 'audit') loadAudit();
-    }
-
-    async function loadProducts() {
-      try {
-        const res = await fetch('/api/products');
-        const j = await res.json();
-        if(j.ok && j.data) {
-          document.getElementById('prodTable').innerHTML = j.data.map(p => `
-            <tr>
-              <td><span style="font-family:monospace; font-weight:600; color:var(--blue-600);">${p.item_number}</span></td>
-              <td style="font-weight:500;">${p.name}</td>
-              <td><span style="background:#f1f5f9; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">${p.location}</span></td>
-              <td><strong style="font-size:15px;">${p.current_stock}</strong> <small style="color:var(--muted)">pcs</small></td>
-            </tr>
-          `).join('');
-        }
-      } catch(e) { console.error(e); }
-    }
-
-    async function loadAudit() {
-      try {
-        const res = await fetch('/api/audit');
-        const j = await res.json();
-        if(j.ok && j.data) {
-          document.getElementById('auditTable').innerHTML = j.data.map(a => `
-            <tr>
-              <td style="color:var(--muted); font-size:13px;">${a.created_at.split('.')[0].replace('T',' ')}</td>
-              <td><span style="font-weight:600; font-size:12px;">${a.action}</span></td>
-              <td>${a.item_number}</td>
-              <td>${a.qty}</td>
-              <td>${a.username}</td>
-            </tr>
-          `).join('');
-        }
-      } catch(e) { console.error(e); }
-    }
-
-    function openModal(mode) {
-      currentMode = mode;
-      document.getElementById('modalTitle').textContent = mode === 'add' ? 'Add New Product' : (mode === 'receive' ? 'Restock (In)' : 'Release (Out)');
-      document.getElementById('group-name').style.display = mode === 'add' ? 'block' : 'none';
-      document.getElementById('group-loc').style.display = mode === 'add' ? 'block' : 'none';
-      document.getElementById('modalBackdrop').style.display = 'flex';
-    }
-
-    function closeModal() {
-      document.getElementById('modalBackdrop').style.display = 'none';
-      stopScanner();
-    }
-
-    async function handleSave() {
-      const sku = document.getElementById('p_id').value;
-      const qty = document.getElementById('p_qty').value;
-      if(!sku || !qty) return alert("Fill required fields");
-
-      let url = '/api/products';
-      let method = 'POST';
-      let body = { item_number: sku, name: document.getElementById('p_name').value, current_stock: qty, location: document.getElementById('p_loc').value };
-
-      if(currentMode !== 'add') {
-        url = `/api/stock/${currentMode}`;
-        body = { item_number: sku, amount: qty };
-      }
-
-      const res = await fetch(url, {
-        method: method,
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(body)
-      });
+    <div class="modal-body">
+      <div id="reader"></div>
+      <div style="display:flex; justify-content:center; margin-bottom:20px;">
+        <button id="scanBtn" class="btn" style="background:var(--blue-100); color:var(--blue-600);" onclick="toggleScanner()">📷 Scan Barcode</button>
+      </div>
       
-      const resData = await res.json();
-      if(resData.ok) {
-        closeModal();
-        loadProducts();
-      } else {
-        alert("Error: " + (resData.error || "Action failed"));
+      <div class="form-group">
+        <label>Item Number</label>
+        <input id="p_id" placeholder="Scan or enter ID">
+      </div>
+      <div class="form-group" id="group-name">
+        <label>Product Name</label>
+        <input id="p_name">
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input id="p_qty" type="number" value="1">
+      </div>
+      <div class="form-group" id="group-loc">
+        <label>Location</label>
+        <input id="p_loc">
+      </div>
+      
+      <button class="btn btn-blue" style="width:100%; justify-content:center; margin-top:10px; padding:14px;" onclick="handleSave()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+  let currentMode = 'add';
+  let html5QrCode = null;
+
+  function showView(v){
+    document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.getElementById('nav-'+v).classList.add('active');
+    if(v==='inventory') loadProducts();
+    if(v==='audit') loadAudit();
+  }
+
+  // --- POPRAWKA: Logika ładowania produktów ---
+  async function loadProducts(){
+    try {
+      const res = await fetch('/api/products');
+      const j = await res.json();
+      if(j.ok && j.data){
+        document.getElementById('prodTable').innerHTML = j.data.map(p => `
+          <tr>
+            <td style="font-family:monospace; font-weight:600;">${p.item_number}</td>
+            <td style="font-weight:500;">${p.name}</td>
+            <td><span style="background:#f1f5f9; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:600;">${p.location}</span></td>
+            <td><strong>${p.current_stock}</strong> <span style="color:var(--muted); font-size:12px;">pcs</span></td>
+          </tr>
+        `).join('');
       }
-    }
+    } catch(e) { console.error(e); }
+  }
 
-    // --- Scanner Logic ---
-    function toggleScanner() {
-      const r = document.getElementById('reader');
-      if(r.style.display === 'block') { stopScanner(); } 
-      else { r.style.display = 'block'; startScanner(); }
-    }
-
-    function startScanner() {
-      scanner = new Html5Qrcode("reader");
-      scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
-        document.getElementById('p_id').value = txt;
-        stopScanner();
-      }).catch(err => console.error(err));
-    }
-
-    function stopScanner() {
-      if(scanner) {
-        scanner.stop().then(() => {
-          document.getElementById('reader').style.display = 'none';
-          scanner = null;
-        });
+  // --- POPRAWKA: Logika ładowania audytu ---
+  async function loadAudit(){
+    try {
+      const res = await fetch('/api/audit');
+      const j = await res.json();
+      if(j.ok && j.data){
+        document.getElementById('auditTable').innerHTML = j.data.map(a => `
+          <tr>
+            <td style="color:var(--muted); font-size:13px;">${a.created_at.split('.')[0].replace('T',' ')}</td>
+            <td><span style="font-weight:600; font-size:12px;">${a.action}</span></td>
+            <td>${a.item_number}</td>
+            <td>${a.qty}</td>
+            <td>${a.username}</td>
+          </tr>
+        `).join('');
       }
+    } catch(e) { console.error(e); }
+  }
+
+  function openModal(mode){
+    currentMode = mode;
+    document.getElementById('modalTitle').textContent = mode==='add'?'Add New Product':(mode==='receive'?'Receive Stock':'Release Stock');
+    document.getElementById('group-name').style.display = mode==='add'?'block':'none';
+    document.getElementById('group-loc').style.display = mode==='add'?'block':'none';
+    document.getElementById('modalBackdrop').style.display = 'flex';
+  }
+
+  function closeModal(){
+    document.getElementById('modalBackdrop').style.display = 'none';
+    stopScanner();
+  }
+
+  async function handleSave(){
+    const sku = document.getElementById('p_id').value;
+    const qty = parseInt(document.getElementById('p_qty').value);
+    if(!sku || !qty) return;
+
+    let url = '/api/products';
+    let method = 'POST';
+    let body = { 
+      item_number: sku, 
+      name: document.getElementById('p_name').value, 
+      current_stock: qty, 
+      location: document.getElementById('p_loc').value 
+    };
+
+    if(currentMode !== 'add'){
+      url = `/api/stock/${currentMode}`;
+      body = { item_number: sku, amount: qty };
     }
 
-    async function runBackup() {
-      const btn = event.target;
-      btn.disabled = true;
-      btn.textContent = "Processing...";
-      const res = await fetch('/api/admin/backup/github', { method: 'POST' });
+    const res = await fetch(url, {
+      method: method,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(data.ok) { closeModal(); loadProducts(); } else { alert(data.error || "Error"); }
+  }
+
+  function exportAudit(){
+    window.location.href = '/api/audit?export=csv';
+  }
+
+  // --- Scanner ---
+  function toggleScanner(){
+    const r = document.getElementById('reader');
+    if(r.style.display==='block'){ stopScanner(); }
+    else{ r.style.display='block'; startScanner(); }
+  }
+
+  function startScanner(){
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
+      processScan(txt);
+      stopScanner();
+    }).catch(e=>console.error(e));
+  }
+
+  function stopScanner(){
+    if(html5QrCode){
+      html5QrCode.stop().then(()=>{
+        document.getElementById('reader').style.display='none';
+        html5QrCode = null;
+      });
+    }
+  }
+
+  function processScan(text){
+    if(text.includes('|')){
+      const parts = text.split('|');
+      document.getElementById('p_id').value = (parts[0]||'').trim();
+      if(currentMode==='add') document.getElementById('p_name').value = (parts.slice(1).join('|')||'').trim();
+    } else {
+      document.getElementById('p_id').value = text;
+    }
+  }
+
+  // --- Admin ---
+  function setAdminAlert(msg, type){
+    const el = document.getElementById('adminAlert');
+    el.className = 'alert ' + (type || '');
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+
+  async function backupToGitHub(){
+    setAdminAlert('Backup starting...', '');
+    try {
+      const res = await fetch('/api/admin/backup/github', { method:'POST' });
       const data = await res.json();
-      const alertBox = document.getElementById('adminAlert');
-      alertBox.style.display = 'block';
-      alertBox.style.background = res.ok ? '#dcfce7' : '#fee2e2';
-      alertBox.style.color = res.ok ? '#166534' : '#991b1b';
-      alertBox.textContent = data.message || data.error;
-      btn.disabled = false;
-      btn.textContent = "Backup to GitHub";
-    }
+      if(res.ok) setAdminAlert(data.message || 'Backup OK', 'ok');
+      else setAdminAlert(data.error || 'Failed', 'bad');
+    } catch(e) { setAdminAlert('Error', 'bad'); }
+  }
 
-    loadProducts();
-  </script>
+  loadProducts();
+</script>
+
 </body>
 </html>
