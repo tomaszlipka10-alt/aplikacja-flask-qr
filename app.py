@@ -7,6 +7,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, curren
 from werkzeug.security import generate_password_hash, check_password_hash
 import urllib.request
 import urllib.parse
+import pandas as pd
+from io import BytesIO
+from flask import send_file
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "bt-venlo-2026-key")
@@ -134,6 +137,41 @@ def api_stock(action):
 def api_audit():
     data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
     return jsonify({"ok": True, "data": data})
+
+@app.route("/api/admin/export/excel")
+@login_required
+def export_excel():
+    if not current_user.is_admin:
+        return "Access denied", 403
+    
+    data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"})
+    if not data:
+        return "No data found", 404
+
+    df = pd.DataFrame(data)
+    
+    columns_mapping = {
+        'item_number': 'ID Produktu',
+        'name': 'Nazwa Produktu',
+        'current_stock': 'Stan Magazynowy',
+        'location': 'Lokalizacja'
+    }
+    
+    df = df[list(columns_mapping.keys())].rename(columns=columns_mapping)
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventory')
+    
+    output.seek(0)
+    filename = f"Inventory_{dt.datetime.now().strftime('%Y-%m-%d')}.xlsx"
+
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
