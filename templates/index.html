@@ -504,8 +504,34 @@
     clearStockAlert();
     const item_number = document.getElementById('s_id').value.trim();
     const amount = Number(document.getElementById('s_qty').value || 0);
+    
     if(!item_number){ setStockAlert('Please provide Product ID.', 'bad'); return; }
     if(!amount || amount <= 0){ setStockAlert('Amount must be > 0.', 'bad'); return; }
+
+    // BLOKADA UJEMNEGO STANU
+    if (stockMode === 'issue') {
+      try {
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        const items = data.data || data.products || [];
+        const p = items.find(item => String(item.item_number) === item_number || String(item.product_id) === item_number);
+        
+        if (p) {
+          const currentQty = p.current_stock ?? p.quantity ?? 0;
+          if (amount > currentQty) {
+            setStockAlert(`Error: Not enough stock! (Available: ${currentQty})`, 'bad');
+            return; // Przerywamy wysyłanie, jeśli brakuje towaru
+          }
+        } else {
+          setStockAlert('Error: Product not found in database.', 'bad');
+          return;
+        }
+      } catch (e) {
+        console.error("Stock check failed", e);
+      }
+    }
+
+    // Jeśli wszystko jest ok (Receive lub Issue z odpowiednią ilością), wysyłamy do serwera
     try{
       const res = await fetch('/api/stock/' + stockMode, {
         method:'POST',
