@@ -492,6 +492,11 @@
 
   function closeStockModal(){
     stopStockScan();
+    // Czyszczenie pól
+    document.getElementById('s_id').value = '';
+    document.getElementById('s_qty').value = '';
+    document.getElementById('stock_info').style.display = 'none';
+    clearStockAlert();
     document.getElementById('stockBackdrop').style.display = 'none';
   }
 
@@ -583,6 +588,12 @@
   }
   function closeAddProductModal(){
     stopScan();
+    // Czyszczenie pól
+    document.getElementById('p_id').value = '';
+    document.getElementById('p_name').value = '';
+    document.getElementById('p_qty').value = '0';
+    document.getElementById('p_loc').value = '';
+    clearAddAlert(); // Czyści też ewentualne komunikaty o błędach
     document.getElementById('addProductBackdrop').style.display = 'none';
   }
   function setAddAlert(msg, type){
