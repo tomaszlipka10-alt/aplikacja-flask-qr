@@ -326,8 +326,7 @@
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
           <h2>Audit</h2>
-          <div class="small">Activity logs (Supabase audit_log).</div>
-
+          <div class="small">Activity logs.</div>
           <div style="overflow:auto; margin-top:12px">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
@@ -344,7 +343,6 @@
               <tbody id="auditBody"></tbody>
             </table>
           </div>
-
           <div class="small" id="auditEmpty" style="margin-top:10px; display:none">No logs found.</div>
         </div>
       </section>
@@ -352,7 +350,7 @@
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
           <h2>Admin Controls</h2>
-          <div class="small">Export the current database state to an Excel file for backup.</div>
+          <div class="small">Export database state to Excel.</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
             <button class="btn primary" onclick="downloadExcelBackup()">📥 Download Excel Backup</button>
           </div>
@@ -364,8 +362,51 @@
     <div class="modal-backdrop" id="addProductBackdrop" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-header">
-          <div class="modal-title">Add Product</div>
+          <div class="modal-title">Add New Product</div>
           <button class="btn" onclick="closeAddProductModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div>
+              <label>Product ID</label>
+              <div class="scanrow">
+                <input id="p_id" placeholder="e.g. 100234" />
+                <button class="btn scanbtn" onclick="startScan('product')">Scan</button>
+              </div>
+            </div>
+            <div>
+              <label>Product Name</label>
+              <input id="p_name" placeholder="e.g. Metal Pipe" />
+            </div>
+            <div>
+              <label>Initial Quantity</label>
+              <input id="p_qty" type="number" value="0" />
+            </div>
+            <div>
+              <label>Location</label>
+              <div class="scanrow">
+                <input id="p_loc" placeholder="e.g. A-01-02" />
+                <button class="btn scanbtn" onclick="startScan('location')">Scan</button>
+              </div>
+            </div>
+          </div>
+          <div class="scanner" id="scannerBox">
+            <video id="video" playsinline></video>
+          </div>
+          <div class="alert" id="addAlert"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" onclick="closeAddProductModal()">Cancel</button>
+          <button class="btn primary" onclick="saveProduct()">Save Product</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title" id="stockTitle">Stock</div>
+          <button class="btn" onclick="closeStockModal()">✕</button>
         </div>
         <div class="modal-body">
           <div class="row">
@@ -377,71 +418,23 @@
               </div>
               <div id="stock_info" class="small" style="margin-top: 8px; color: var(--blue-600); font-weight: bold; display: none; padding: 4px 0;"></div>
             </div>
-
             <div>
               <label>Quantity</label>
               <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
             </div>
           </div>
-
           <div class="scanner" id="stockScannerBox">
             <video id="stockVideo" playsinline></video>
           </div>
-
           <div class="alert" id="stockAlert"></div>
         </div>
-
-          <div class="scanner" id="scannerBox">
-            <video id="video" playsinline></video>
-          </div>
-
-          <div class="alert" id="addAlert"></div>
-        </div>
         <div class="modal-footer">
-          <button class="btn" onclick="closeAddProductModal()">Cancel</button>
-          <button class="btn primary" onclick="saveProduct()">Save</button>
+          <button class="btn" onclick="closeStockModal()">Cancel</button>
+          <button class="btn primary" onclick="submitStock()">Save Changes</button>
         </div>
       </div>
     </div>
-
   </main>
-</div>
-
-<div class="modal-backdrop" id="stockBackdrop" role="dialog" aria-modal="true">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="stockTitle">Stock</div>
-      <button class="btn" onclick="closeStockModal()">✕</button>
-    </div>
-    <div class="modal-body">
-
-      <div class="row">
-        <div>
-          <label>Product ID (Manual or QR)</label>
-          <div class="scanrow">
-            <input id="s_id" placeholder="e.g. 100234" />
-            <button class="btn scanbtn" onclick="startScanStock('s_id')">Scan</button>
-          </div>
-        </div>
-
-        <div>
-          <label>Quantity</label>
-          <input id="s_qty" type="number" min="1" step="1" placeholder="e.g. 10" />
-        </div>
-      </div>
-
-      <div class="scanner" id="stockScannerBox">
-        <video id="stockVideo" playsinline></video>
-      </div>
-
-      <div class="alert" id="stockAlert"></div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn" onclick="closeStockModal()">Cancel</button>
-      <button class="btn primary" onclick="submitStock()">Save</button>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -469,26 +462,21 @@
     clearStockAlert();
     document.getElementById('s_id').value = '';
     document.getElementById('s_qty').value = '';
-    // Resetowanie widoku informacji o stanie
     document.getElementById('stock_info').style.display = 'none';
     document.getElementById('stock_info').textContent = '';
-    
     document.getElementById('stockTitle').textContent = (mode === 'receive') ? 'Receive Material' : 'Issue Material';
     document.getElementById('stockBackdrop').style.display = 'flex';
   }
 
-  // FUNKCJA SPRAWDZAJĄCA STAN W BAZIE
   async function checkCurrentStock(val) {
     const infoBox = document.getElementById('stock_info');
     const id = val.trim();
     if (!id) { infoBox.style.display = 'none'; return; }
-
     try {
       const res = await fetch('/api/products');
       const data = await res.json();
       const items = data.data || data.products || [];
       const p = items.find(item => String(item.item_number) === id || String(item.product_id) === id);
-
       if (p) {
         const qty = p.current_stock ?? p.quantity ?? 0;
         const loc = p.location_name || p.location || '-';
@@ -511,10 +499,8 @@
     clearStockAlert();
     const item_number = document.getElementById('s_id').value.trim();
     const amount = Number(document.getElementById('s_qty').value || 0);
-
     if(!item_number){ setStockAlert('Please provide Product ID.', 'bad'); return; }
     if(!amount || amount <= 0){ setStockAlert('Amount must be > 0.', 'bad'); return; }
-
     try{
       const res = await fetch('/api/stock/' + stockMode, {
         method:'POST',
@@ -522,15 +508,13 @@
         body: JSON.stringify({ item_number, amount })
       });
       const data = await res.json().catch(()=>({}));
-
       if(!res.ok){
         setStockAlert(data.error || ('Error (HTTP '+res.status+')'), 'bad');
         return;
       }
       setStockAlert('Saved successfully ✔', 'ok');
-      checkCurrentStock(item_number); // Odśwież stan po zapisie
+      checkCurrentStock(item_number);
       loadProducts();
-      if (document.getElementById('view-audit').style.display !== 'none') loadAudit();
     }catch(e){ setStockAlert('Connection error.', 'bad'); }
   }
 
@@ -559,9 +543,8 @@
             let idOnly = raw;
             if(raw.startsWith('{')){ try{ idOnly = JSON.parse(raw).id; }catch(e){}}
             else if(raw.includes('|')){ idOnly = raw.split('|')[0]; }
-            
             document.getElementById(targetInputId).value = idOnly;
-            checkCurrentStock(idOnly); // Sprawdź stan po skanie
+            checkCurrentStock(idOnly);
             stopStockScan();
           }
         }catch(_){}
@@ -574,61 +557,34 @@
     if(stockStream){ stockStream.getTracks().forEach(t => t.stop()); stockStream = null; }
     document.getElementById('stockScannerBox').style.display = 'none';
   }
-</script>
 
-
-<script>
   function escapeHtml(s){
     if(!s) return "";
-    return String(s)
-      .replaceAll('&','&amp;')
-      .replaceAll('<','&lt;')
-      .replaceAll('>','&gt;')
-      .replaceAll('"','&quot;')
-      .replaceAll("'",'&#039;');
+    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   }
 
-  // ---------- Views ----------
   function showView(name){
     const views = ['dashboard','inventory','audit','admin'];
     for (const v of views){
       document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
       document.getElementById('nav-'+v).classList.toggle('active', v===name);
     }
-
-    const addBtn = document.getElementById('btnAddProductTop');
-    addBtn.style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
-
-    const hint = document.getElementById('pageHint');
-    if (name === 'dashboard') hint.textContent = 'Choose an action. Use "Add Product" to register new items.';
-    else if (name === 'inventory') hint.textContent = 'List of products currently in the database.';
-    else if (name === 'audit') hint.textContent = 'View recent activity logs.';
-    else if (name === 'admin') hint.textContent = 'Administration and backup settings.';
-    else hint.textContent = '';
-
+    document.getElementById('btnAddProductTop').style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
     if (name === 'inventory') loadProducts();
     if (name === 'audit') loadAudit();
   }
 
-  function logout(){
-    window.location.href = '/logout';
-  }
+  function logout(){ window.location.href = '/logout'; }
+  function comingSoon(label){ alert(label + ' — coming soon.'); }
 
-  function comingSoon(label){
-    alert(label + ' — coming soon.');
-  }
-
-  // ---------- Add product modal ----------
   function openAddProductModal(){
     document.getElementById('addProductBackdrop').style.display = 'flex';
     clearAddAlert();
   }
-
   function closeAddProductModal(){
     stopScan();
     document.getElementById('addProductBackdrop').style.display = 'none';
   }
-
   function setAddAlert(msg, type){
     const el = document.getElementById('addAlert');
     el.className = 'alert ' + (type || '');
@@ -638,69 +594,46 @@
   function clearAddAlert(){
     const el = document.getElementById('addAlert');
     el.style.display = 'none';
-    el.textContent = '';
     el.className = 'alert';
   }
 
-  // ---------- Inventory ----------
   async function loadProducts(){
-    const body = document.getElementById('productsBody');
-    const empty = document.getElementById('productsEmpty');
-    body.innerHTML = '';
-    empty.style.display = 'none';
-
-    try{
-      const res = await fetch('/api/products');
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      // Zmieniamy na pobieranie z data.data, ponieważ tak wysyła to Twój serwer z Supabase
-      const items = data.data || data.products || [];
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
-      }
-
+    const body = document.getElementById('productsBody');
+    const empty = document.getElementById('productsEmpty');
+    body.innerHTML = '';
+    try{
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const items = data.data || data.products || [];
+      if(items.length === 0){ empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
       for(const p of items){
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || p.sku || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || '')}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String((p.current_stock ?? p.quantity ?? '')))}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
         `;
         body.appendChild(tr);
       }
-    }catch(e){
-      empty.style.display = 'block';
-      empty.textContent = 'Failed to load products.';
-    }
+    }catch(e){ empty.style.display = 'block'; }
   }
 
-  // ---------- Audit ----------
   async function loadAudit(){
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmpty');
     body.innerHTML = '';
-    empty.style.display = 'none';
-
     try{
       const res = await fetch('/api/audit');
-      if(!res.ok) throw new Error('HTTP '+res.status);
       const data = await res.json();
-      
-      const items = data.audit || data.data || (Array.isArray(data) ? data : []);
-
-      if(items.length === 0){
-        empty.style.display = 'block';
-        return;
-      }
-
+      const items = data.audit || data.data || [];
+      if(items.length === 0){ empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
       for(const r of items){
-        const created = r.created_at ? String(r.created_at).replace('T',' ').split('.')[0] : '';
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(created)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.created_at)}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.action)}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.item_number)}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(r.name)}</td>
@@ -710,54 +643,28 @@
         `;
         body.appendChild(tr);
       }
-    }catch(e){
-      console.error("Audit load error:", e);
-      empty.style.display = 'block';
-      empty.textContent = 'Failed to load audit logs.';
-    }
+    }catch(e){ empty.style.display = 'block'; }
   }
 
-  // ---------- Save product ----------
   async function saveProduct(){
     clearAddAlert();
     const product_id = document.getElementById('p_id').value.trim();
     const name = document.getElementById('p_name').value.trim();
     const quantity = Number(document.getElementById('p_qty').value || 0);
     const location = document.getElementById('p_loc').value.trim();
-
-    if(!product_id){ setAddAlert('Product ID is required.', 'bad'); return; }
-    if(!name){ setAddAlert('Product Name is required.', 'bad'); return; }
-    if(!location){ setAddAlert('Location is required.', 'bad'); return; }
-
+    if(!product_id || !name || !location){ setAddAlert('Fill all fields.', 'bad'); return; }
     try{
       const res = await fetch('/api/products', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          item_number: product_id,
-          name,
-          current_stock: quantity,
-          location_name: location,
-          product_id,
-          quantity,
-          location
-        })
+        body: JSON.stringify({ item_number: product_id, name, current_stock: quantity, location_name: location })
       });
-      const data = await res.json().catch(()=>({}));
-      if(!res.ok){
-        setAddAlert(data.error || ('Save error (HTTP '+res.status+')'), 'bad');
-        return;
-      }
-
+      if(!res.ok){ setAddAlert('Save error.', 'bad'); return; }
       setAddAlert('Saved successfully ✔', 'ok');
       loadProducts();
-      if(document.getElementById('view-audit').style.display !== 'none') loadAudit();
-    }catch(e){
-      setAddAlert('Connection error during save.', 'bad');
-    }
+    }catch(e){ setAddAlert('Error.', 'bad'); }
   }
 
-  // ---------- QR Scan ----------
   let scanMode = null;
   let stream = null;
   let detector = null;
@@ -765,85 +672,47 @@
 
   async function startScan(mode){
     scanMode = mode;
-
     if(!('BarcodeDetector' in window)){
-      const pasted = prompt('Scanning not supported. Paste QR text here:');
+      const pasted = prompt('Paste QR text:');
       if(pasted) applyScannedValue(pasted);
       return;
     }
-
     try{
       detector = new BarcodeDetector({ formats: ['qr_code'] });
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio:false });
-
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       const video = document.getElementById('video');
       video.srcObject = stream;
       await video.play();
-
       document.getElementById('scannerBox').style.display = 'block';
-
       scanTimer = setInterval(async () => {
-        try{
-          const barcodes = await detector.detect(video);
-          if(barcodes && barcodes.length){
-            const raw = barcodes[0].rawValue || '';
-            applyScannedValue(raw);
-            stopScan();
-          }
-        }catch(_){}
+        const barcodes = await detector.detect(video);
+        if(barcodes.length){
+          applyScannedValue(barcodes[0].rawValue);
+          stopScan();
+        }
       }, 250);
-
-    }catch(e){
-      stopScan();
-      const pasted = prompt('Camera access failed. Paste QR text here:');
-      if(pasted) applyScannedValue(pasted);
-    }
+    }catch(e){ stopScan(); }
   }
 
   function stopScan(){
-    if(scanTimer){ clearInterval(scanTimer); scanTimer = null; }
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
+    if(scanTimer) clearInterval(scanTimer);
+    if(stream) stream.getTracks().forEach(t => t.stop());
     document.getElementById('scannerBox').style.display = 'none';
   }
 
   function applyScannedValue(raw){
     const text = (raw || '').trim();
-    if(!text) return;
-
-    if(scanMode === 'location'){
-      document.getElementById('p_loc').value = text;
-      return;
-    }
-
-    try{
-      if(text.startsWith('{') && text.endsWith('}')){
-        const obj = JSON.parse(text);
-        if(obj.id) document.getElementById('p_id').value = String(obj.id);
-        if(obj.name) document.getElementById('p_name').value = String(obj.name);
-        return;
-      }
-    }catch(_){}
-
+    if(scanMode === 'location') { document.getElementById('p_loc').value = text; return; }
     if(text.includes('|')){
       const parts = text.split('|');
-      const id = (parts[0] || '').trim();
-      const nm = (parts.slice(1).join('|') || '').trim();
-      if(id) document.getElementById('p_id').value = id;
-      if(nm) document.getElementById('p_name').value = nm;
-      return;
+      document.getElementById('p_id').value = parts[0];
+      document.getElementById('p_name').value = parts[1] || '';
+    } else {
+      document.getElementById('p_id').value = text;
     }
-
-    document.getElementById('p_id').value = text;
   }
 
-  // ---------- Admin ----------
-  function downloadExcelBackup() {
-    window.location.href = '/api/admin/export/excel';
-  }
-
+  function downloadExcelBackup() { window.location.href = '/api/admin/export/excel'; }
 </script>
 </body>
 </html>
