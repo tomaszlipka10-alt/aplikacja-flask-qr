@@ -19,17 +19,18 @@
 </head>
 <body>
   <div class="card">
-    <h1>Login</h1>
-    <p class="hint">Sign in to your WMS.</p>
+    <h1 id="formTitle">Login</h1>
+    <p class="hint" id="formHint">Sign in to your WMS.</p>
 
-    <form method="post" action="{{ url_for('login') }}">
+    <form id="authForm" method="post" action="{{ url_for('login') }}">
       <label for="username">Username</label>
       <input id="username" name="username" autocomplete="username" required />
 
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required />
 
-      <button type="submit">Sign in</button>
+      <button type="submit" id="submitBtn">Sign in</button>
+      <button type="button" id="toggleBtn" style="background:transparent; border:1px solid #24324a; margin-top:8px">Create new account</button>
     </form>
 
     {% if error %}
@@ -40,5 +41,28 @@
       Default admin (auto-created if missing): <code>admin</code> / <code>admin123</code>
     </div>
   </div>
+<script>
+  const toggleBtn = document.getElementById('toggleBtn');
+  const authForm = document.getElementById('authForm');
+  const formTitle = document.getElementById('formTitle');
+  const formHint = document.getElementById('formHint');
+  const submitBtn = document.getElementById('submitBtn');
+
+  toggleBtn.onclick = () => {
+    if (authForm.action.includes('login')) {
+      authForm.action = "{{ url_for('register') }}";
+      formTitle.innerText = 'Register';
+      formHint.innerText = 'Create a new operator account.';
+      submitBtn.innerText = 'Create Account';
+      toggleBtn.innerText = 'Back to Login';
+    } else {
+      authForm.action = "{{ url_for('login') }}";
+      formTitle.innerText = 'Login';
+      formHint.innerText = 'Sign in to your WMS.';
+      submitBtn.innerText = 'Sign in';
+      toggleBtn.innerText = 'Create new account';
+    }
+  };
+</script>
 </body>
 </html>

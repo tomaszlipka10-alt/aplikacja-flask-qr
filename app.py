@@ -61,7 +61,31 @@ def login():
         if res and check_password_hash(res[0]['password_hash'], p):
             login_user(User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False)))
             return redirect(url_for("index"))
-    return render_template("login.html")
+return render_template("login.html")
+
+@app.route("/register", methods=["POST"])
+def register():
+    u = request.form.get("username")
+    p = request.form.get("password")
+    if not u or not p:
+        return render_template("login.html", error="Username and password required")
+
+    # 1. Sprawdź czy użytkownik już istnieje
+    existing = _supabase_request("GET", "users", {"username": f"eq.{u}"})
+    if existing:
+        return render_template("login.html", error="User already exists")
+
+    # 2. Zahaszuj hasło i zapisz w Supabase
+    phash = generate_password_hash(p)
+    res = _supabase_request("POST", "users", json_body={
+        "username": u,
+        "password_hash": phash,
+        "is_admin": False
+    })
+    
+    if res is not None:
+        return render_template("login.html", error="Account created! You can now login.", success=True)
+    return render_template("login.html", error="Error creating user")
 
 @app.route("/logout")
 def logout():
