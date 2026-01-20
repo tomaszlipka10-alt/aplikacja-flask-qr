@@ -269,8 +269,6 @@
           <span id="pageTitle">BTVenloStorage</span>
         </div>
         <div class="actions">
-          <button class="btn primary" id="btnAddProductTop" onclick="openAddProductModal()">+ Add Product</button>
-        </div>
       </div>
     </header>
 
@@ -569,7 +567,7 @@
       document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
       document.getElementById('nav-'+v).classList.toggle('active', v===name);
     }
-    document.getElementById('btnAddProductTop').style.display = (name === 'dashboard' || name === 'inventory') ? 'inline-block' : 'none';
+
     if (name === 'inventory') loadProducts();
     if (name === 'audit') loadAudit();
   }
