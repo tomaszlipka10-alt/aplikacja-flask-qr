@@ -9,16 +9,13 @@ import urllib.request
 import urllib.parse
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-123")
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "bt-venlo-2026")
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
-def _supabase_url():
-    return (os.getenv("SUPABASE_URL") or "").rstrip("/")
-
-def _supabase_key():
-    return (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or "")
+def _supabase_url(): return (os.getenv("SUPABASE_URL") or "").rstrip("/")
+def _supabase_key(): return (os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or "")
 
 def _supabase_request(method, table, params=None, json_body=None):
     base, key = _supabase_url(), _supabase_key()
@@ -29,11 +26,12 @@ def _supabase_request(method, table, params=None, json_body=None):
     req.add_header("apikey", key)
     req.add_header("Authorization", f"Bearer {key}")
     req.add_header("Content-Type", "application/json")
-    body_data = json.dumps(json_body).encode("utf-8") if json_body is not None else None
+    req.add_header("Prefer", "return=representation")
+    data = json.dumps(json_body).encode("utf-8") if json_body else None
     try:
-        with urllib.request.urlopen(req, data=body_data) as response:
-            if response.status in [200, 201]: return json.loads(response.read().decode("utf-8"))
-            return [] if response.status == 204 else None
+        with urllib.request.urlopen(req, data=data) as resp:
+            r = resp.read().decode("utf-8")
+            return json.loads(r) if r else []
     except: return None
 
 class User(UserMixin):
@@ -41,10 +39,9 @@ class User(UserMixin):
         self.id, self.username, self.is_admin = id, username, is_admin
 
 @login_manager.user_loader
-def load_user(user_id):
-    res = _supabase_request("GET", "users", {"id": f"eq.{user_id}"})
-    if res: return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
-    return None
+def load_user(uid):
+    res = _supabase_request("GET", "users", {"id": f"eq.{uid}"})
+    return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False)) if res else None
 
 @app.route("/health")
 def health(): return "OK", 200
@@ -63,16 +60,15 @@ def login():
             return redirect(url_for("index"))
     return render_template("login.html")
 
-@app.route("/logout")
-def logout(): logout_user(); return redirect(url_for("login"))
-
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
     if request.method == "POST":
         d = request.json
-        body = {"item_number": d.get("item_number"), "name": d.get("name"), "current_stock": int(d.get("current_stock") or 0), "location": d.get("location")}
-        res = _supabase_request("POST", "products", json_body=body)
+        res = _supabase_request("POST", "products", json_body={
+            "item_number": d['item_number'], "name": d['name'], 
+            "current_stock": int(d['current_stock']), "location": d['location'], "unit": "pcs"
+        })
         return jsonify({"ok": res is not None})
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
     return jsonify({"ok": True, "data": data})
@@ -81,15 +77,17 @@ def api_products():
 @login_required
 def api_stock(action):
     d = request.json
-    sku, amt = d.get("item_number"), int(d.get("amount") or 0)
+    sku, amt = d['item_number'], int(d['amount'])
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
-    if not res: return jsonify({"ok":False, "error":"Brak SKU"}), 404
+    if not res: return jsonify({"ok": False}), 404
     p = res[0]
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
-    if new_q < 0: return jsonify({"ok":False, "error":"Brak towaru"}), 400
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
-    _supabase_request("POST", "audit_logs", json_body={"product_sku": sku, "product_name": p['name'], "action": action.upper(), "amount": amt, "location": p['location'], "username": current_user.username})
-    return jsonify({"ok":True, "current_stock": new_q})
+    _supabase_request("POST", "audit_logs", json_body={
+        "product_sku": sku, "product_name": p['name'], "action": action.upper(), 
+        "amount": amt, "location": p['location'], "username": current_user.username
+    })
+    return jsonify({"ok": True, "current_stock": new_q})
 
 @app.route("/api/audit")
 @login_required
