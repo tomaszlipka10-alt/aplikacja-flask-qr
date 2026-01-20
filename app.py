@@ -14,6 +14,7 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-123")
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
+# --- Supabase Helpers ---
 def _supabase_url():
     return (os.getenv("SUPABASE_URL") or "").rstrip("/")
 
@@ -36,6 +37,7 @@ def _supabase_request(method, table, params=None, json_body=None):
             return [] if response.status == 204 else None
     except: return None
 
+# --- Auth ---
 class User(UserMixin):
     def __init__(self, id, username, is_admin):
         self.id, self.username, self.is_admin = id, username, is_admin
@@ -46,6 +48,12 @@ def load_user(user_id):
     if res: return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
     return None
 
+# --- NEW: Health Check Route for Render ---
+@app.route("/health")
+def health():
+    return "OK", 200
+
+# --- Routes ---
 @app.route("/")
 @login_required
 def index(): return render_template("index.html")
