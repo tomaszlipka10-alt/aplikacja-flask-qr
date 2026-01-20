@@ -1,0 +1,36 @@
+{
+  "exported_at_utc": "2026-01-20T09:26:03.074977",
+  "products": [],
+  "audit": [
+    {
+      "id": 15,
+      "action": "CREATE",
+      "item_number": "CM00883",
+      "name": "Riplock m4",
+      "qty": 486,
+      "location": "RDA9",
+      "username": "admin",
+      "created_at": "2026-01-19T13:22:18.914371+00:00"
+    },
+    {
+      "id": 16,
+      "action": "CREATE",
+      "item_number": "CM00809",
+      "name": "RVS A2 BCK Torx Schroef M6X16 Nyseal Groen",
+      "qty": 486,
+      "location": "RDA9",
+      "username": "admin",
+      "created_at": "2026-01-19T13:29:11.664573+00:00"
+    },
+    {
+      "id": 17,
+      "action": "CREATE",
+      "item_number": "123456789",
+      "name": "Śruba M4",
+      "qty": 100,
+      "location": "RUA1",
+      "username": "admin",
+      "created_at": "2026-01-19T13:31:32.310972+00:00"
+    }
+  ]
+}
