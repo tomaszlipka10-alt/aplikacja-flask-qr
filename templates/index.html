@@ -231,9 +231,7 @@
                 <th>Stock</th>
               </tr>
             </thead>
-            <tbody id="prodTable">
-              <tr><td colspan="4" style="text-align:center; padding:40px; color:var(--muted);">Loading...</td></tr>
-            </tbody>
+            <tbody id="prodTable"></tbody>
           </table>
         </div>
       </section>
@@ -320,9 +318,8 @@
     if(v==='audit') loadAudit();
   }
 
-  // --- POPRAWKA: Logika ładowania produktów ---
   async function loadProducts(){
-    try {
+    try{
       const res = await fetch('/api/products');
       const j = await res.json();
       if(j.ok && j.data){
@@ -335,12 +332,11 @@
           </tr>
         `).join('');
       }
-    } catch(e) { console.error(e); }
+    }catch(_){}
   }
 
-  // --- POPRAWKA: Logika ładowania audytu ---
   async function loadAudit(){
-    try {
+    try{
       const res = await fetch('/api/audit');
       const j = await res.json();
       if(j.ok && j.data){
@@ -354,7 +350,7 @@
           </tr>
         `).join('');
       }
-    } catch(e) { console.error(e); }
+    }catch(_){}
   }
 
   function openModal(mode){
@@ -402,7 +398,6 @@
     window.location.href = '/api/audit?export=csv';
   }
 
-  // --- Scanner ---
   function toggleScanner(){
     const r = document.getElementById('reader');
     if(r.style.display==='block'){ stopScanner(); }
@@ -414,7 +409,7 @@
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => {
       processScan(txt);
       stopScanner();
-    }).catch(e=>console.error(e));
+    }).catch(_=>{});
   }
 
   function stopScanner(){
@@ -422,21 +417,24 @@
       html5QrCode.stop().then(()=>{
         document.getElementById('reader').style.display='none';
         html5QrCode = null;
-      });
+      }).catch(_=>{});
     }
   }
 
   function processScan(text){
     if(text.includes('|')){
       const parts = text.split('|');
-      document.getElementById('p_id').value = (parts[0]||'').trim();
-      if(currentMode==='add') document.getElementById('p_name').value = (parts.slice(1).join('|')||'').trim();
-    } else {
-      document.getElementById('p_id').value = text;
+      const id = (parts[0] || '').trim();
+      const nm = (parts.slice(1).join('|') || '').trim();
+      if(id) document.getElementById('p_id').value = id;
+      if(nm) document.getElementById('p_name').value = nm;
+      return;
     }
+
+    document.getElementById('p_id').value = text;
   }
 
-  // --- Admin ---
+  // ---------- Admin ----------
   function setAdminAlert(msg, type){
     const el = document.getElementById('adminAlert');
     el.className = 'alert ' + (type || '');
@@ -445,13 +443,30 @@
   }
 
   async function backupToGitHub(){
+    const candidates = [
+      '/api/admin/backup/github',
+      '/api/backup/github',
+      '/admin/backup/github'
+    ];
+
     setAdminAlert('Backup starting...', '');
-    try {
-      const res = await fetch('/api/admin/backup/github', { method:'POST' });
-      const data = await res.json();
-      if(res.ok) setAdminAlert(data.message || 'Backup OK', 'ok');
-      else setAdminAlert(data.error || 'Failed', 'bad');
-    } catch(e) { setAdminAlert('Error', 'bad'); }
+
+    for (const url of candidates){
+      try{
+        const res = await fetch(url, { method:'POST' });
+        const data = await res.json().catch(()=>({}));
+        if(res.ok){
+          setAdminAlert(data.message || 'Backup OK ✔', 'ok');
+          return;
+        }
+        if(res.status !== 404){
+          setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
+          return;
+        }
+      }catch(_){}
+    }
+
+    setAdminAlert('Backup endpoint not found (404).', 'bad');
   }
 
   loadProducts();
