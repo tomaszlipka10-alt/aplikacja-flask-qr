@@ -62,6 +62,7 @@ def _supabase_request(method: str, table: str, params: Optional[dict] = None, js
         return None
 
 def _sb_list_products():
+    # Zwraca stock jako 'current_stock' dla zgodności z frontendem
     return _supabase_request("GET", "products", params={"select": "*", "order": "item_number"}) or []
 
 def _sb_get_product(sku: str):
@@ -187,26 +188,26 @@ def api_products():
 def api_stock():
     data = request.json or {}
     sku = data.get("item_number")
-    action = data.get("action") # "receive" or "release"
+    action = data.get("action")
     amount = int(data.get("amount", 0))
     if amount <= 0: return jsonify({"ok":False,"error":"Invalid amount"}), 400
 
     if _supabase_enabled():
         row = _sb_get_product(sku)
-        if not row: return jsonify({"ok":False,"error":"Not found"}), 404
+        if not row: return jsonify({"ok":False,"error":"Not found in Supabase"}), 404
         new_q = row['current_stock'] + amount if action == "receive" else row['current_stock'] - amount
-        if new_q < 0: return jsonify({"ok":False,"error":"Low stock"}), 400
+        if new_q < 0: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
         _sb_set_product_quantity(sku, new_q)
         _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
         return jsonify({"ok":True, "current_stock": new_q})
 
     p = Product.query.filter_by(item_number=sku).first()
-    if not p: return jsonify({"ok":False,"error":"Not found"}), 404
+    if not p: return jsonify({"ok":False,"error":"Product not found"}), 404
     if action == "receive": p.current_stock += amount
     else:
-        if p.current_stock < amount: return jsonify({"ok":False,"error":"Low stock"}), 400
+        if p.current_stock < amount: return jsonify({"ok":False,"error":"Insufficient stock"}), 400
         p.current_stock -= amount
-    db.session.add(AuditLog(product_id=p.id, action=action, amount=amount, username=current_user.username))
+    db.session.add(AuditLog(product_id=p.id, action=action.upper(), amount=amount, username=current_user.username))
     db.session.commit()
     return jsonify({"ok":True, "current_stock": p.current_stock})
 
@@ -232,26 +233,17 @@ def api_audit():
 # ----------------------------
 def github_put_file(repo, path, token, content_bytes, message):
     url = f"https://api.github.com/repos/{repo}/contents/{path}"
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
     sha = None
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as r:
             curr = json.loads(r.read().decode("utf-8"))
             sha = curr.get("sha")
     except: pass
-    
-    payload = {
-        "message": message,
-        "content": base64.b64encode(content_bytes).decode("utf-8")
-    }
+    payload = {"message": message, "content": base64.b64encode(content_bytes).decode("utf-8")}
     if sha: payload["sha"] = sha
-    
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="PUT")
-    with urllib.request.urlopen(req) as r:
-        return r.status
+    with urllib.request.urlopen(req) as r: return r.status
 
 def export_warehouse_json():
     prods = Product.query.all()
@@ -268,22 +260,19 @@ def api_backup_github():
     if not current_user.is_admin: return jsonify({"message":"Forbidden"}), 403
     token = os.getenv("GITHUB_TOKEN")
     repo = os.getenv("GITHUB_REPO")
-    backup_path = "backups/warehouse_data.json"
     if not token or not repo: return jsonify({"message": "Missing Config"}), 400
     try:
         payload = export_warehouse_json()
         content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-        github_put_file(repo, backup_path, token, content, f"Backup {payload['exported_at_utc']}")
+        github_put_file(repo, "backups/warehouse_data.json", token, content, f"Backup {payload['exported_at_utc']}")
         return jsonify({"message": "Backup OK"})
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    except Exception as e: return jsonify({"message": str(e)}), 500
 
 # ----------------------------
 # Database Init
 # ----------------------------
 with app.app_context():
-    # WYMUSZONY RESET (usuwa starą bazę i tworzy nową z kolumną is_admin)
-    db.drop_all() 
+    # USUNIĘTO db.drop_all() - dane pozostają bezpieczne
     db.create_all()
     
     admins = [
@@ -291,13 +280,9 @@ with app.app_context():
         {"u": "JulesvdHam", "p": "Welkom01"},
         {"u": "TwanvanHeeswijk", "p": "Welkom01"}
     ]
-    
     for a in admins:
-        db.session.add(User(
-            username=a["u"],
-            password_hash=generate_password_hash(a["p"]),
-            is_admin=True
-        ))
+        if not User.query.filter_by(username=a["u"]).first():
+            db.session.add(User(username=a["u"], password_hash=generate_password_hash(a["p"]), is_admin=True))
     db.session.commit()
 
 if __name__ == "__main__":
