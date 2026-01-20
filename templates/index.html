@@ -355,6 +355,7 @@
           <div class="small">GitHub backup creates a commit in the repository.</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
             <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
+            <button class="btn primary" onclick="downloadExcelBackup()">📥 Pobierz Backup Excel</button>
             <button class="btn" onclick="showGitHubVerify()">How to verify</button>
           </div>
           <div class="small" style="margin-top:10px">If backup fails: check Render → Environment: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.</div>
@@ -841,6 +842,9 @@
   }
 
   // ---------- Admin ----------
+  function downloadExcelBackup() {
+    window.location.href = '/api/admin/export/excel';
+  }
   function setAdminAlert(msg, type){
     const el = document.getElementById('adminAlert');
     el.className = 'alert ' + (type || '');
