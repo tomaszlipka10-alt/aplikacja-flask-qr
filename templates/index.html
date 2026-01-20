@@ -21,8 +21,9 @@
     table{width:100%; border-collapse:collapse;}
     th,td{text-align:left; padding:14px; border-bottom:1px solid var(--border);}
     .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:100;}
-    .modal{background:#fff; width:min(450px, 90%); border-radius:20px; padding:25px;}
+    .modal{background:#fff; width:min(450px, 90%); border-radius:20px; padding:25px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);}
     input{width:100%; padding:14px; border-radius:12px; border:1px solid var(--border); margin-bottom:15px; font-size:16px;}
+    .search-highlight { background: #fffde7; padding: 2px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -36,24 +37,28 @@
 
   <main class="main">
     <header class="topbar">
-      <strong>BTVenlo Storage</strong>
-      <button class="search-btn" onclick="openModal('add')">🔍</button>
+      <strong style="font-size: 1.2rem;">BTVenlo Storage</strong>
+      <button class="search-btn" title="Search Inventory" onclick="openSearch()">🔍</button>
     </header>
 
     <div class="container">
       <section id="view-dashboard" class="view">
         <div class="card">
           <h2>Stock Actions</h2>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-            <button class="btn" style="padding:40px" onclick="openModal('receive')">⬇️ Receive</button>
-            <button class="btn" style="padding:40px" onclick="openModal('issue')">⬆️ Issue</button>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
+            <button class="btn btn-primary" style="padding:40px; font-size:1rem;" onclick="openModal('add')">➕ Add New Product</button>
+            <button class="btn" style="padding:40px; font-size:1rem;" onclick="openModal('receive')">⬇️ Receive Stock</button>
+            <button class="btn" style="padding:40px; font-size:1rem;" onclick="openModal('issue')">⬆️ Issue Stock</button>
           </div>
         </div>
       </section>
 
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
-          <h2>Inventory</h2>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2>Inventory</h2>
+            <input id="tableSearch" placeholder="Filter SKU/Name..." style="width:200px; margin:0; padding:8px;" onkeyup="filterTable()">
+          </div>
           <table>
             <thead><tr><th>SKU</th><th>Name</th><th>Stock</th><th>Location</th></tr></thead>
             <tbody id="prodTable"></tbody>
@@ -62,40 +67,34 @@
       </section>
 
       <section id="view-audit" class="view" style="display:none">
-        <div class="card">
-          <h2>Audit Logs</h2>
-          <table>
-            <thead><tr><th>Date</th><th>Action</th><th>SKU</th><th>Qty</th></tr></thead>
-            <tbody id="auditTable"></tbody>
-          </table>
-        </div>
+        <div class="card"><h2>Audit Logs</h2><table><thead><tr><th>Date</th><th>Action</th><th>SKU</th><th>Qty</th></tr></thead><tbody id="auditTable"></tbody></table></div>
       </section>
-
       <section id="view-admin" class="view" style="display:none">
-        <div class="card">
-          <h2>Admin</h2>
-          <button class="btn btn-primary" onclick="runBackup()">Backup to GitHub</button>
-        </div>
+        <div class="card"><h2>Admin</h2><button class="btn btn-primary" onclick="runBackup()">Run Backup</button></div>
       </section>
     </div>
   </main>
 
   <div id="modal" class="modal-backdrop">
     <div class="modal">
-      <h2 id="modalTitle">Scan / Action</h2>
+      <h2 id="modalTitle">Action</h2>
       <div id="f-add" style="display:none">
-        <input id="p_sku" placeholder="SKU (Scan here)">
+        <input id="p_sku" placeholder="SKU (Scan now)">
         <input id="p_name" placeholder="Name">
-        <input id="p_qty" type="number" placeholder="Initial Qty">
+        <input id="p_qty" type="number" placeholder="Qty">
         <input id="p_loc" placeholder="Location">
       </div>
       <div id="f-stock" style="display:none">
-        <input id="s_sku" placeholder="SKU (Scan here)">
+        <input id="s_sku" placeholder="SKU (Scan now)">
         <input id="s_qty" type="number" placeholder="Amount">
       </div>
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <div id="f-search" style="display:none">
+        <input id="searchQuery" placeholder="Search SKU / Name / Location..." onkeyup="handleQuickSearch()">
+        <p style="font-size:12px; color:var(--muted)">Skanowanie tutaj przeniesie Cię do Inventory</p>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
         <button class="btn" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="handleSave()">Confirm</button>
+        <button id="confirmBtn" class="btn btn-primary" onclick="handleSave()">Confirm</button>
       </div>
     </div>
   </div>
@@ -104,40 +103,77 @@
     let mode = '';
     let buffer = "";
     let lastTime = 0;
+    let allProducts = [];
 
-    // --- SCANNER LOGIC ---
+    // --- SCANNER ---
     window.addEventListener("keydown", (e) => {
       const now = Date.now();
       if (now - lastTime > 100) buffer = "";
       lastTime = now;
       if (e.key === "Enter") {
-        if (buffer.length > 2) { handleScan(buffer); buffer = ""; }
+        if (buffer.length > 1) { handleScan(buffer); buffer = ""; }
       } else if (e.key.length === 1) { buffer += e.key; }
     });
 
     function handleScan(text) {
-      const skuInput = mode === 'add' ? document.getElementById('p_sku') : document.getElementById('s_sku');
-      if (text.includes("|")) {
-        const p = text.split("|");
-        skuInput.value = p[0].trim();
-        if(mode === 'add' && p[1]) document.getElementById('p_name').value = p[1].trim();
-      } else {
-        skuInput.value = text.trim();
+      if (mode === 'search') {
+        document.getElementById('searchQuery').value = text;
+        handleQuickSearch();
+      } else if (mode === 'add' || mode === 'receive' || mode === 'issue') {
+        const isAdd = (mode === 'add');
+        const skuInput = isAdd ? document.getElementById('p_sku') : document.getElementById('s_sku');
+        if (text.includes("|")) {
+          const p = text.split("|");
+          skuInput.value = p[0].trim();
+          if(isAdd && p[1]) document.getElementById('p_name').value = p[1].trim();
+        } else {
+          skuInput.value = text.trim();
+        }
       }
+    }
+
+    function openSearch() {
+      mode = 'search';
+      document.getElementById('modalTitle').innerText = 'Quick Search';
+      document.getElementById('f-add').style.display = 'none';
+      document.getElementById('f-stock').style.display = 'none';
+      document.getElementById('f-search').style.display = 'block';
+      document.getElementById('confirmBtn').style.display = 'none';
+      document.getElementById('modal').style.display = 'flex';
+      setTimeout(() => document.getElementById('searchQuery').focus(), 100);
+    }
+
+    function handleQuickSearch() {
+      const q = document.getElementById('searchQuery').value.toLowerCase();
+      if (q.length > 2) {
+        closeModal();
+        showView('inventory');
+        document.getElementById('tableSearch').value = q;
+        filterTable();
+      }
+    }
+
+    function filterTable() {
+      const q = document.getElementById('tableSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#prodTable tr');
+      rows.forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(q) ? '' : 'none';
+      });
     }
 
     function showView(v) {
       document.querySelectorAll('.view').forEach(e => e.style.display = 'none');
       document.getElementById('view-' + v).style.display = 'block';
       if(v === 'inventory') loadProducts();
-      if(v === 'audit') loadAudit();
     }
 
     function openModal(m) {
       mode = m;
       document.getElementById('modalTitle').innerText = m.toUpperCase();
       document.getElementById('f-add').style.display = m === 'add' ? 'block' : 'none';
-      document.getElementById('f-stock').style.display = m !== 'add' ? 'block' : 'none';
+      document.getElementById('f-stock').style.display = m !== 'add' && m !== 'search' ? 'block' : 'none';
+      document.getElementById('f-search').style.display = 'none';
+      document.getElementById('confirmBtn').style.display = 'block';
       document.getElementById('modal').style.display = 'flex';
     }
 
@@ -146,29 +182,23 @@
     async function loadProducts() {
       const res = await fetch('/api/products');
       const j = await res.json();
-      document.getElementById('prodTable').innerHTML = j.data.map(p => `<tr><td>${p.item_number}</td><td>${p.name}</td><td>${p.current_stock}</td><td>${p.location}</td></tr>`).join('');
-    }
-
-    async function loadAudit() {
-      const res = await fetch('/api/audit');
-      const j = await res.json();
-      document.getElementById('auditTable').innerHTML = j.data.map(a => `<tr><td>${a.created_at.split('T')[0]}</td><td>${a.action}</td><td>${a.product_sku}</td><td>${a.amount}</td></tr>`).join('');
+      allProducts = j.data;
+      const html = allProducts.map(p => `<tr><td>${p.item_number}</td><td>${p.name}</td><td>${p.current_stock}</td><td>${p.location}</td></tr>`).join('');
+      document.getElementById('prodTable').innerHTML = html;
+      filterTable();
     }
 
     async function handleSave() {
+      let body = {}, url = '';
       if (mode === 'add') {
-        const body = { item_number: document.getElementById('p_sku').value, name: document.getElementById('p_name').value, current_stock: document.getElementById('p_qty').value, location: document.getElementById('p_loc').value };
-        await fetch('/api/products', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        url = '/api/products';
+        body = { item_number: document.getElementById('p_sku').value, name: document.getElementById('p_name').value, current_stock: document.getElementById('p_qty').value, location: document.getElementById('p_loc').value };
       } else {
-        const body = { item_number: document.getElementById('s_sku').value, amount: document.getElementById('s_qty').value };
-        await fetch(`/api/stock/${mode}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        url = `/api/stock/${mode}`;
+        body = { item_number: document.getElementById('s_sku').value, amount: document.getElementById('s_qty').value };
       }
-      closeModal(); loadProducts();
-    }
-
-    async function runBackup() {
-      const res = await fetch('/api/admin/backup/github', {method:'POST'});
-      const j = await res.json(); alert(j.message);
+      const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      if(res.ok) { closeModal(); loadProducts(); } else { alert("Error!"); }
     }
   </script>
 </body>

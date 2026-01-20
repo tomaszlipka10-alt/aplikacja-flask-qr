@@ -14,7 +14,6 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-key-123")
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 
-# --- Supabase Helpers ---
 def _supabase_url():
     return (os.getenv("SUPABASE_URL") or "").rstrip("/")
 
@@ -37,7 +36,6 @@ def _supabase_request(method, table, params=None, json_body=None):
             return [] if response.status == 204 else None
     except: return None
 
-# --- Auth ---
 class User(UserMixin):
     def __init__(self, id, username, is_admin):
         self.id, self.username, self.is_admin = id, username, is_admin
@@ -48,12 +46,9 @@ def load_user(user_id):
     if res: return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
     return None
 
-# --- NEW: Health Check Route for Render ---
 @app.route("/health")
-def health():
-    return "OK", 200
+def health(): return "OK", 200
 
-# --- Routes ---
 @app.route("/")
 @login_required
 def index(): return render_template("index.html")
@@ -101,25 +96,6 @@ def api_stock(action):
 def api_audit():
     data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
     return jsonify({"ok": True, "data": data})
-
-@app.route("/api/admin/backup/github", methods=["POST"])
-@login_required
-def api_backup():
-    if not current_user.is_admin: return jsonify({"message":"Forbidden"}), 403
-    t, r = os.getenv("GITHUB_TOKEN"), os.getenv("GITHUB_REPO")
-    prods, logs = _supabase_request("GET", "products"), _supabase_request("GET", "audit_logs")
-    content = json.dumps({"exported_at": dt.datetime.utcnow().isoformat(), "products": prods, "audit": logs}, indent=2).encode("utf-8")
-    url = f"https://api.github.com/repos/{r}/contents/backups/warehouse_data.json"
-    headers = {"Authorization": f"token {t}", "Accept": "application/vnd.github.v3+json"}
-    sha = None
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as resp:
-            sha = json.loads(resp.read().decode("utf-8")).get("sha")
-    except: pass
-    p_data = {"message": "Backup", "content": base64.b64encode(content).decode("utf-8")}
-    if sha: p_data["sha"] = sha
-    req = urllib.request.Request(url, data=json.dumps(p_data).encode("utf-8"), headers=headers, method="PUT")
-    with urllib.request.urlopen(req): return jsonify({"message": "Backup OK"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
