@@ -684,7 +684,7 @@
       const res = await fetch('/api/products', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ item_number: product_id, name, current_stock: quantity, location_name: location })
+        body: JSON.stringify({ item_number: product_id, name, current_stock: quantity, location: location })
       });
       if(!res.ok){ setAddAlert('Save error.', 'bad'); return; }
       setAddAlert('Saved successfully ✔', 'ok');
