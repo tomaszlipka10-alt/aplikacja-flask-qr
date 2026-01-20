@@ -351,14 +351,11 @@
 
       <section id="view-admin" class="view" style="display:none">
         <div class="card">
-          <h2>Admin</h2>
-          <div class="small">GitHub backup creates a commit in the repository.</div>
+          <h2>Admin Controls</h2>
+          <div class="small">Export the current database state to an Excel file for backup.</div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
-            <button class="btn" onclick="backupToGitHub()">Backup to GitHub</button>
-            <button class="btn primary" onclick="downloadExcelBackup()">📥 Pobierz Backup Excel</button>
-            <button class="btn" onclick="showGitHubVerify()">How to verify</button>
+            <button class="btn primary" onclick="downloadExcelBackup()">📥 Download Excel Backup</button>
           </div>
-          <div class="small" style="margin-top:10px">If backup fails: check Render → Environment: <b>GITHUB_TOKEN</b> and <b>GITHUB_REPO</b>.</div>
           <div class="alert" id="adminAlert"></div>
         </div>
       </section>
@@ -845,45 +842,7 @@
   function downloadExcelBackup() {
     window.location.href = '/api/admin/export/excel';
   }
-  function setAdminAlert(msg, type){
-    const el = document.getElementById('adminAlert');
-    el.className = 'alert ' + (type || '');
-    el.style.display = 'block';
-    el.textContent = msg;
-  }
 
-  async function backupToGitHub(){
-    const candidates = [
-      '/api/admin/backup/github',
-      '/api/backup/github',
-      '/admin/backup/github'
-    ];
-
-    setAdminAlert('Backup starting...', '');
-
-    for (const url of candidates){
-      try{
-        const res = await fetch(url, { method:'POST' });
-        const data = await res.json().catch(()=>({}));
-        if(res.ok){
-          setAdminAlert(data.message || 'Backup OK ✔', 'ok');
-          return;
-        }
-        if(res.status !== 404){
-          setAdminAlert(data.error || ('Backup failed (HTTP '+res.status+').'), 'bad');
-          return;
-        }
-      }catch(_){}
-    }
-
-    setAdminAlert('Backup endpoint not found (404).', 'bad');
-  }
-
-  function showGitHubVerify(){
-    alert('Go to GitHub → Repository → Commits. A new commit should appear after a successful backup.');
-  }
-
-  showView('dashboard');
 </script>
 </body>
 </html>
