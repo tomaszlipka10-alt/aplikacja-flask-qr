@@ -60,24 +60,9 @@ def _supabase_request(method, table, params=None, json_body=None, prefer=None):
         print(f"Supabase Connection Error: {e}")
         return None
 
-# Pomocnicy Supabase
 def _sb_get_product(sku):
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     return res[0] if res and len(res) > 0 else None
-
-def _sb_set_product_quantity(sku, new_qty):
-    return _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_qty})
-
-def _sb_insert_audit(action, sku, name, amount, loc, user):
-    body = {
-        "product_sku": sku,
-        "product_name": name,
-        "action": action,
-        "amount": amount,
-        "location": loc,
-        "username": user
-    }
-    return _supabase_request("POST", "audit_logs", json_body=body)
 
 # ----------------------------
 # Flask-Login User Setup
@@ -94,23 +79,6 @@ def load_user(user_id):
     if res and len(res) > 0:
         return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False))
     return None
-
-# ----------------------------
-# GitHub Backup Logic
-# ----------------------------
-def github_put_file(repo, path, token, content_bytes, message):
-    url = f"https://api.github.com/repos/{repo}/contents/{path}"
-    headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-    sha = None
-    try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as r:
-            curr = json.loads(r.read().decode("utf-8"))
-            sha = curr.get("sha")
-    except: pass
-    payload = {"message": message, "content": base64.b64encode(content_bytes).decode("utf-8")}
-    if sha: payload["sha"] = sha
-    req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="PUT")
-    with urllib.request.urlopen(req) as r: return r.status
 
 # ----------------------------
 # Routes
@@ -156,46 +124,57 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
-@app.route("/api/products")
+@app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
+    if request.method == "POST":
+        data = request.json
+        # Mapowanie danych z formularza do bazy
+        body = {
+            "item_number": data.get("item_number"),
+            "name": data.get("name"),
+            "current_stock": int(data.get("current_stock", 0)),
+            "location": data.get("location_name") or data.get("location")
+        }
+        res = _supabase_request("POST", "products", json_body=body)
+        if res is None: return jsonify({"ok": False, "error": "Błąd zapisu w bazie"}), 400
+        return jsonify({"ok": True})
+    
+    # Pobieranie listy
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
     return jsonify({"ok": True, "data": data})
 
-@app.route("/api/stock", methods=["POST"])
+@app.route("/api/stock/<action>", methods=["POST"])
 @login_required
-def api_stock():
+def api_stock_action(action):
     data = request.json or {}
     sku = data.get("item_number")
-    action = data.get("action")
     amount = int(data.get("amount", 0))
-    if amount <= 0: return jsonify({"ok":False,"error":"Nieprawidłowa ilość"}), 400
-
+    
     row = _sb_get_product(sku)
     if not row: return jsonify({"ok":False,"error":"Produkt nie istnieje"}), 404
     
     new_q = row['current_stock'] + amount if action == "receive" else row['current_stock'] - amount
-    if new_q < 0: return jsonify({"ok":False,"error":"Brak wystarczającej ilości towaru"}), 400
+    if new_q < 0: return jsonify({"ok":False,"error":"Brak wystarczającej ilości"}), 400
     
-    _sb_set_product_quantity(sku, new_q)
-    _sb_insert_audit(action.upper(), sku, row['name'], amount, row['location'], current_user.username)
+    _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
+    
+    # Audit Log
+    _supabase_request("POST", "audit_logs", json_body={
+        "product_sku": sku,
+        "product_name": row['name'],
+        "action": action.upper(),
+        "amount": amount,
+        "location": row['location'],
+        "username": current_user.username
+    })
     return jsonify({"ok":True, "current_stock": new_q})
 
 @app.route("/api/audit")
 @login_required
 def api_audit():
     data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
-    out = []
-    for r in data:
-        out.append({
-            "created_at": r.get("created_at"),
-            "type": r.get("action"),
-            "item_number": r.get("product_sku"),
-            "name": r.get("product_name"),
-            "amount": r.get("amount"),
-            "username": r.get("username")
-        })
-    return jsonify({"ok": True, "data": out})
+    return jsonify({"ok": True, "data": data})
 
 @app.route("/api/admin/backup/github", methods=["POST"])
 @login_required
@@ -206,15 +185,26 @@ def api_backup_github():
     try:
         prods = _supabase_request("GET", "products")
         logs = _supabase_request("GET", "audit_logs")
-        payload = {
-            "exported_at_utc": dt.datetime.utcnow().isoformat(),
-            "products": prods,
-            "audit": logs
-        }
+        payload = {"exported_at_utc": dt.datetime.utcnow().isoformat(), "products": prods, "audit": logs}
         content = (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-        github_put_file(repo, "backups/warehouse_data.json", token, content, f"Backup {payload['exported_at_utc']}")
-        return jsonify({"message": "Backup wykonany pomyślnie"})
+        
+        # GitHub PUT Logic
+        url = f"https://api.github.com/repos/{repo}/contents/backups/warehouse_data.json"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        sha = None
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=headers)) as r:
+                sha = json.loads(r.read().decode("utf-8")).get("sha")
+        except: pass
+        
+        put_data = {"message": f"Backup {payload['exported_at_utc']}", "content": base64.b64encode(content).decode("utf-8")}
+        if sha: put_data["sha"] = sha
+        
+        req = urllib.request.Request(url, data=json.dumps(put_data).encode("utf-8"), headers=headers, method="PUT")
+        with urllib.request.urlopen(req) as r:
+            return jsonify({"message": "Backup wykonany pomyślnie"})
     except Exception as e: return jsonify({"message": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
