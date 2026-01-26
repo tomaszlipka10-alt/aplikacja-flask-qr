@@ -244,6 +244,10 @@
       .sidebar{width:64px; flex-basis:64px}
       .navbtn{width:48px;height:48px;border-radius:14px}
     }
+    .low-stock-alert {
+      color: #dc2626 !important;
+      font-weight: 800;
+    }
   </style>
 </head>
 <body>
@@ -660,19 +664,31 @@
       const items = data.data || data.products || [];
       if(items.length === 0){ empty.style.display = 'block'; return; }
       empty.style.display = 'none';
+      
       for(const p of items){
         const tr = document.createElement('tr');
+        
+        // Pobieramy wartości
+        const currentQty = Number(p.current_stock ?? p.quantity ?? 0);
+        const minStock = Number(p.min_stock ?? 0);
+        
+        // Sprawdzamy czy stan jest niski (tylko jeśli minStock > 0)
+        const isLow = (minStock > 0 && currentQty <= minStock);
+        const qtyClass = isLow ? 'low-stock-alert' : '';
+        const warningIcon = isLow ? '⚠️ ' : '';
+
         tr.innerHTML = `
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || '')}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(String((p.current_stock ?? p.quantity ?? '')))}</td>
+          <td class="${qtyClass}" style="padding:10px 8px; border-bottom:1px solid var(--border)">
+            ${warningIcon}${currentQty} <span style="font-size:10px; opacity:0.6">(min: ${minStock})</span>
+          </td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
         `;
         body.appendChild(tr);
       }
     }catch(e){ empty.style.display = 'block'; }
   }
-
   async function loadAudit(){
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmpty');
