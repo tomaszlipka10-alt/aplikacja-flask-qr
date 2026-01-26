@@ -133,9 +133,17 @@ def api_products():
 
         return jsonify({"ok": True})
 
-    # Obsługa metody GET - pobieranie listy produktów
+   # Obsługa metody GET - pobieranie listy produktów + liczenie braków
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
-    return jsonify({"ok": True, "data": data})
+    
+    # Liczymy produkty, gdzie current_stock <= min_stock (i min_stock > 0)
+    low_stock_count = sum(1 for p in data if int(p.get('min_stock', 0)) > 0 and int(p.get('current_stock', 0)) <= int(p.get('min_stock', 0)))
+
+    return jsonify({
+        "ok": True, 
+        "data": data, 
+        "low_stock_count": low_stock_count
+    })
 
 @app.route("/api/stock/<action>", methods=["POST"])
 @login_required

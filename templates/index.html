@@ -282,7 +282,55 @@
       <section id="view-dashboard" class="view">
         <div class="card">
           <h2>Dashboard</h2>
+<section id="view-dashboard" class="view">
+  <div class="card">
+    <h2>Dashboard</h2>
+    
+    {% if current_user.is_admin %}
+    <div id="lowStockDashboardAlert" class="alert bad" style="margin-bottom: 20px; cursor: pointer; display: none;" onclick="showView('inventory')">
+      </div>
+    {% endif %}
+
+    <div class="small">Choose an action:</div>
+    ```
+
+---
+
+### Krok 3: Modyfikacja JavaScript (`index.html`)
+
+Teraz musimy sprawić, by funkcja `loadProducts` (która uruchamia się przy starcie) wpisała odpowiednią liczbę do tego alertu.
+
+**W sekcji `<script>` znajdź funkcję `loadProducts()` i dodaj w niej te linie na samym początku (zaraz po otrzymaniu `data` z serwera):**
+
+```javascript
+async function loadProducts(){
+    const body = document.getElementById('productsBody');
+    const empty = document.getElementById('productsEmpty');
+    body.innerHTML = '';
+    try{
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const items = data.data || [];
+      
+      // --- NOWA LOGIKA LICZNIKA ---
+      const lowStockCount = data.low_stock_count || 0;
+      const dashboardAlert = document.getElementById('lowStockDashboardAlert');
+      
+      if(dashboardAlert) { // Ten element istnieje tylko jeśli zalogowany jest ADMIN
+          if(lowStockCount > 0) {
+              dashboardAlert.style.display = 'block';
+              dashboardAlert.innerHTML = `⚠️ <strong>${lowStockCount}</strong> products reach minimum stock! Click to check.`;
+          } else {
+              dashboardAlert.style.display = 'none';
+          }
+      }
+      // --- KONIEC LOGIKI LICZNIKA ---
+
+      if(items.length === 0){ empty.style.display = 'block'; return; }
+      // ... reszta pętli wyświetlającej tabelę ...
           <div class="small">Choose an action:</div>
+          <div id="lowStockDashboardAlert" class="alert bad" style="margin-bottom: 20px; cursor: pointer;" onclick="showView('inventory')">
+              </div>
           <div class="pillgrid" style="margin-top:12px">
             <div class="pill" onclick="openAddProductModal()">
               <div class="left"><div class="ic">➕</div><div>Add Product</div></div>
@@ -658,9 +706,26 @@
     try{
       const res = await fetch('/api/products');
       const data = await res.json();
-      const items = data.data || data.products || [];
+      const items = data.data || [];
+      
+      // LOGIKA LICZNIKA DLA ADMINA
+      const lowStockCount = data.low_stock_count || 0;
+      const dashboardAlert = document.getElementById('lowStockDashboardAlert');
+      
+      // Zakładamy, że sprawdzamy uprawnienia (możesz to sterować klasą CSS lub danymi z sesji)
+      if(lowStockCount > 0) {
+          if (dashboardAlert) {
+              dashboardAlert.style.display = 'block';
+              dashboardAlert.innerHTML = `⚠️ <strong>${lowStockCount}</strong> products require ordering (low stock)`;
+          }
+      } else if (dashboardAlert) {
+          dashboardAlert.style.display = 'none';
+      }
+
       if(items.length === 0){ empty.style.display = 'block'; return; }
       empty.style.display = 'none';
+      
+      // ... reszta Twojej pętli for(const p of items) ...
       
       for(const p of items){
         const tr = document.createElement('tr');
