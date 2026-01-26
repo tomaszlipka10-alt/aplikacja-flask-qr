@@ -387,6 +387,10 @@
               <input id="p_qty" type="number" value="0" />
             </div>
             <div>
+              <label>Min. Stock Alert Level</label>
+              <input id="p_min_stock" type="number" value="0" placeholder="Alert if stock hits this level" />
+            </div>
+            <div>
               <label>Location</label>
               <div class="scanrow">
                 <input id="p_loc" placeholder="e.g. A-01-02" />
@@ -720,16 +724,34 @@
     const product_id = document.getElementById('p_id').value.trim();
     const name = document.getElementById('p_name').value.trim();
     const quantity = Number(document.getElementById('p_qty').value || 0);
+    const min_stock = Number(document.getElementById('p_min_stock').value || 0);
     const location = document.getElementById('p_loc').value.trim();
+
     if(!product_id || !name || !location){ setAddAlert('Fill all fields.', 'bad'); return; }
+    
     try{
       const res = await fetch('/api/products', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ item_number: product_id, name, current_stock: quantity, location: location })
+        // Przekazujemy min_stock do API, które zapisze to w Supabase
+        body: JSON.stringify({ 
+          item_number: product_id, 
+          name: name, 
+          current_stock: quantity, 
+          min_stock: min_stock, 
+          location: location 
+        })
       });
       if(!res.ok){ setAddAlert('Save error.', 'bad'); return; }
       setAddAlert('Saved successfully ✔', 'ok');
+      
+      // Czyszczenie pól po udanym zapisie
+      document.getElementById('p_id').value = '';
+      document.getElementById('p_name').value = '';
+      document.getElementById('p_qty').value = '0';
+      document.getElementById('p_min_stock').value = '0';
+      document.getElementById('p_loc').value = '';
+      
       loadProducts();
     }catch(e){ setAddAlert('Error.', 'bad'); }
   }
