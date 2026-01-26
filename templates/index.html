@@ -484,14 +484,18 @@
       const res = await fetch('/api/products');
       const data = await res.json();
       const items = data.data || data.products || [];
-      const p = items.find(item => String(item.item_number) === id || String(item.product_id) === id);
+      // POPRAWKA: Szukamy tylko po item_number, zgodnie z CSV
+      const p = items.find(item => String(item.item_number) === id);
+      
       if (p) {
-        const qty = p.current_stock ?? p.quantity ?? 0;
-        const loc = p.location_name || p.location || '-';
-        infoBox.textContent = `Current Stock: ${qty} | Location: ${loc}`;
+        // POPRAWKA: Używamy nazw kolumn z Supabase: current_stock i unit
+        const qty = p.current_stock ?? 0;
+        const unit = p.unit || 'pcs';
+        const loc = p.location || '-';
+        infoBox.textContent = `Current Stock: ${qty} ${unit} | Location: ${loc}`;
         infoBox.style.color = "var(--blue-600)";
       } else {
-        infoBox.textContent = "Product not found.";
+        infoBox.textContent = "Product not found in database.";
         infoBox.style.color = "red";
       }
       infoBox.style.display = 'block';
@@ -500,7 +504,6 @@
 
   function closeStockModal(){
     stopStockScan();
-    // Czyszczenie pól
     document.getElementById('s_id').value = '';
     document.getElementById('s_qty').value = '';
     document.getElementById('stock_info').style.display = 'none';
@@ -516,30 +519,27 @@
     if(!item_number){ setStockAlert('Please provide Product ID.', 'bad'); return; }
     if(!amount || amount <= 0){ setStockAlert('Amount must be > 0.', 'bad'); return; }
 
-    // BLOKADA UJEMNEGO STANU
     if (stockMode === 'issue') {
       try {
         const res = await fetch('/api/products');
         const data = await res.json();
         const items = data.data || data.products || [];
-        const p = items.find(item => String(item.item_number) === item_number || String(item.product_id) === item_number);
+        const p = items.find(item => String(item.item_number) === item_number);
         
         if (p) {
-          const currentQty = p.current_stock ?? p.quantity ?? 0;
+          // POPRAWKA: Sprawdzamy current_stock
+          const currentQty = Number(p.current_stock ?? 0);
           if (amount > currentQty) {
             setStockAlert(`Error: Not enough stock! (Available: ${currentQty})`, 'bad');
-            return; // Przerywamy wysyłanie, jeśli brakuje towaru
+            return;
           }
         } else {
-          setStockAlert('Error: Product not found in database.', 'bad');
+          setStockAlert('Error: Product not found.', 'bad');
           return;
         }
-      } catch (e) {
-        console.error("Stock check failed", e);
-      }
+      } catch (e) { console.error("Stock check failed", e); }
     }
 
-    // Jeśli wszystko jest ok (Receive lub Issue z odpowiednią ilością), wysyłamy do serwera
     try{
       const res = await fetch('/api/stock/' + stockMode, {
         method:'POST',
@@ -608,7 +608,6 @@
       document.getElementById('view-'+v).style.display = (v===name) ? 'block' : 'none';
       document.getElementById('nav-'+v).classList.toggle('active', v===name);
     }
-
     if (name === 'inventory') loadProducts();
     if (name === 'audit') loadAudit();
   }
@@ -622,12 +621,11 @@
   }
   function closeAddProductModal(){
     stopScan();
-    // Czyszczenie pól
     document.getElementById('p_id').value = '';
     document.getElementById('p_name').value = '';
     document.getElementById('p_qty').value = '0';
     document.getElementById('p_loc').value = '';
-    clearAddAlert(); // Czyści też ewentualne komunikaty o błędach
+    clearAddAlert();
     document.getElementById('addProductBackdrop').style.display = 'none';
   }
   function setAddAlert(msg, type){
@@ -641,20 +639,15 @@
     el.style.display = 'none';
     el.className = 'alert';
   }
+  
   function filterInventory() {
     const input = document.getElementById('inventorySearch');
     const filter = input.value.toLowerCase();
     const table = document.querySelector('#view-inventory table');
     const tr = table.getElementsByTagName('tr');
-
-    // Zaczynamy od i=1, żeby pominąć nagłówek tabeli
     for (let i = 1; i < tr.length; i++) {
       const rowText = tr[i].textContent.toLowerCase();
-      if (rowText.indexOf(filter) > -1) {
-        tr[i].style.display = "";
-      } else {
-        tr[i].style.display = "none";
-      }
+      tr[i].style.display = rowText.indexOf(filter) > -1 ? "" : "none";
     }
   }
 
@@ -671,28 +664,29 @@
       
       for(const p of items){
         const tr = document.createElement('tr');
-        
-        // Pobieramy wartości
-        const currentQty = Number(p.current_stock ?? p.quantity ?? 0);
+        // POPRAWKA: Dopasowanie do nazw z CSV
+        const currentQty = Number(p.current_stock ?? 0);
         const minStock = Number(p.min_stock ?? 0);
+        const unit = p.unit || 'pcs';
         
-        // Sprawdzamy czy stan jest niski (tylko jeśli minStock > 0)
         const isLow = (minStock > 0 && currentQty <= minStock);
         const qtyClass = isLow ? 'low-stock-alert' : '';
         const warningIcon = isLow ? '⚠️ ' : '';
 
         tr.innerHTML = `
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number || p.product_id || '')}</td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.item_number)}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.name)}</td>
           <td class="${qtyClass}" style="padding:10px 8px; border-bottom:1px solid var(--border)">
-            ${warningIcon}${currentQty} <span style="font-size:10px; opacity:0.6">(min: ${minStock})</span>
+            ${warningIcon}${currentQty} <span style="font-size:11px">${unit}</span>
+            <div style="font-size:10px; opacity:0.6">min: ${minStock}</div>
           </td>
-          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location_name || p.location || '')}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${escapeHtml(p.location)}</td>
         `;
         body.appendChild(tr);
       }
     }catch(e){ empty.style.display = 'block'; }
   }
+
   async function loadAudit(){
     const body = document.getElementById('auditBody');
     const empty = document.getElementById('auditEmpty');
@@ -733,19 +727,19 @@
       const res = await fetch('/api/products', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        // Przekazujemy min_stock do API, które zapisze to w Supabase
+        // POPRAWKA: Wysyłamy nazwy kolumn identyczne jak w Supabase (CSV)
         body: JSON.stringify({ 
           item_number: product_id, 
           name: name, 
           current_stock: quantity, 
           min_stock: min_stock, 
-          location: location 
+          location: location,
+          unit: 'pcs' // Domyślna wartość jednostki
         })
       });
       if(!res.ok){ setAddAlert('Save error.', 'bad'); return; }
       setAddAlert('Saved successfully ✔', 'ok');
       
-      // Czyszczenie pól po udanym zapisie
       document.getElementById('p_id').value = '';
       document.getElementById('p_name').value = '';
       document.getElementById('p_qty').value = '0';
@@ -796,8 +790,8 @@
     if(scanMode === 'location') { document.getElementById('p_loc').value = text; return; }
     if(text.includes('|')){
       const parts = text.split('|');
-      document.getElementById('p_id').value = parts[0];
-      document.getElementById('p_name').value = parts[1] || '';
+      document.getElementById('p_id').value = parts[0].trim();
+      document.getElementById('p_name').value = (parts[1] || '').trim();
     } else {
       document.getElementById('p_id').value = text;
     }

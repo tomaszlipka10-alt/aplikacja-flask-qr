@@ -102,15 +102,38 @@ def logout():
 def api_products():
     if request.method == "POST":
         d = request.json
+        
+        # Pobieramy wartości z JSON, dbając o poprawne typy danych
+        item_number = str(d.get('item_number', '')).strip()
+        name = str(d.get('name', '')).strip()
+        current_stock = int(d.get('current_stock', 0))
+        min_stock = int(d.get('min_stock', 0))
+        location = str(d.get('location', '')).strip()
+        unit = str(d.get('unit', 'pcs'))
+
+        # 1. Zapis nowego produktu do Supabase
         _supabase_request("POST", "products", json_body={
-            "item_number": d['item_number'], "name": d['name'], 
-            "current_stock": int(d['current_stock']), "location": d['location'], "unit": "pcs"
+            "item_number": item_number,
+            "name": name,
+            "current_stock": current_stock,
+            "min_stock": min_stock,
+            "location": location,
+            "unit": unit
         })
+
+        # 2. Dodanie wpisu do historii (audit_logs)
         _supabase_request("POST", "audit_logs", json_body={
-            "item_number": d['item_number'], "name": d['name'], "action": "CREATE",
-            "qty": int(d['current_stock']), "location": d['location'], "username": current_user.username
+            "item_number": item_number,
+            "name": name,
+            "action": "CREATE",
+            "qty": current_stock,
+            "location": location,
+            "username": current_user.username
         })
+
         return jsonify({"ok": True})
+
+    # Obsługa metody GET - pobieranie listy produktów
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
     return jsonify({"ok": True, "data": data})
 
