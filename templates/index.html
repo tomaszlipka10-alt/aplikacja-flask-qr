@@ -318,8 +318,14 @@
       <div class="modal">
         <div class="modal-header"><b id="stockTitle">Stock</b><button class="btn" onclick="closeStockModal()">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>Product ID</label><div class="scanrow"><input id="s_id" oninput="checkCurrentStock(this.value)"><button class="btn" onclick="startScanStock('s_id')">Scan</button></div></div>
-          <div id="stock_info" class="small" style="margin: 8px 0; font-weight:bold; color:var(--blue-600)"></div>
+          <div class="row">
+            <label>Product ID</label>
+            <div class="scanrow">
+              <input id="s_id" list="products-list" oninput="checkCurrentStock(this.value)">
+              <datalist id="products-list"></datalist> <button class="btn" onclick="startScanStock('s_id')">Scan</button>
+            </div>
+          </div>
+          <div id="stock_info" class="small" style="margin: 8px 0; font-weight:bold; line-height: 1.4;"></div>
           <div class="row"><label>Quantity</label><input id="s_qty" type="number"></div>
           <div class="scanner" id="stockScannerBox"><video id="stockVideo" playsinline></video></div>
           <div id="stockAlert" class="alert"></div>
@@ -350,6 +356,16 @@
       const res = await fetch('/api/products');
       const data = await res.json();
       const items = data.data || [];
+      const datalist = document.getElementById('products-list');
+      if(datalist) {
+        datalist.innerHTML = '';
+        items.forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.item_number;
+          option.textContent = p.name; // Pokaże nazwę obok ID w sugestiach
+          datalist.appendChild(option);
+        });
+      }
       const alertBox = document.getElementById('lowStockDashboardAlert');
       if(alertBox){
         if(data.low_stock_count > 0){
@@ -437,8 +453,15 @@
     const data = await res.json();
     const p = data.data.find(x => String(x.item_number) === id.trim());
     const info = document.getElementById('stock_info');
-    if(p) { info.textContent = `Found: ${p.name} (Stock: ${p.current_stock})`; info.style.color="var(--blue-600)"; }
-    else { info.textContent = "Product not found"; info.style.color="red"; }
+    if(p) { 
+      info.innerHTML = `
+        <div style="color:var(--blue-600)">📍 Location: <span style="color:var(--text)">${p.location || 'Not set'}</span></div>
+        <div style="color:var(--blue-600)">📦 Current Stock: <span style="color:var(--text)">${p.current_stock} ${p.unit || 'pcs'}</span></div>
+        <div style="font-size: 0.9em; margin-top:4px; color:var(--muted)">Product: ${p.name}</div>
+      `;
+    } else { 
+      info.innerHTML = `<span style="color:red">Product not found</span>`; 
+    }
   }
 
   async function saveProduct(){
