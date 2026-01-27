@@ -445,24 +445,17 @@
   function openAddProductModal(){ document.getElementById('addProductBackdrop').style.display='flex'; }
   function closeAddProductModal(){ stopScan(); document.getElementById('addProductBackdrop').style.display='none'; }
   function openStockModal(m){ currentStockMode = m; document.getElementById('stockTitle').textContent = (m==='receive'?'Receive Material':'Issue Material'); document.getElementById('stockBackdrop').style.display='flex'; }
-  function closeStockModal(){ stopStockScan(); document.getElementById('stockBackdrop').style.display='none'; }
+  function closeStockModal(){ 
+    stopStockScan(); 
+    document.getElementById('stockBackdrop').style.display = 'none';
+    // Auto-clean pól po zamknięciu
+    document.getElementById('s_id').value = "";
+    document.getElementById('s_qty').value = "";
+    document.getElementById('stock_info').innerHTML = "";
+    document.getElementById('stockAlert').style.display = 'none';
+}
 
-  async function checkCurrentStock(id){
-    if(!id) return;
-    const res = await fetch('/api/products');
-    const data = await res.json();
-    const p = data.data.find(x => String(x.item_number) === id.trim());
-    const info = document.getElementById('stock_info');
-    if(p) { 
-      info.innerHTML = `
-        <div style="color:var(--blue-600)">📍 Location: <span style="color:var(--text)">${p.location || 'Not set'}</span></div>
-        <div style="color:var(--blue-600)">📦 Current Stock: <span style="color:var(--text)">${p.current_stock} ${p.unit || 'pcs'}</span></div>
-        <div style="font-size: 0.9em; margin-top:4px; color:var(--muted)">Product: ${p.name}</div>
-      `;
-    } else { 
-      info.innerHTML = `<span style="color:red">Product not found</span>`; 
-    }
-  }
+  async function checkCurrentStock(id)
 
   async function saveProduct(){
     const body = { item_number: document.getElementById('p_id').value, name: document.getElementById('p_name').value, current_stock: document.getElementById('p_qty').value, min_stock: document.getElementById('p_min_stock').value, location: document.getElementById('p_loc').value, unit: 'pcs' };
