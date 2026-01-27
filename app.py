@@ -207,5 +207,34 @@ def export_excel():
         download_name=filename
     )
 
+@app.route("/api/relocate", methods=["POST"])
+@login_required
+def api_relocate():
+    d = request.json
+    sku = d.get('item_number')
+    new_loc = str(d.get('new_location', '')).strip()
+    
+    # 1. Pobierz dane o produkcie
+    res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
+    if not res: return jsonify({"ok": False, "error": "Product not found"}), 404
+    
+    p = res[0]
+    old_loc = p.get('location', 'Unknown')
+
+    # 2. Zaktualizuj lokalizację w bazie
+    _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"location": new_loc})
+
+    # 3. Dodaj wpis do audit_logs z informacją skąd-dokąd
+    _supabase_request("POST", "audit_logs", json_body={
+        "item_number": sku,
+        "name": p['name'],
+        "action": "RELOCATE",
+        "qty": p['current_stock'], # Zapisujemy stan przy relokacji
+        "location": f"{old_loc} -> {new_loc}",
+        "username": current_user.username
+    })
+
+    return jsonify({"ok": True})
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

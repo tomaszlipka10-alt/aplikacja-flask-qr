@@ -245,6 +245,9 @@
             <div class="pill" onclick="openStockModal('issue')">
               <div style="display:flex; align-items:center;"><div class="ic">⬆️</div><div>Issue Material</div></div>
             </div>
+            <div class="pill" onclick="openRelocateModal()">
+              <div style="display:flex; align-items:center;"><div class="ic">🔄</div><div>Relocate Material</div></div>
+            </div>
           </div>
         </div>
       </section>
@@ -332,6 +335,32 @@
         </div>
         <div class="modal-footer"><button class="btn primary" onclick="submitStock()">Save Changes</button></div>
       </div>
+      
+      <div class="modal-backdrop" id="relocateBackdrop">
+        <div class="modal">
+          <div class="modal-header"><b>Relocate Product</b><button class="btn" onclick="closeRelocateModal()">✕</button></div>
+          <div class="modal-body">
+            <div class="row">
+              <label>Product ID</label>
+              <div class="scanrow">
+                 <input id="rel_id" list="products-list" oninput="checkRelocationInfo(this.value)">
+                 <button class="btn" onclick="startScanRelocate('id')">Scan</button>
+               </div>
+             </div>
+             <div id="rel_info" style="margin: 8px 0; font-size: 14px; font-weight: bold;"></div>
+             <div class="row">
+               <label>New Location</label>
+               <div class="scanrow">
+                 <input id="rel_new_loc">
+                 <button class="btn" onclick="startScanRelocate('loc')">Scan</button>
+               </div>
+             </div>
+             <div class="scanner" id="relScannerBox"><video id="relVideo" playsinline></video></div>
+             <div id="relAlert" class="alert bad" style="display:none"></div>
+           </div>
+           <div class="modal-footer"><button class="btn primary" onclick="submitRelocation()">Update Location</button></div>
+         </div>
+       </div>
     </div>
   </main>
 </div>
@@ -602,6 +631,79 @@
   function logout(){ window.location.href = '/logout'; }
   function downloadExcelBackup(){ window.location.href = '/api/admin/export/excel'; }
   window.onload = loadProducts;
+
+function openRelocateModal() {
+    document.getElementById('relocateBackdrop').style.display = 'flex';
+}
+
+function closeRelocateModal() {
+    stopRelScan();
+    document.getElementById('rel_id').value = "";
+    document.getElementById('rel_new_loc').value = "";
+    document.getElementById('rel_info').innerHTML = "";
+    document.getElementById('relateAlert')?.style.display = 'none';
+    document.getElementById('relocateBackdrop').style.display = 'none';
+}
+
+async function checkRelocationInfo(id) {
+    const info = document.getElementById('rel_info');
+    if(!id) { info.innerHTML = ""; return; }
+    const res = await fetch('/api/products');
+    const data = await res.json();
+    const p = data.data.find(x => String(x.item_number) === id.trim());
+    if(p) {
+        info.innerHTML = `<span style="color:var(--muted)">Current location:</span> ${p.location || 'Not set'} <br> <span style="color:var(--muted)">Product:</span> ${p.name}`;
+    } else {
+        info.innerHTML = `<span style="color:red">Product not found</span>`;
+    }
+}
+
+async function submitRelocation() {
+    const id = document.getElementById('rel_id').value.trim();
+    const newLoc = document.getElementById('rel_new_loc').value.trim();
+    const alertBox = document.getElementById('relAlert');
+
+    if(!id || !newLoc) {
+        alertBox.textContent = "ID and New Location are required.";
+        alertBox.style.display = "block";
+        return;
+    }
+
+    const res = await fetch('/api/relocate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ item_number: id, new_location: newLoc })
+    });
+
+    if(res.ok) {
+        closeRelocateModal();
+        loadProducts();
+    } else {
+        alertBox.textContent = "Error during relocation.";
+        alertBox.style.display = "block";
+    }
+}
+
+// Obsługa skanera dla relokacji
+let relStream, relTimer, relDetector;
+async function startScanRelocate(mode) {
+    if(!('BarcodeDetector' in window)) return;
+    relDetector = new BarcodeDetector({ formats: ['qr_code'] });
+    relStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const v = document.getElementById('relVideo'); v.srcObject = relStream; v.play();
+    document.getElementById('relScannerBox').style.display = 'block';
+    relTimer = setInterval(async () => {
+        const codes = await relDetector.detect(v);
+        if(codes.length) {
+            const val = codes[0].rawValue;
+            if(mode === 'loc') document.getElementById('rel_new_loc').value = val;
+            else { document.getElementById('rel_id').value = val.split('|')[0]; checkRelocationInfo(val.split('|')[0]); }
+            stopRelScan();
+        }
+    }, 300);
+}
+function stopRelScan() { if(relStream) relStream.getTracks().forEach(t=>t.stop()); clearInterval(relTimer); document.getElementById('relScannerBox').style.display='none'; }
+
 </script>
 </body>
 </html>
