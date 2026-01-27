@@ -308,7 +308,6 @@
           <div class="row"><label>Min Stock Level</label><input id="p_min_stock" type="number" value="0"></div>
           <div class="row"><label>Location</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('location')">Scan</button></div></div>
           <div class="scanner" id="scannerBox"><video id="video" playsinline></video></div>
-          <div id="addAlert" class="alert"></div>
           <div id="addAlert" class="alert bad" style="display:none; margin-bottom: 10px;"></div>
         </div>
         <div class="modal-footer"><button class="btn primary" onclick="saveProduct()">Save Product</button></div>
@@ -441,6 +440,14 @@
       }
     }, 300);
   }
+
+  function openStockModal(m){ 
+    currentStockMode = m; 
+    document.getElementById('stockTitle').textContent = (m === 'receive' ? 'Receive Material' : 'Issue Material'); 
+    document.getElementById('stockAlert').style.display = 'none'; // Czyścimy stare błędy
+    document.getElementById('stockBackdrop').style.display = 'flex'; 
+  }
+
   function stopStockScan(){ if(stockStream) stockStream.getTracks().forEach(t=>t.stop()); clearInterval(stockScanTimer); document.getElementById('stockScannerBox').style.display='none'; }
 
   function openAddProductModal(){ 
@@ -503,7 +510,6 @@
         return;
     }
 
-    // 1. Sprawdzenie czy produkt już istnieje (pobieramy aktualną listę)
     const resCheck = await fetch('/api/products');
     const data = await resCheck.json();
     const exists = data.data.find(x => String(x.item_number) === id);
@@ -511,8 +517,7 @@
     if(exists) {
         alertBox.textContent = "Product already exists! Redirecting to Receive Materials...";
         alertBox.style.display = "block";
-        
-        // Czekamy 2 sekundy, żeby użytkownik przeczytał info, a potem przełączamy modal
+                
         setTimeout(() => {
             closeAddProductModal();
             openStockModal('receive');
@@ -522,8 +527,7 @@
         }, 2000);
         return;
     }
-
-    // 2. Jeśli nie istnieje - zapisujemy
+    
     const body = { 
         item_number: id, 
         name: document.getElementById('p_name').value, 
