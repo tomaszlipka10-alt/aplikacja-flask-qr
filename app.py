@@ -154,6 +154,9 @@ def api_stock(action):
     if not res: return jsonify({"ok": False}), 404
     
     p = res[0]
+    if action == "issue" and p['current_stock'] < amt:
+        return jsonify({"ok": False, "error": "Insufficient stock"}), 400
+        
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
     
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})

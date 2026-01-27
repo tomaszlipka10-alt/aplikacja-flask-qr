@@ -455,7 +455,30 @@
     document.getElementById('stockAlert').style.display = 'none';
 }
 
-  async function checkCurrentStock(id)
+  async function checkCurrentStock(id){
+    const info = document.getElementById('stock_info');
+    if(!id || id.trim() === "") {
+      info.innerHTML = "";
+      return;
+    }
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const p = data.data.find(x => String(x.item_number) === id.trim());
+      
+      if(p) { 
+        info.innerHTML = `
+          <div style="color:var(--blue-600)">📍 Location: <span style="color:var(--text)">${p.location || 'Not set'}</span></div>
+          <div style="color:var(--blue-600)">📦 Current Stock: <span style="color:var(--text)">${p.current_stock} ${p.unit || 'pcs'}</span></div>
+          <div style="font-size: 0.9em; margin-top:4px; color:var(--muted)">Product: ${p.name}</div>
+        `;
+      } else { 
+        info.innerHTML = `<span style="color:red">Product not found</span>`; 
+      }
+    } catch(e) {
+      console.error("Error fetching stock info:", e);
+    }
+  }
 
   async function saveProduct(){
     const body = { item_number: document.getElementById('p_id').value, name: document.getElementById('p_name').value, current_stock: document.getElementById('p_qty').value, min_stock: document.getElementById('p_min_stock').value, location: document.getElementById('p_loc').value, unit: 'pcs' };
@@ -464,9 +487,46 @@
   }
 
   async function submitStock(){
-    const res = await fetch('/api/stock/'+currentStockMode, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ item_number: document.getElementById('s_id').value, amount: document.getElementById('s_qty').value }) });
-    if(res.ok){ closeStockModal(); loadProducts(); } else { alert("Error: Check stock levels."); }
-  }
+    const id = document.getElementById('s_id').value;
+    const amount = parseInt(document.getElementById('s_qty').value);
+    const alertBox = document.getElementById('stockAlert');
+
+    if(!id || !amount || amount <= 0) {
+        alertBox.textContent = "Please enter valid ID and amount.";
+        alertBox.className = "alert bad";
+        alertBox.style.display = "block";
+        return;
+    }
+
+    // Blokada zejścia poniżej 0 dla wydawania (ISSUE)
+    if(currentStockMode === 'issue') {
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        const p = data.data.find(x => String(x.item_number) === id.trim());
+        
+        if(p && amount > p.current_stock) {
+            alertBox.textContent = `Error: Not enough stock! Current: ${p.current_stock}`;
+            alertBox.className = "alert bad";
+            alertBox.style.display = "block";
+            return;
+        }
+    }
+
+    const res = await fetch('/api/stock/'+currentStockMode, { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ item_number: id, amount: amount }) 
+    });
+
+    if(res.ok){ 
+        closeStockModal(); 
+        loadProducts(); 
+    } else { 
+        alertBox.textContent = "Error: Check stock levels or product ID.";
+        alertBox.className = "alert bad";
+        alertBox.style.display = "block";
+    }
+}
 
   function filterInventory() {
     const val = document.getElementById('inventorySearch').value.toLowerCase();
