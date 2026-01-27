@@ -167,7 +167,7 @@ def api_stock(action):
 @login_required
 def api_audit():
     data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
-    return jsonify({"ok": True, "data": data})
+    return jsonify({"ok": True, "audit": data})
 
 @app.route("/api/admin/export/excel")
 @login_required
