@@ -309,6 +309,7 @@
           <div class="row"><label>Location</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('location')">Scan</button></div></div>
           <div class="scanner" id="scannerBox"><video id="video" playsinline></video></div>
           <div id="addAlert" class="alert"></div>
+          <div id="addAlert" class="alert bad" style="display:none; margin-bottom: 10px;"></div>
         </div>
         <div class="modal-footer"><button class="btn primary" onclick="saveProduct()">Save Product</button></div>
       </div>
@@ -442,9 +443,21 @@
   }
   function stopStockScan(){ if(stockStream) stockStream.getTracks().forEach(t=>t.stop()); clearInterval(stockScanTimer); document.getElementById('stockScannerBox').style.display='none'; }
 
-  function openAddProductModal(){ document.getElementById('addProductBackdrop').style.display='flex'; }
-  function closeAddProductModal(){ stopScan(); document.getElementById('addProductBackdrop').style.display='none'; }
-  function openStockModal(m){ currentStockMode = m; document.getElementById('stockTitle').textContent = (m==='receive'?'Receive Material':'Issue Material'); document.getElementById('stockBackdrop').style.display='flex'; }
+  function openAddProductModal(){ 
+    document.getElementById('addAlert').style.display = 'none';
+    document.getElementById('addProductBackdrop').style.display = 'flex'; 
+  }
+  function closeAddProductModal(){ 
+    stopScan(); 
+    // Czyszczenie wszystkich pól przy zamknięciu
+    document.getElementById('p_id').value = "";
+    document.getElementById('p_name').value = "";
+    document.getElementById('p_qty').value = "0";
+    document.getElementById('p_min_stock').value = "0";
+    document.getElementById('p_loc').value = "";
+    document.getElementById('addAlert').style.display = 'none';
+    document.getElementById('addProductBackdrop').style.display = 'none'; 
+  }
   function closeStockModal(){ 
     stopStockScan(); 
     document.getElementById('stockBackdrop').style.display = 'none';
@@ -481,9 +494,58 @@
   }
 
   async function saveProduct(){
-    const body = { item_number: document.getElementById('p_id').value, name: document.getElementById('p_name').value, current_stock: document.getElementById('p_qty').value, min_stock: document.getElementById('p_min_stock').value, location: document.getElementById('p_loc').value, unit: 'pcs' };
-    await fetch('/api/products', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-    closeAddProductModal(); loadProducts();
+    const id = document.getElementById('p_id').value.trim();
+    const alertBox = document.getElementById('addAlert');
+    
+    if(!id) {
+        alertBox.textContent = "Product ID is required.";
+        alertBox.style.display = "block";
+        return;
+    }
+
+    // 1. Sprawdzenie czy produkt już istnieje (pobieramy aktualną listę)
+    const resCheck = await fetch('/api/products');
+    const data = await resCheck.json();
+    const exists = data.data.find(x => String(x.item_number) === id);
+
+    if(exists) {
+        alertBox.textContent = "Product already exists! Redirecting to Receive Materials...";
+        alertBox.style.display = "block";
+        
+        // Czekamy 2 sekundy, żeby użytkownik przeczytał info, a potem przełączamy modal
+        setTimeout(() => {
+            closeAddProductModal();
+            openStockModal('receive');
+            // Automatycznie wpisujemy ID do nowego modala
+            document.getElementById('s_id').value = id;
+            checkCurrentStock(id);
+        }, 2000);
+        return;
+    }
+
+    // 2. Jeśli nie istnieje - zapisujemy
+    const body = { 
+        item_number: id, 
+        name: document.getElementById('p_name').value, 
+        current_stock: document.getElementById('p_qty').value, 
+        min_stock: document.getElementById('p_min_stock').value, 
+        location: document.getElementById('p_loc').value, 
+        unit: 'pcs' 
+    };
+
+    const resSave = await fetch('/api/products', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify(body) 
+    });
+
+    if(resSave.ok) {
+        closeAddProductModal(); 
+        loadProducts();
+    } else {
+        alertBox.textContent = "Error saving product. Please try again.";
+        alertBox.style.display = "block";
+    }
   }
 
   async function submitStock(){
