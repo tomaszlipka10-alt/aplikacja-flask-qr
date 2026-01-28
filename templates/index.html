@@ -335,32 +335,30 @@
         </div>
         <div class="modal-footer"><button class="btn primary" onclick="submitStock()">Save Changes</button></div>
       </div>
-      
-      <div class="modal-backdrop" id="relocateBackdrop">
-        <div class="modal">
-          <div class="modal-header"><b>Relocate Product</b><button class="btn" onclick="closeRelocateModal()">✕</button></div>
-          <div class="modal-body">
-            <div class="row">
-              <label>Product ID</label>
-              <div class="scanrow">
-                 <input id="rel_id" list="products-list" oninput="checkRelocationInfo(this.value)">
-                 <button class="btn" onclick="startScanRelocate('id')">Scan</button>
-               </div>
-             </div>
-             <div id="rel_info" style="margin: 8px 0; font-size: 14px; font-weight: bold;"></div>
-             <div class="row">
-               <label>New Location</label>
-               <div class="scanrow">
-                 <input id="rel_new_loc">
-                 <button class="btn" onclick="startScanRelocate('loc')">Scan</button>
-               </div>
-             </div>
-             <div class="scanner" id="relScannerBox"><video id="relVideo" playsinline></video></div>
-             <div id="relAlert" class="alert bad" style="display:none"></div>
-           </div>
-           <div class="modal-footer"><button class="btn primary" onclick="submitRelocation()">Update Location</button></div>
-         </div>
-       </div>
+    </div> <div class="modal-backdrop" id="relocateBackdrop">
+      <div class="modal">
+        <div class="modal-header"><b>Relocate Product</b><button class="btn" onclick="closeRelocateModal()">✕</button></div>
+        <div class="modal-body">
+          <div class="row">
+            <label>Product ID</label>
+            <div class="scanrow">
+              <input id="rel_id" list="products-list" oninput="checkRelocationInfo(this.value)">
+              <button class="btn" onclick="startScanRelocate('id')">Scan</button>
+            </div>
+          </div>
+          <div id="rel_info" style="margin: 8px 0; font-size: 14px; font-weight: bold;"></div>
+          <div class="row">
+            <label>New Location</label>
+            <div class="scanrow">
+              <input id="rel_new_loc">
+              <button class="btn" onclick="startScanRelocate('loc')">Scan</button>
+            </div>
+          </div>
+          <div class="scanner" id="relScannerBox"><video id="relVideo" playsinline></video></div>
+          <div id="relAlert" class="alert bad" style="display:none"></div>
+        </div>
+        <div class="modal-footer"><button class="btn primary" onclick="submitRelocation()">Update Location</button></div>
+      </div>
     </div>
   </main>
 </div>
@@ -641,7 +639,7 @@ function closeRelocateModal() {
     document.getElementById('rel_id').value = "";
     document.getElementById('rel_new_loc').value = "";
     document.getElementById('rel_info').innerHTML = "";
-    document.getElementById('relateAlert')?.style.display = 'none';
+    document.getElementById('relAlert').style.display = 'none'; // Poprawione ID
     document.getElementById('relocateBackdrop').style.display = 'none';
 }
 
