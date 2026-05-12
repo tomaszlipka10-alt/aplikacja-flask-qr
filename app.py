@@ -73,12 +73,10 @@ def register():
     if not u or not p:
         return render_template("login.html", error="Username and password required")
 
-    # 1. Sprawdź czy użytkownik już istnieje
     existing = _supabase_request("GET", "users", {"username": f"eq.{u}"})
     if existing:
         return render_template("login.html", error="User already exists")
 
-    # 2. Zahaszuj hasło i zapisz w Supabase
     phash = generate_password_hash(p)
     res = _supabase_request("POST", "users", json_body={
         "username": u,
@@ -102,41 +100,37 @@ def logout():
 def api_products():
     if request.method == "POST":
         d = request.json
-        
-        # Pobieramy wartości z JSON, dbając o poprawne typy danych
         item_number = str(d.get('item_number', '')).strip()
         name = str(d.get('name', '')).strip()
         current_stock = int(d.get('current_stock', 0))
         min_stock = int(d.get('min_stock', 0))
         location = str(d.get('location', '')).strip()
         unit = str(d.get('unit', 'pcs'))
+        category = str(d.get('category', 'material')) # NOWE POLE
 
-        # 1. Zapis nowego produktu do Supabase
         _supabase_request("POST", "products", json_body={
             "item_number": item_number,
             "name": name,
             "current_stock": current_stock,
             "min_stock": min_stock,
             "location": location,
-            "unit": unit
+            "unit": unit,
+            "category": category # NOWE POLE
         })
 
-        # 2. Dodanie wpisu do historii (audit_logs)
         _supabase_request("POST", "audit_logs", json_body={
             "item_number": item_number,
             "name": name,
             "action": "CREATE",
             "qty": current_stock,
             "location": location,
-            "username": current_user.username
+            "username": current_user.username,
+            "note": f"Initial creation as {category}" # NOWE POLE W AUDICIE
         })
 
         return jsonify({"ok": True})
 
-   # Obsługa metody GET - pobieranie listy produktów + liczenie braków
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
-    
-    # Liczymy produkty, gdzie current_stock <= min_stock (i min_stock > 0)
     low_stock_count = sum(1 for p in data if int(p.get('min_stock', 0)) > 0 and int(p.get('current_stock', 0)) <= int(p.get('min_stock', 0)))
 
     return jsonify({
@@ -149,7 +143,10 @@ def api_products():
 @login_required
 def api_stock(action):
     d = request.json
-    sku, amt = d['item_number'], int(d['amount'])
+    sku = d['item_number']
+    amt = int(d['amount'])
+    note = d.get('note', '') # MOŻE BYĆ NOTATKA LUB DESTINY
+    
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     if not res: return jsonify({"ok": False}), 404
     
@@ -161,8 +158,13 @@ def api_stock(action):
     
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
     _supabase_request("POST", "audit_logs", json_body={
-        "item_number": sku, "name": p['name'], "action": action.upper(), 
-        "qty": amt, "location": p['location'], "username": current_user.username
+        "item_number": sku, 
+        "name": p['name'], 
+        "action": action.upper(), 
+        "qty": amt, 
+        "location": p['location'], 
+        "username": current_user.username,
+        "note": note # ZAPISANIE NOTATKI/PRZEZNACZENIA
     })
     return jsonify({"ok": True, "current_stock": new_q})
 
@@ -188,7 +190,8 @@ def export_excel():
         'item_number': 'ID Produktu',
         'name': 'Nazwa Produktu',
         'current_stock': 'Stan Magazynowy',
-        'location': 'Lokalizacja'
+        'location': 'Lokalizacja',
+        'category': 'Kategoria' # DODANE DO EXCELA
     }
     
     df = df[list(columns_mapping.keys())].rename(columns=columns_mapping)
@@ -214,22 +217,19 @@ def api_relocate():
     sku = d.get('item_number')
     new_loc = str(d.get('new_location', '')).strip()
     
-    # 1. Pobierz dane o produkcie
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     if not res: return jsonify({"ok": False, "error": "Product not found"}), 404
     
     p = res[0]
     old_loc = p.get('location', 'Unknown')
 
-    # 2. Zaktualizuj lokalizację w bazie
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"location": new_loc})
 
-    # 3. Dodaj wpis do audit_logs z informacją skąd-dokąd
     _supabase_request("POST", "audit_logs", json_body={
         "item_number": sku,
         "name": p['name'],
         "action": "RELOCATE",
-        "qty": p['current_stock'], # Zapisujemy stan przy relokacji
+        "qty": p['current_stock'],
         "location": f"{old_loc} -> {new_loc}",
         "username": current_user.username
     })

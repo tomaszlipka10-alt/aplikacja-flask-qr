@@ -192,7 +192,7 @@
     }
     .modal-body{padding:16px}
     .row{margin-bottom:12px}
-    input{
+    input, select{
       width:100%;
       padding:12px;
       border-radius: 12px;
@@ -255,13 +255,21 @@
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
-          <input type="text" id="inventorySearch" placeholder="Search by ID, Name or Location..." onkeyup="filterInventory()" style="margin-bottom:12px">
+          <div style="display:flex; gap:10px; margin-bottom:12px;">
+            <input type="text" id="inventorySearch" placeholder="Search by ID, Name or Location..." onkeyup="filterInventory()">
+            <select id="filterCategory" onchange="filterInventory()" style="width:150px;">
+              <option value="all">All Categories</option>
+              <option value="material">Materials Only</option>
+              <option value="tool">Tools Only</option>
+            </select>
+          </div>
           <div style="overflow:auto">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
               <thead>
                 <tr style="text-align:left; color:var(--muted)">
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Category</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
                 </tr>
@@ -285,6 +293,7 @@
                   <th style="padding:8px; border-bottom:1px solid var(--border)">ID</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">User</th>
+                  <th style="padding:8px; border-bottom:1px solid var(--border)">Note/Destiny</th>
                 </tr>
               </thead>
               <tbody id="auditBody"></tbody>
@@ -307,6 +316,13 @@
         <div class="modal-body">
           <div class="row"><label>ID</label><div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('product')">Scan</button></div></div>
           <div class="row"><label>Name</label><input id="p_name"></div>
+          <div class="row">
+            <label>Category</label>
+            <select id="p_category">
+              <option value="material">Material</option>
+              <option value="tool">Tool</option>
+            </select>
+          </div>
           <div class="row"><label>Initial Qty</label><input id="p_qty" type="number" value="0"></div>
           <div class="row"><label>Min Stock Level</label><input id="p_min_stock" type="number" value="0"></div>
           <div class="row"><label>Location</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('location')">Scan</button></div></div>
@@ -330,6 +346,7 @@
           </div>
           <div id="stock_info" class="small" style="margin: 8px 0; font-weight:bold; line-height: 1.4;"></div>
           <div class="row"><label>Quantity</label><input id="s_qty" type="number"></div>
+          <div class="row"><label id="stockNoteLabel">Note</label><input id="s_note" placeholder="Optional info..."></div>
           <div class="scanner" id="stockScannerBox"><video id="stockVideo" playsinline></video></div>
           <div id="stockAlert" class="alert"></div>
         </div>
@@ -364,7 +381,6 @@
 </div>
 
 <script>
-  // Tu znajduje się cała logika JS (taka sama jak w poprzednim kroku, ale wkomponowana w Twój layout)
   let scanStream, scanTimer, scanDetector;
   let stockStream, stockScanTimer, stockDetector;
   let currentStockMode = 'receive';
@@ -389,7 +405,7 @@
         items.forEach(p => {
           const option = document.createElement('option');
           option.value = p.item_number;
-          option.textContent = p.name; // Pokaże nazwę obok ID w sugestiach
+          option.textContent = p.name;
           datalist.appendChild(option);
         });
       }
@@ -405,9 +421,11 @@
       items.forEach(p => {
         const isLow = (p.min_stock > 0 && Number(p.current_stock) <= Number(p.min_stock));
         const tr = document.createElement('tr');
+        tr.setAttribute('data-category', p.category || 'material');
         tr.innerHTML = `
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.item_number}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.name}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${(p.category || 'material').toUpperCase()}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)" class="${isLow?'low-stock-alert':''}">
             ${isLow?'⚠️ ':''}${p.current_stock} <span style="font-size:10px; opacity:0.6"> (min: ${p.min_stock})</span>
           </td>
@@ -415,6 +433,7 @@
         `;
         body.appendChild(tr);
       });
+      filterInventory(); // Odśwież widok zgodnie z filtrem
     } catch(e) {}
   }
 
@@ -427,7 +446,14 @@
       body.innerHTML = '';
       items.forEach(r => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td style="padding:8px; border-bottom:1px solid var(--border)">${r.created_at.split('.')[0]}</td><td style="padding:8px; border-bottom:1px solid var(--border)">${r.action}</td><td style="padding:8px; border-bottom:1px solid var(--border)">${r.item_number}</td><td style="padding:8px; border-bottom:1px solid var(--border)">${r.qty}</td><td style="padding:8px; border-bottom:1px solid var(--border)">${r.username}</td>`;
+        tr.innerHTML = `
+            <td style="padding:8px; border-bottom:1px solid var(--border)">${r.created_at.split('.')[0]}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border)">${r.action}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border)">${r.item_number}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border)">${r.qty}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border)">${r.username}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border); font-style:italic;">${r.note || '-'}</td>
+        `;
         body.appendChild(tr);
       });
     } catch(e) {}
@@ -471,7 +497,9 @@
   function openStockModal(m){ 
     currentStockMode = m; 
     document.getElementById('stockTitle').textContent = (m === 'receive' ? 'Receive Material' : 'Issue Material'); 
-    document.getElementById('stockAlert').style.display = 'none'; // Czyścimy stare błędy
+    document.getElementById('stockNoteLabel').textContent = (m === 'receive' ? 'Note' : 'Destiny');
+    document.getElementById('s_note').placeholder = (m === 'receive' ? 'e.g. Supplier name' : 'e.g. Machine 1');
+    document.getElementById('stockAlert').style.display = 'none'; 
     document.getElementById('stockBackdrop').style.display = 'flex'; 
   }
 
@@ -483,7 +511,6 @@
   }
   function closeAddProductModal(){ 
     stopScan(); 
-    // Czyszczenie wszystkich pól przy zamknięciu
     document.getElementById('p_id').value = "";
     document.getElementById('p_name').value = "";
     document.getElementById('p_qty').value = "0";
@@ -495,47 +522,34 @@
   function closeStockModal(){ 
     stopStockScan(); 
     document.getElementById('stockBackdrop').style.display = 'none';
-    // Auto-clean pól po zamknięciu
     document.getElementById('s_id').value = "";
     document.getElementById('s_qty').value = "";
+    document.getElementById('s_note').value = "";
     document.getElementById('stock_info').innerHTML = "";
     document.getElementById('stockAlert').style.display = 'none';
 }
 
   async function checkCurrentStock(id){
     const info = document.getElementById('stock_info');
-    if(!id || id.trim() === "") {
-      info.innerHTML = "";
-      return;
-    }
+    if(!id || id.trim() === "") { info.innerHTML = ""; return; }
     try {
       const res = await fetch('/api/products');
       const data = await res.json();
       const p = data.data.find(x => String(x.item_number) === id.trim());
-      
       if(p) { 
         info.innerHTML = `
           <div style="color:var(--blue-600)">📍 Location: <span style="color:var(--text)">${p.location || 'Not set'}</span></div>
           <div style="color:var(--blue-600)">📦 Current Stock: <span style="color:var(--text)">${p.current_stock} ${p.unit || 'pcs'}</span></div>
-          <div style="font-size: 0.9em; margin-top:4px; color:var(--muted)">Product: ${p.name}</div>
+          <div style="font-size: 0.9em; margin-top:4px; color:var(--muted)">Product: ${p.name} | Category: ${p.category || 'material'}</div>
         `;
-      } else { 
-        info.innerHTML = `<span style="color:red">Product not found</span>`; 
-      }
-    } catch(e) {
-      console.error("Error fetching stock info:", e);
-    }
+      } else { info.innerHTML = `<span style="color:red">Product not found</span>`; }
+    } catch(e) {}
   }
 
   async function saveProduct(){
     const id = document.getElementById('p_id').value.trim();
     const alertBox = document.getElementById('addAlert');
-    
-    if(!id) {
-        alertBox.textContent = "Product ID is required.";
-        alertBox.style.display = "block";
-        return;
-    }
+    if(!id) { alertBox.textContent = "Product ID is required."; alertBox.style.display = "block"; return; }
 
     const resCheck = await fetch('/api/products');
     const data = await resCheck.json();
@@ -544,14 +558,7 @@
     if(exists) {
         alertBox.textContent = "Product already exists! Redirecting to Receive Materials...";
         alertBox.style.display = "block";
-                
-        setTimeout(() => {
-            closeAddProductModal();
-            openStockModal('receive');
-            // Automatycznie wpisujemy ID do nowego modala
-            document.getElementById('s_id').value = id;
-            checkCurrentStock(id);
-        }, 2000);
+        setTimeout(() => { closeAddProductModal(); openStockModal('receive'); document.getElementById('s_id').value = id; checkCurrentStock(id); }, 2000);
         return;
     }
     
@@ -561,6 +568,7 @@
         current_stock: document.getElementById('p_qty').value, 
         min_stock: document.getElementById('p_min_stock').value, 
         location: document.getElementById('p_loc').value, 
+        category: document.getElementById('p_category').value,
         unit: 'pcs' 
     };
 
@@ -570,18 +578,14 @@
         body: JSON.stringify(body) 
     });
 
-    if(resSave.ok) {
-        closeAddProductModal(); 
-        loadProducts();
-    } else {
-        alertBox.textContent = "Error saving product. Please try again.";
-        alertBox.style.display = "block";
-    }
+    if(resSave.ok) { closeAddProductModal(); loadProducts(); } 
+    else { alertBox.textContent = "Error saving product."; alertBox.style.display = "block"; }
   }
 
   async function submitStock(){
     const id = document.getElementById('s_id').value;
     const amount = parseInt(document.getElementById('s_qty').value);
+    const note = document.getElementById('s_note').value;
     const alertBox = document.getElementById('stockAlert');
 
     if(!id || !amount || amount <= 0) {
@@ -591,12 +595,10 @@
         return;
     }
 
-    // Blokada zejścia poniżej 0 dla wydawania (ISSUE)
     if(currentStockMode === 'issue') {
         const res = await fetch('/api/products');
         const data = await res.json();
         const p = data.data.find(x => String(x.item_number) === id.trim());
-        
         if(p && amount > p.current_stock) {
             alertBox.textContent = `Error: Not enough stock! Current: ${p.current_stock}`;
             alertBox.className = "alert bad";
@@ -608,38 +610,35 @@
     const res = await fetch('/api/stock/'+currentStockMode, { 
         method: 'POST', 
         headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({ item_number: id, amount: amount }) 
+        body: JSON.stringify({ item_number: id, amount: amount, note: note }) 
     });
 
-    if(res.ok){ 
-        closeStockModal(); 
-        loadProducts(); 
-    } else { 
-        alertBox.textContent = "Error: Check stock levels or product ID.";
-        alertBox.className = "alert bad";
-        alertBox.style.display = "block";
-    }
+    if(res.ok){ closeStockModal(); loadProducts(); } 
+    else { alertBox.textContent = "Error: Check stock levels or product ID."; alertBox.className = "alert bad"; alertBox.style.display = "block"; }
 }
 
   function filterInventory() {
-    const val = document.getElementById('inventorySearch').value.toLowerCase();
-    document.querySelectorAll('#productsBody tr').forEach(tr => { tr.style.display = tr.textContent.toLowerCase().includes(val) ? '' : 'none'; });
+    const searchVal = document.getElementById('inventorySearch').value.toLowerCase();
+    const categoryVal = document.getElementById('filterCategory').value;
+    
+    document.querySelectorAll('#productsBody tr').forEach(tr => { 
+        const matchesSearch = tr.textContent.toLowerCase().includes(searchVal);
+        const matchesCategory = (categoryVal === 'all' || tr.getAttribute('data-category') === categoryVal);
+        tr.style.display = (matchesSearch && matchesCategory) ? '' : 'none'; 
+    });
   }
 
   function logout(){ window.location.href = '/logout'; }
   function downloadExcelBackup(){ window.location.href = '/api/admin/export/excel'; }
   window.onload = loadProducts;
 
-function openRelocateModal() {
-    document.getElementById('relocateBackdrop').style.display = 'flex';
-}
-
+function openRelocateModal() { document.getElementById('relocateBackdrop').style.display = 'flex'; }
 function closeRelocateModal() {
     stopRelScan();
     document.getElementById('rel_id').value = "";
     document.getElementById('rel_new_loc').value = "";
     document.getElementById('rel_info').innerHTML = "";
-    document.getElementById('relAlert').style.display = 'none'; // Poprawione ID
+    document.getElementById('relAlert').style.display = 'none';
     document.getElementById('relocateBackdrop').style.display = 'none';
 }
 
@@ -649,40 +648,25 @@ async function checkRelocationInfo(id) {
     const res = await fetch('/api/products');
     const data = await res.json();
     const p = data.data.find(x => String(x.item_number) === id.trim());
-    if(p) {
-        info.innerHTML = `<span style="color:var(--muted)">Current location:</span> ${p.location || 'Not set'} <br> <span style="color:var(--muted)">Product:</span> ${p.name}`;
-    } else {
-        info.innerHTML = `<span style="color:red">Product not found</span>`;
-    }
+    if(p) { info.innerHTML = `<span style="color:var(--muted)">Current location:</span> ${p.location || 'Not set'} <br> <span style="color:var(--muted)">Product:</span> ${p.name}`; } 
+    else { info.innerHTML = `<span style="color:red">Product not found</span>`; }
 }
 
 async function submitRelocation() {
     const id = document.getElementById('rel_id').value.trim();
     const newLoc = document.getElementById('rel_new_loc').value.trim();
     const alertBox = document.getElementById('relAlert');
-
-    if(!id || !newLoc) {
-        alertBox.textContent = "ID and New Location are required.";
-        alertBox.style.display = "block";
-        return;
-    }
+    if(!id || !newLoc) { alertBox.textContent = "ID and New Location are required."; alertBox.style.display = "block"; return; }
 
     const res = await fetch('/api/relocate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ item_number: id, new_location: newLoc })
     });
-
-    if(res.ok) {
-        closeRelocateModal();
-        loadProducts();
-    } else {
-        alertBox.textContent = "Error during relocation.";
-        alertBox.style.display = "block";
-    }
+    if(res.ok) { closeRelocateModal(); loadProducts(); } 
+    else { alertBox.textContent = "Error during relocation."; alertBox.style.display = "block"; }
 }
 
-// Obsługa skanera dla relokacji
 let relStream, relTimer, relDetector;
 async function startScanRelocate(mode) {
     if(!('BarcodeDetector' in window)) return;
@@ -701,7 +685,6 @@ async function startScanRelocate(mode) {
     }, 300);
 }
 function stopRelScan() { if(relStream) relStream.getTracks().forEach(t=>t.stop()); clearInterval(relTimer); document.getElementById('relScannerBox').style.display='none'; }
-
 </script>
 </body>
 </html>
