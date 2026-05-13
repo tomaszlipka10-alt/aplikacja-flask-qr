@@ -92,8 +92,6 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
-# --- API ---
-
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
@@ -106,7 +104,7 @@ def api_products():
         location = str(d.get('location', '')).strip()
         unit = str(d.get('unit', 'pcs'))
         category = str(d.get('category', 'material'))
-        project_number = str(d.get('project_number', '')).strip() # NOWE POLE
+        project_number = str(d.get('project_number', '')).strip()
 
         _supabase_request("POST", "products", json_body={
             "item_number": item_number,
@@ -116,7 +114,7 @@ def api_products():
             "location": location,
             "unit": unit,
             "category": category,
-            "project_number": project_number # Zapis do bazy
+            "project_number": project_number
         })
 
         _supabase_request("POST", "audit_logs", json_body={
@@ -126,8 +124,8 @@ def api_products():
             "qty": current_stock,
             "location": location,
             "username": current_user.username,
-            "note": f"Initial creation as {category}. Project: {project_number}",
-            "project_number": project_number # Zapis do audytu
+            "note": f"Initial creation. Project: {project_number}",
+            "project_number": project_number
         })
 
         return jsonify({"ok": True})
@@ -167,7 +165,7 @@ def api_stock(action):
         "location": p['location'], 
         "username": current_user.username,
         "note": note,
-        "project_number": p.get('project_number', '') # Przypisanie projektu produktu do logu akcji
+        "project_number": p.get('project_number', '')
     })
     return jsonify({"ok": True, "current_stock": new_q})
 
@@ -188,17 +186,15 @@ def export_excel():
         return "No data found", 404
 
     df = pd.DataFrame(data)
-    
     columns_mapping = {
         'item_number': 'ID Produktu',
         'name': 'Nazwa Produktu',
         'current_stock': 'Stan Magazynowy',
         'location': 'Lokalizacja',
         'category': 'Kategoria',
-        'project_number': 'Numer Projektu' # DODANE DO EXCELA
+        'project_number': 'Numer Projektu'
     }
     
-    # Obsługa przypadku gdy kolumny nie ma jeszcze w DataFrame
     available_cols = [col for col in columns_mapping.keys() if col in df.columns]
     df = df[available_cols].rename(columns=columns_mapping)
 
@@ -238,7 +234,7 @@ def api_relocate():
         "qty": p['current_stock'],
         "location": f"{old_loc} -> {new_loc}",
         "username": current_user.username,
-        "project_number": p.get('project_number', '') # Przypisanie projektu do logu relokacji
+        "project_number": p.get('project_number', '')
     })
 
     return jsonify({"ok": True})
