@@ -7,42 +7,35 @@
   <style>
     :root{
       --bg: #ffffff; --card: #ffffff; --text: #0b1b3a; --muted: #5b6a88;
-      --border: rgba(17, 41, 84, .12); --blue-700: #1d4ed8; --blue-600: #2563eb;
-      --blue-500: #3b82f6; --blue-100: #eaf2ff; --sidebar: #0f2a5f;
-      --sidebar2:#123372; --shadow: 0 10px 30px rgba(10, 25, 60, .10); --radius: 16px;
+      --border: rgba(17, 41, 84, .12); --blue-600: #2563eb; --blue-100: #eaf2ff;
+      --sidebar: #0f2a5f; --sidebar2:#123372; --shadow: 0 10px 30px rgba(10, 25, 60, .10); --radius: 16px;
     }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{ margin:0; font-family: ui-sans-serif, system-ui, sans-serif; color:var(--text); background: var(--bg); }
+    body{ margin:0; font-family: system-ui, sans-serif; color:var(--text); background: var(--bg); }
     .app{display:flex; min-height:100vh;}
     .sidebar{ position:sticky; top:0; height:100vh; width:72px; background: linear-gradient(180deg, var(--sidebar), var(--sidebar2)); color:#fff; display:flex; flex-direction:column; align-items:center; padding:10px 8px; gap:10px; }
     .nav{ width:100%; display:flex; flex-direction:column; gap:10px; margin-top:6px; flex: 1; align-items:center; }
     .navbtn{ width:52px; height:52px; border-radius:14px; border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:22px; }
     .navbtn.active{background: rgba(59,130,246,.26); border-color: rgba(255,255,255,.22)}
     .main{flex:1; min-width:0;}
-    .topbar{ position:sticky; top:0; z-index:10; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom:1px solid var(--border); }
-    .topbar-inner{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; max-width: 1100px; margin: 0 auto; }
-    .brand{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:20px; }
-    .brand-dot{ width:12px;height:12px;border-radius:999px; background: var(--blue-600); }
+    .topbar{ position:sticky; top:0; z-index:10; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom:1px solid var(--border); padding:14px 16px; font-weight:800; font-size:20px; }
     .container{ max-width:1100px; margin: 0 auto; padding:16px; }
     .card{ background: var(--card); border:1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding:16px; margin-bottom: 20px; }
     .pillgrid{ display:grid; grid-template-columns: 1fr; gap:12px; }
-    .pill{ display:flex; align-items:center; justify-content:space-between; padding:14px; border:1px solid var(--border); border-radius: 14px; background: #fff; cursor:pointer; font-weight:700; }
+    .pill{ display:flex; align-items:center; padding:14px; border:1px solid var(--border); border-radius: 14px; background: #fff; cursor:pointer; font-weight:700; }
     .pill .ic{ width:32px; height:32px; border-radius:12px; background: var(--blue-100); display:flex; align-items:center; justify-content:center; margin-right: 12px; }
     .modal-backdrop{ position:fixed; inset:0; background: rgba(10,25,60,.35); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
-    .modal{ width: min(560px, 100%); background:#fff; border-radius: 18px; border:1px solid var(--border); overflow:hidden; }
-    .modal-header{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); background: #fbfdff; }
-    .modal-body{padding:16px}
+    .modal{ width: min(560px, 100%); background:#fff; border-radius: 18px; border:1px solid var(--border); overflow:hidden; display:flex; flex-direction:column; max-height:90vh; }
+    .modal-header{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+    .modal-body{padding:16px; overflow-y:auto;}
     .row{margin-bottom:12px}
-    input, select{ width:100%; padding:12px; border-radius: 12px; border:1px solid var(--border); }
+    input, select{ width:100%; padding:12px; border-radius: 12px; border:1px solid var(--border); font-size:16px; }
     .scanrow{display:flex; gap:10px}
-    .alert{margin-top:10px; padding:10px 12px; border-radius: 12px; border:1px solid var(--border); display:none}
-    .alert.bad{background:#fff5f5; color:#7a1a1a}
-    .scanner{display:none; margin-top:12px; border:1px solid var(--border); border-radius: 14px; overflow:hidden; background:#000;}
+    .scanner-box{display:none; margin-top:12px; border-radius: 14px; overflow:hidden; background:#000; position:relative;}
     video{width:100%; height:auto; display:block}
     .btn{ border:1px solid var(--border); background: #fff; padding:10px 12px; border-radius: 12px; cursor:pointer; font-weight:600; }
     .btn.primary{ background: var(--blue-600); color:#fff; }
-    .low-stock-alert { color: #dc2626 !important; font-weight: 800; }
+    .low-stock{ color: #dc2626; font-weight: 800; }
   </style>
 </head>
 <body>
@@ -53,32 +46,22 @@
       <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')">🏠</button>
       <button class="navbtn" id="nav-inventory" onclick="showView('inventory')">📦</button>
       <button class="navbtn" id="nav-audit" onclick="showView('audit')">✅</button>
-      {% if current_user.is_admin %}
-      <button class="navbtn" id="nav-admin" onclick="showView('admin')">⚙️</button>
-      {% endif %}
+      {% if current_user.is_admin %}<button class="navbtn" onclick="downloadExcel()">⚙️</button>{% endif %}
     </div>
-    <div class="navbottom"><button class="navbtn" onclick="logout()">🚪</button></div>
+    <button class="navbtn" onclick="window.location.href='/logout'">🚪</button>
   </aside>
 
   <main class="main">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="brand"><span class="brand-dot"></span><span>BTVenloStorage</span></div>
-      </div>
-    </header>
-
+    <header class="topbar">BTVenloStorage</header>
     <div class="container">
       <section id="view-dashboard" class="view">
         <div class="card">
-          <h2>Dashboard</h2>
-          {% if current_user.is_admin %}
-          <div id="lowStockDashboardAlert" class="alert bad" style="margin-bottom: 20px; cursor: pointer;" onclick="showView('inventory')"></div>
-          {% endif %}
+          <h2>Actions</h2>
           <div class="pillgrid">
-            <div class="pill" onclick="openAddProductModal()"><div style="display:flex; align-items:center;"><div class="ic">➕</div><div>Add Product</div></div></div>
-            <div class="pill" onclick="openStockModal('receive')"><div style="display:flex; align-items:center;"><div class="ic">⬇️</div><div>Receive Material</div></div></div>
-            <div class="pill" onclick="openStockModal('issue')"><div style="display:flex; align-items:center;"><div class="ic">⬆️</div><div>Issue Material</div></div></div>
-            <div class="pill" onclick="openRelocateModal()"><div style="display:flex; align-items:center;"><div class="ic">🔄</div><div>Relocate Material</div></div></div>
+            <div class="pill" onclick="openModal('addProductBackdrop')"><div class="ic">➕</div>Add Product</div>
+            <div class="pill" onclick="openStock('receive')"><div class="ic">⬇️</div>Receive</div>
+            <div class="pill" onclick="openStock('issue')"><div class="ic">⬆️</div>Issue</div>
+            <div class="pill" onclick="openModal('relocateBackdrop')"><div class="ic">🔄</div>Relocate</div>
           </div>
         </div>
       </section>
@@ -86,20 +69,16 @@
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Inventory</h2>
-          <div style="display:flex; gap:10px; margin-bottom:12px;">
-            <input type="text" id="inventorySearch" placeholder="Search ID, Name, Project or Location..." onkeyup="filterInventory()">
-          </div>
+          <input type="text" id="inventorySearch" placeholder="Search..." onkeyup="filterInv()" style="margin-bottom:12px">
           <div style="overflow:auto">
             <table style="width:100%; border-collapse:collapse; font-size:14px">
-              <thead>
-                <tr style="text-align:left; color:var(--muted)">
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Project</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
-                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
-                </tr>
-              </thead>
+              <thead><tr style="text-align:left; color:var(--muted)">
+                <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
+                <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
+                <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Project</th>
+                <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Stock</th>
+                <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Loc</th>
+              </tr></thead>
               <tbody id="productsBody"></tbody>
             </table>
           </div>
@@ -107,112 +86,120 @@
       </section>
 
       <section id="view-audit" class="view" style="display:none">
-        <div class="card">
-          <h2>Audit Logs</h2>
-          <div style="overflow:auto">
-            <table style="width:100%; border-collapse:collapse; font-size:13px">
-              <thead>
-                <tr style="text-align:left; color:var(--muted)">
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">Time</th>
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">Action</th>
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">ID</th>
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">Project</th>
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">Qty</th>
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">User</th>
-                  <th style="padding:8px; border-bottom:1px solid var(--border)">Note</th>
-                </tr>
-              </thead>
-              <tbody id="auditBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="view-admin" class="view" style="display:none">
-        <div class="card">
-          <h2>Admin</h2>
-          <button class="btn primary" onclick="downloadExcelBackup()">📥 Download Excel Backup</button>
-        </div>
+        <div class="card"><h2>Audit Logs</h2><div style="overflow:auto"><table style="width:100%; border-collapse:collapse; font-size:13px"><tbody id="auditBody"></tbody></table></div></div>
       </section>
     </div>
 
     <div class="modal-backdrop" id="addProductBackdrop">
       <div class="modal">
-        <div class="modal-header"><b>Add New Product</b><button class="btn" onclick="closeAddProductModal()">✕</button></div>
+        <div class="modal-header"><b>New Product</b><button class="btn" onclick="closeModal('addProductBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID</label><input id="p_id"></div>
+          <div class="row"><label>ID</label>
+            <div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('p_id', 'p_scan_box', 'p_video')">📷</button></div>
+            <div id="p_scan_box" class="scanner-box"><video id="p_video"></video></div>
+          </div>
           <div class="row"><label>Name</label><input id="p_name"></div>
-          <div class="row"><label>Project Number</label><input id="p_project" placeholder="e.g. PRJ-001"></div>
+          <div class="row"><label>Project</label><input id="p_project"></div>
           <div class="row"><label>Qty</label><input id="p_qty" type="number" value="0"></div>
-          <div class="row"><label>Min Stock</label><input id="p_min_stock" type="number" value="0"></div>
-          <div class="row"><label>Location</label><input id="p_loc"></div>
-          <button class="btn primary" style="width:100%" onclick="saveProduct()">Save Product</button>
+          <div class="row"><label>Location</label>
+            <div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('p_loc', 'p_scan_box_loc', 'p_video_loc')">📷</button></div>
+            <div id="p_scan_box_loc" class="scanner-box"><video id="p_video_loc"></video></div>
+          </div>
+          <button class="btn primary" style="width:100%" onclick="saveProduct()">Save</button>
         </div>
       </div>
     </div>
 
     <div class="modal-backdrop" id="stockBackdrop">
       <div class="modal">
-        <div class="modal-header"><b id="stockTitle">Stock</b><button class="btn" onclick="closeStockModal()">✕</button></div>
+        <div class="modal-header"><b id="stockTitle">Stock</b><button class="btn" onclick="closeModal('stockBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>Product ID</label><input id="s_id" list="products-list" oninput="checkCurrentStock(this.value)"></div>
-          <div id="stock_info" style="margin: 8px 0; font-weight:bold; font-size:13px;"></div>
-          <div class="row"><label>Quantity</label><input id="s_qty" type="number"></div>
+          <div class="row"><label>ID</label>
+            <div class="scanrow"><input id="s_id"><button class="btn" onclick="startScan('s_id', 's_scan_box', 's_video')">📷</button></div>
+            <div id="s_scan_box" class="scanner-box"><video id="s_video"></video></div>
+          </div>
+          <div class="row"><label>Qty</label><input id="s_qty" type="number"></div>
           <div class="row"><label>Note</label><input id="s_note"></div>
-          <button class="btn primary" style="width:100%" onclick="submitStock()">Save Changes</button>
+          <button class="btn primary" style="width:100%" onclick="submitStock()">Update</button>
         </div>
       </div>
     </div>
 
     <div class="modal-backdrop" id="relocateBackdrop">
       <div class="modal">
-        <div class="modal-header"><b>Relocate</b><button class="btn" onclick="closeRelocateModal()">✕</button></div>
+        <div class="modal-header"><b>Relocate</b><button class="btn" onclick="closeModal('relocateBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>Product ID</label><input id="rel_id" list="products-list"></div>
-          <div class="row"><label>New Location</label><input id="rel_new_loc"></div>
-          <button class="btn primary" style="width:100%" onclick="submitRelocation()">Update Location</button>
+          <div class="row"><label>ID</label>
+            <div class="scanrow"><input id="rel_id"><button class="btn" onclick="startScan('rel_id', 'rel_scan_box', 'rel_video')">📷</button></div>
+            <div id="rel_scan_box" class="scanner-box"><video id="rel_video"></video></div>
+          </div>
+          <div class="row"><label>New Location</label>
+            <div class="scanrow"><input id="rel_new_loc"><button class="btn" onclick="startScan('rel_new_loc', 'rel_scan_box_loc', 'rel_video_loc')">📷</button></div>
+            <div id="rel_scan_box_loc" class="scanner-box"><video id="rel_video_loc"></video></div>
+          </div>
+          <button class="btn primary" style="width:100%" onclick="submitRelocate()">Update</button>
         </div>
       </div>
     </div>
   </main>
 </div>
 
-<datalist id="products-list"></datalist>
-
 <script>
   let currentStockMode = 'receive';
+  let activeStream = null;
+  let activeTimer = null;
 
   function showView(name){
     document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
     document.querySelectorAll('.navbtn').forEach(b => b.classList.remove('active'));
     document.getElementById('view-'+name).style.display = 'block';
     document.getElementById('nav-'+name).classList.add('active');
-    if(name==='inventory'||name==='dashboard') loadProducts();
+    if(name==='inventory') loadProducts();
     if(name==='audit') loadAudit();
+  }
+
+  function openModal(id){ document.getElementById(id).style.display='flex'; }
+  function closeModal(id){ stopScan(); document.getElementById(id).style.display='none'; }
+  function openStock(m){ currentStockMode=m; document.getElementById('stockTitle').textContent=m.toUpperCase(); openModal('stockBackdrop'); }
+
+  async function startScan(targetInputId, boxId, videoId) {
+    if (!('BarcodeDetector' in window)) { alert("Scanner not supported on this browser."); return; }
+    stopScan();
+    const box = document.getElementById(boxId);
+    const video = document.getElementById(videoId);
+    box.style.display = 'block';
+    activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = activeStream;
+    video.play();
+    const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13'] });
+    activeTimer = setInterval(async () => {
+      const codes = await detector.detect(video);
+      if (codes.length > 0) {
+        document.getElementById(targetInputId).value = codes[0].rawValue.split('|')[0];
+        stopScan();
+      }
+    }, 300);
+  }
+
+  function stopScan() {
+    if (activeStream) activeStream.getTracks().forEach(t => t.stop());
+    if (activeTimer) clearInterval(activeTimer);
+    document.querySelectorAll('.scanner-box').forEach(b => b.style.display = 'none');
+    activeStream = null; activeTimer = null;
   }
 
   async function loadProducts(){
     const res = await fetch('/api/products');
     const data = await res.json();
-    const items = data.data || [];
-    
-    // Update datalist
-    const dl = document.getElementById('products-list');
-    dl.innerHTML = '';
-    items.forEach(p => { let o = document.createElement('option'); o.value = p.item_number; dl.appendChild(o); });
-
-    // Table
     const body = document.getElementById('productsBody');
     body.innerHTML = '';
-    items.forEach(p => {
-      const isLow = (p.min_stock > 0 && Number(p.current_stock) <= Number(p.min_stock));
+    data.data.forEach(p => {
+      const isLow = p.min_stock > 0 && p.current_stock <= p.min_stock;
       body.innerHTML += `<tr>
         <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.item_number}</td>
         <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.name}</td>
         <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.project_number || '-'}</td>
-        <td style="padding:10px 8px; border-bottom:1px solid var(--border)" class="${isLow?'low-stock-alert':''}">
-          ${p.current_stock}
-        </td>
+        <td style="padding:10px 8px; border-bottom:1px solid var(--border)" class="${isLow?'low-stock':''}">${p.current_stock}</td>
         <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.location}</td>
       </tr>`;
     });
@@ -224,24 +211,9 @@
     const body = document.getElementById('auditBody');
     body.innerHTML = '';
     data.audit.forEach(a => {
-      body.innerHTML += `<tr>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.created_at.split('.')[0]}</td>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.action}</td>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.item_number}</td>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.project_number || '-'}</td>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.qty}</td>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.username}</td>
-        <td style="padding:8px; border-bottom:1px solid var(--border)">${a.note || '-'}</td>
-      </tr>`;
+      body.innerHTML += `<tr><td style="padding:8px; border-bottom:1px solid var(--border)">${a.created_at.split('.')[0]} | ${a.action} | ${a.item_number} | ${a.qty} | ${a.username}</td></tr>`;
     });
   }
-
-  function openAddProductModal(){ document.getElementById('addProductBackdrop').style.display='flex'; }
-  function closeAddProductModal(){ document.getElementById('addProductBackdrop').style.display='none'; }
-  function openStockModal(m){ currentStockMode=m; document.getElementById('stockTitle').textContent=m.toUpperCase(); document.getElementById('stockBackdrop').style.display='flex'; }
-  function closeStockModal(){ document.getElementById('stockBackdrop').style.display='none'; }
-  function openRelocateModal(){ document.getElementById('relocateBackdrop').style.display='flex'; }
-  function closeRelocateModal(){ document.getElementById('relocateBackdrop').style.display='none'; }
 
   async function saveProduct(){
     const body = {
@@ -249,45 +221,36 @@
       name: document.getElementById('p_name').value,
       project_number: document.getElementById('p_project').value,
       current_stock: document.getElementById('p_qty').value,
-      min_stock: document.getElementById('p_min_stock').value,
       location: document.getElementById('p_loc').value
     };
     await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    closeAddProductModal();
+    closeModal('addProductBackdrop');
     loadProducts();
   }
 
   async function submitStock(){
-    const body = { 
-      item_number: document.getElementById('s_id').value, 
-      amount: document.getElementById('s_qty').value, 
-      note: document.getElementById('s_note').value 
-    };
+    const body = { item_number: document.getElementById('s_id').value, amount: document.getElementById('s_qty').value, note: document.getElementById('s_note').value };
     await fetch('/api/stock/'+currentStockMode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    closeStockModal();
+    closeModal('stockBackdrop');
     loadProducts();
   }
 
-  async function submitRelocation(){
-    const body = { 
-      item_number: document.getElementById('rel_id').value, 
-      new_location: document.getElementById('rel_new_loc').value 
-    };
+  async function submitRelocate(){
+    const body = { item_number: document.getElementById('rel_id').value, new_location: document.getElementById('rel_new_loc').value };
     await fetch('/api/relocate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    closeRelocateModal();
+    closeModal('relocateBackdrop');
     loadProducts();
   }
 
-  function filterInventory() {
+  function filterInv(){
     let s = document.getElementById('inventorySearch').value.toLowerCase();
     document.querySelectorAll('#productsBody tr').forEach(tr => {
       tr.style.display = tr.textContent.toLowerCase().includes(s) ? '' : 'none';
     });
   }
-
-  function logout(){ window.location.href='/logout'; }
-  function downloadExcelBackup(){ window.location.href='/api/admin/export/excel'; }
   
+  function downloadExcel() { window.location.href = '/api/admin/export/excel'; }
+
   window.onload = loadProducts;
 </script>
 </body>
