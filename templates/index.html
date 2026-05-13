@@ -256,7 +256,7 @@
         <div class="card">
           <h2>Inventory</h2>
           <div style="display:flex; gap:10px; margin-bottom:12px;">
-            <input type="text" id="inventorySearch" placeholder="Search by ID, Name or Location..." onkeyup="filterInventory()">
+            <input type="text" id="inventorySearch" placeholder="Search ID, Name, Location or Project..." onkeyup="filterInventory()">
             <select id="filterCategory" onchange="filterInventory()" style="width:150px;">
               <option value="all">All Categories</option>
               <option value="material">Materials Only</option>
@@ -270,6 +270,7 @@
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">ID</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Name</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Category</th>
+                  <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Project</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:10px 8px; border-bottom:1px solid var(--border)">Location</th>
                 </tr>
@@ -277,7 +278,6 @@
               <tbody id="productsBody"></tbody>
             </table>
           </div>
-          <div id="productsEmpty" class="small" style="display:none; margin-top:10px">No products found.</div>
         </div>
       </section>
 
@@ -291,6 +291,7 @@
                   <th style="padding:8px; border-bottom:1px solid var(--border)">Time</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">Action</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">ID</th>
+                  <th style="padding:8px; border-bottom:1px solid var(--border)">Project</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">Qty</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">User</th>
                   <th style="padding:8px; border-bottom:1px solid var(--border)">Note/Destiny</th>
@@ -323,6 +324,7 @@
               <option value="tool">Tool</option>
             </select>
           </div>
+          <div class="row"><label>Project Number</label><input id="p_project" placeholder="e.g. PRJ-2026-001"></div>
           <div class="row"><label>Initial Qty</label><input id="p_qty" type="number" value="0"></div>
           <div class="row"><label>Min Stock Level</label><input id="p_min_stock" type="number" value="0"></div>
           <div class="row"><label>Location</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('location')">Scan</button></div></div>
@@ -352,7 +354,9 @@
         </div>
         <div class="modal-footer"><button class="btn primary" onclick="submitStock()">Save Changes</button></div>
       </div>
-    </div> <div class="modal-backdrop" id="relocateBackdrop">
+    </div>
+
+    <div class="modal-backdrop" id="relocateBackdrop">
       <div class="modal">
         <div class="modal-header"><b>Relocate Product</b><button class="btn" onclick="closeRelocateModal()">✕</button></div>
         <div class="modal-body">
@@ -426,6 +430,7 @@
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.item_number}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.name}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${(p.category || 'material').toUpperCase()}</td>
+          <td style="padding:10px 8px; border-bottom:1px solid var(--border)">${p.project_number || '-'}</td>
           <td style="padding:10px 8px; border-bottom:1px solid var(--border)" class="${isLow?'low-stock-alert':''}">
             ${isLow?'⚠️ ':''}${p.current_stock} <span style="font-size:10px; opacity:0.6"> (min: ${p.min_stock})</span>
           </td>
@@ -433,7 +438,7 @@
         `;
         body.appendChild(tr);
       });
-      filterInventory(); // Odśwież widok zgodnie z filtrem
+      filterInventory();
     } catch(e) {}
   }
 
@@ -450,6 +455,7 @@
             <td style="padding:8px; border-bottom:1px solid var(--border)">${r.created_at.split('.')[0]}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border)">${r.action}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border)">${r.item_number}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border)">${r.project_number || '-'}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border)">${r.qty}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border)">${r.username}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border); font-style:italic;">${r.note || '-'}</td>
@@ -460,7 +466,7 @@
   }
 
   async function startScan(mode){
-    if(!('BarcodeDetector' in window)) return alert("Scanner not supported in this browser.");
+    if(!('BarcodeDetector' in window)) return alert("Scanner not supported.");
     scanDetector = new BarcodeDetector({ formats: ['qr_code'] });
     scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     const v = document.getElementById('video'); v.srcObject = scanStream; v.play();
@@ -513,6 +519,7 @@
     stopScan(); 
     document.getElementById('p_id').value = "";
     document.getElementById('p_name').value = "";
+    document.getElementById('p_project').value = "";
     document.getElementById('p_qty').value = "0";
     document.getElementById('p_min_stock').value = "0";
     document.getElementById('p_loc').value = "";
@@ -538,9 +545,9 @@
       const p = data.data.find(x => String(x.item_number) === id.trim());
       if(p) { 
         info.innerHTML = `
-          <div style="color:var(--blue-600)">📍 Location: <span style="color:var(--text)">${p.location || 'Not set'}</span></div>
-          <div style="color:var(--blue-600)">📦 Current Stock: <span style="color:var(--text)">${p.current_stock} ${p.unit || 'pcs'}</span></div>
-          <div style="font-size: 0.9em; margin-top:4px; color:var(--muted)">Product: ${p.name} | Category: ${p.category || 'material'}</div>
+          <div style="color:var(--blue-600)">📍 Loc: ${p.location || 'N/A'} | Proj: ${p.project_number || '-'}</div>
+          <div style="color:var(--blue-600)">📦 Stock: ${p.current_stock} ${p.unit || 'pcs'}</div>
+          <div style="font-size: 0.9em; margin-top:2px; color:var(--muted)">${p.name}</div>
         `;
       } else { info.innerHTML = `<span style="color:red">Product not found</span>`; }
     } catch(e) {}
@@ -551,17 +558,6 @@
     const alertBox = document.getElementById('addAlert');
     if(!id) { alertBox.textContent = "Product ID is required."; alertBox.style.display = "block"; return; }
 
-    const resCheck = await fetch('/api/products');
-    const data = await resCheck.json();
-    const exists = data.data.find(x => String(x.item_number) === id);
-
-    if(exists) {
-        alertBox.textContent = "Product already exists! Redirecting to Receive Materials...";
-        alertBox.style.display = "block";
-        setTimeout(() => { closeAddProductModal(); openStockModal('receive'); document.getElementById('s_id').value = id; checkCurrentStock(id); }, 2000);
-        return;
-    }
-    
     const body = { 
         item_number: id, 
         name: document.getElementById('p_name').value, 
@@ -569,6 +565,7 @@
         min_stock: document.getElementById('p_min_stock').value, 
         location: document.getElementById('p_loc').value, 
         category: document.getElementById('p_category').value,
+        project_number: document.getElementById('p_project').value, // NOWE
         unit: 'pcs' 
     };
 
@@ -589,22 +586,10 @@
     const alertBox = document.getElementById('stockAlert');
 
     if(!id || !amount || amount <= 0) {
-        alertBox.textContent = "Please enter valid ID and amount.";
+        alertBox.textContent = "Invalid ID or amount.";
         alertBox.className = "alert bad";
         alertBox.style.display = "block";
         return;
-    }
-
-    if(currentStockMode === 'issue') {
-        const res = await fetch('/api/products');
-        const data = await res.json();
-        const p = data.data.find(x => String(x.item_number) === id.trim());
-        if(p && amount > p.current_stock) {
-            alertBox.textContent = `Error: Not enough stock! Current: ${p.current_stock}`;
-            alertBox.className = "alert bad";
-            alertBox.style.display = "block";
-            return;
-        }
     }
 
     const res = await fetch('/api/stock/'+currentStockMode, { 
@@ -614,7 +599,7 @@
     });
 
     if(res.ok){ closeStockModal(); loadProducts(); } 
-    else { alertBox.textContent = "Error: Check stock levels or product ID."; alertBox.className = "alert bad"; alertBox.style.display = "block"; }
+    else { alertBox.textContent = "Error saving stock change."; alertBox.className = "alert bad"; alertBox.style.display = "block"; }
 }
 
   function filterInventory() {
@@ -632,59 +617,48 @@
   function downloadExcelBackup(){ window.location.href = '/api/admin/export/excel'; }
   window.onload = loadProducts;
 
-function openRelocateModal() { document.getElementById('relocateBackdrop').style.display = 'flex'; }
-function closeRelocateModal() {
-    stopRelScan();
-    document.getElementById('rel_id').value = "";
-    document.getElementById('rel_new_loc').value = "";
-    document.getElementById('rel_info').innerHTML = "";
-    document.getElementById('relAlert').style.display = 'none';
-    document.getElementById('relocateBackdrop').style.display = 'none';
-}
+  function openRelocateModal() { document.getElementById('relocateBackdrop').style.display = 'flex'; }
+  function closeRelocateModal() { stopRelScan(); document.getElementById('relocateBackdrop').style.display = 'none'; }
 
-async function checkRelocationInfo(id) {
-    const info = document.getElementById('rel_info');
-    if(!id) { info.innerHTML = ""; return; }
-    const res = await fetch('/api/products');
-    const data = await res.json();
-    const p = data.data.find(x => String(x.item_number) === id.trim());
-    if(p) { info.innerHTML = `<span style="color:var(--muted)">Current location:</span> ${p.location || 'Not set'} <br> <span style="color:var(--muted)">Product:</span> ${p.name}`; } 
-    else { info.innerHTML = `<span style="color:red">Product not found</span>`; }
-}
+  async function checkRelocationInfo(id) {
+      const info = document.getElementById('rel_info');
+      if(!id) { info.innerHTML = ""; return; }
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      const p = data.data.find(x => String(x.item_number) === id.trim());
+      if(p) { info.innerHTML = `From: ${p.location || 'N/A'} | Proj: ${p.project_number || '-'}`; } 
+      else { info.innerHTML = `<span style="color:red">Not found</span>`; }
+  }
 
-async function submitRelocation() {
-    const id = document.getElementById('rel_id').value.trim();
-    const newLoc = document.getElementById('rel_new_loc').value.trim();
-    const alertBox = document.getElementById('relAlert');
-    if(!id || !newLoc) { alertBox.textContent = "ID and New Location are required."; alertBox.style.display = "block"; return; }
+  async function submitRelocation() {
+      const id = document.getElementById('rel_id').value.trim();
+      const newLoc = document.getElementById('rel_new_loc').value.trim();
+      const res = await fetch('/api/relocate', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ item_number: id, new_location: newLoc })
+      });
+      if(res.ok) { closeRelocateModal(); loadProducts(); }
+  }
 
-    const res = await fetch('/api/relocate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ item_number: id, new_location: newLoc })
-    });
-    if(res.ok) { closeRelocateModal(); loadProducts(); } 
-    else { alertBox.textContent = "Error during relocation."; alertBox.style.display = "block"; }
-}
-
-let relStream, relTimer, relDetector;
-async function startScanRelocate(mode) {
-    if(!('BarcodeDetector' in window)) return;
-    relDetector = new BarcodeDetector({ formats: ['qr_code'] });
-    relStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    const v = document.getElementById('relVideo'); v.srcObject = relStream; v.play();
-    document.getElementById('relScannerBox').style.display = 'block';
-    relTimer = setInterval(async () => {
-        const codes = await relDetector.detect(v);
-        if(codes.length) {
-            const val = codes[0].rawValue;
-            if(mode === 'loc') document.getElementById('rel_new_loc').value = val;
-            else { document.getElementById('rel_id').value = val.split('|')[0]; checkRelocationInfo(val.split('|')[0]); }
-            stopRelScan();
-        }
-    }, 300);
-}
-function stopRelScan() { if(relStream) relStream.getTracks().forEach(t=>t.stop()); clearInterval(relTimer); document.getElementById('relScannerBox').style.display='none'; }
+  let relStream, relTimer, relDetector;
+  async function startScanRelocate(mode) {
+      if(!('BarcodeDetector' in window)) return;
+      relDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      relStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const v = document.getElementById('relVideo'); v.srcObject = relStream; v.play();
+      document.getElementById('relScannerBox').style.display = 'block';
+      relTimer = setInterval(async () => {
+          const codes = await relDetector.detect(v);
+          if(codes.length) {
+              const val = codes[0].rawValue;
+              if(mode === 'loc') document.getElementById('rel_new_loc').value = val;
+              else { document.getElementById('rel_id').value = val.split('|')[0]; checkRelocationInfo(val.split('|')[0]); }
+              stopRelScan();
+          }
+      }, 300);
+  }
+  function stopRelScan() { if(relStream) relStream.getTracks().forEach(t=>t.stop()); clearInterval(relTimer); document.getElementById('relScannerBox').style.display='none'; }
 </script>
 </body>
 </html>

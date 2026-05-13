@@ -47,7 +47,6 @@ def load_user(uid):
     res = _supabase_request("GET", "users", {"id": f"eq.{uid}"})
     return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False)) if res else None
 
-# --- DODANA TRASA HEALTH CHECK DLA RENDER ---
 @app.route("/health")
 def health():
     return "OK", 200
@@ -106,7 +105,8 @@ def api_products():
         min_stock = int(d.get('min_stock', 0))
         location = str(d.get('location', '')).strip()
         unit = str(d.get('unit', 'pcs'))
-        category = str(d.get('category', 'material')) # NOWE POLE
+        category = str(d.get('category', 'material'))
+        project_number = str(d.get('project_number', '')).strip() # NOWE POLE
 
         _supabase_request("POST", "products", json_body={
             "item_number": item_number,
@@ -115,7 +115,8 @@ def api_products():
             "min_stock": min_stock,
             "location": location,
             "unit": unit,
-            "category": category # NOWE POLE
+            "category": category,
+            "project_number": project_number # Zapis do bazy
         })
 
         _supabase_request("POST", "audit_logs", json_body={
@@ -125,7 +126,8 @@ def api_products():
             "qty": current_stock,
             "location": location,
             "username": current_user.username,
-            "note": f"Initial creation as {category}" # NOWE POLE W AUDICIE
+            "note": f"Initial creation as {category}. Project: {project_number}",
+            "project_number": project_number # Zapis do audytu
         })
 
         return jsonify({"ok": True})
@@ -145,7 +147,7 @@ def api_stock(action):
     d = request.json
     sku = d['item_number']
     amt = int(d['amount'])
-    note = d.get('note', '') # MOŻE BYĆ NOTATKA LUB DESTINY
+    note = d.get('note', '')
     
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     if not res: return jsonify({"ok": False}), 404
@@ -164,7 +166,8 @@ def api_stock(action):
         "qty": amt, 
         "location": p['location'], 
         "username": current_user.username,
-        "note": note # ZAPISANIE NOTATKI/PRZEZNACZENIA
+        "note": note,
+        "project_number": p.get('project_number', '') # Przypisanie projektu produktu do logu akcji
     })
     return jsonify({"ok": True, "current_stock": new_q})
 
@@ -191,10 +194,13 @@ def export_excel():
         'name': 'Nazwa Produktu',
         'current_stock': 'Stan Magazynowy',
         'location': 'Lokalizacja',
-        'category': 'Kategoria' # DODANE DO EXCELA
+        'category': 'Kategoria',
+        'project_number': 'Numer Projektu' # DODANE DO EXCELA
     }
     
-    df = df[list(columns_mapping.keys())].rename(columns=columns_mapping)
+    # Obsługa przypadku gdy kolumny nie ma jeszcze w DataFrame
+    available_cols = [col for col in columns_mapping.keys() if col in df.columns]
+    df = df[available_cols].rename(columns=columns_mapping)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -231,7 +237,8 @@ def api_relocate():
         "action": "RELOCATE",
         "qty": p['current_stock'],
         "location": f"{old_loc} -> {new_loc}",
-        "username": current_user.username
+        "username": current_user.username,
+        "project_number": p.get('project_number', '') # Przypisanie projektu do logu relokacji
     })
 
     return jsonify({"ok": True})
