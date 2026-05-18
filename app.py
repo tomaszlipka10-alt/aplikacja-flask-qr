@@ -47,10 +47,8 @@ def load_user(uid):
     res = _supabase_request("GET", "users", {"id": f"eq.{uid}"})
     return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False)) if res else None
 
-# --- DODANA TRASA HEALTH CHECK DLA RENDER ---
 @app.route("/health")
-def health():
-    return "OK", 200
+def health(): return "OK", 200
 
 @app.route("/")
 @login_required
@@ -66,135 +64,86 @@ def login():
             return redirect(url_for("index"))
     return render_template("login.html")
 
-@app.route("/register", methods=["POST"])
-def register():
-    u = request.form.get("username")
-    p = request.form.get("password")
-    if not u or not p:
-        return render_template("login.html", error="Username and password required")
-
-    existing = _supabase_request("GET", "users", {"username": f"eq.{u}"})
-    if existing:
-        return render_template("login.html", error="User already exists")
-
-    phash = generate_password_hash(p)
-    res = _supabase_request("POST", "users", json_body={
-        "username": u,
-        "password_hash": phash,
-        "is_admin": False
-    })
-    
-    if res is not None:
-        return render_template("login.html", error="Account created! You can now login.", success=True)
-    return render_template("login.html", error="Error creating user")
-
 @app.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for("login"))
-
-# --- API ---
 
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
 def api_products():
     if request.method == "POST":
         d = request.json
-        item_number = str(d.get('item_number', '')).strip()
+        sku = str(d.get('item_number', '')).strip()
+        prj = str(d.get('project_number', '')).strip()
+        supplier = str(d.get('supplier', '')).strip()
         name = str(d.get('name', '')).strip()
-        current_stock = int(d.get('current_stock', 0))
-        min_stock = int(d.get('min_stock', 0))
-        location = str(d.get('location', '')).strip()
-        unit = str(d.get('unit', 'pcs'))
-        category = str(d.get('category', 'material')) # NOWE POLE
-
+        
         _supabase_request("POST", "products", json_body={
-            "item_number": item_number,
+            "item_number": sku,
             "name": name,
-            "current_stock": current_stock,
-            "min_stock": min_stock,
-            "location": location,
-            "unit": unit,
-            "category": category # NOWE POLE
+            "current_stock": int(d.get('current_stock', 0)),
+            "min_stock": int(d.get('min_stock', 0)),
+            "location": str(d.get('location', '')).strip(),
+            "category": str(d.get('category', 'material')),
+            "project_number": prj,
+            "supplier": supplier
         })
-
+        
         _supabase_request("POST", "audit_logs", json_body={
-            "item_number": item_number,
+            "item_number": sku,
             "name": name,
             "action": "CREATE",
-            "qty": current_stock,
-            "location": location,
+            "qty": int(d.get('current_stock', 0)),
+            "location": str(d.get('location', '')).strip(),
             "username": current_user.username,
-            "note": f"Initial creation as {category}" # NOWE POLE W AUDICIE
+            "project_number": prj,
+            "note": f"Initial creation. Supplier: {supplier}"
         })
-
         return jsonify({"ok": True})
-
+    
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
     low_stock_count = sum(1 for p in data if int(p.get('min_stock', 0)) > 0 and int(p.get('current_stock', 0)) <= int(p.get('min_stock', 0)))
-
-    return jsonify({
-        "ok": True, 
-        "data": data, 
-        "low_stock_count": low_stock_count
-    })
+    return jsonify({"ok": True, "data": data, "low_stock_count": low_stock_count})
 
 @app.route("/api/stock/<action>", methods=["POST"])
 @login_required
 def api_stock(action):
     d = request.json
-    sku = d['item_number']
-    amt = int(d['amount'])
-    note = d.get('note', '') # MOŻE BYĆ NOTATKA LUB DESTINY
-    
+    sku, amt = d['item_number'], int(d['amount'])
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     if not res: return jsonify({"ok": False}), 404
-    
     p = res[0]
-    if action == "issue" and p['current_stock'] < amt:
-        return jsonify({"ok": False, "error": "Insufficient stock"}), 400
-        
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
-    
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
     _supabase_request("POST", "audit_logs", json_body={
-        "item_number": sku, 
-        "name": p['name'], 
-        "action": action.upper(), 
-        "qty": amt, 
-        "location": p['location'], 
-        "username": current_user.username,
-        "note": note # ZAPISANIE NOTATKI/PRZEZNACZENIA
+        "item_number": sku, "name": p['name'], "action": action.upper(), "qty": amt, 
+        "location": p['location'], "username": current_user.username, "note": d.get('note', ''),
+        "project_number": p.get('project_number', '')
     })
     return jsonify({"ok": True, "current_stock": new_q})
-
-@app.route("/api/audit")
-@login_required
-def api_audit():
-    data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
-    return jsonify({"ok": True, "audit": data})
 
 @app.route("/api/admin/export/excel")
 @login_required
 def export_excel():
-    if not current_user.is_admin:
-        return "Access denied", 403
-    
+    if not current_user.is_admin: return "Access denied", 403
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"})
-    if not data:
-        return "No data found", 404
-
+    if not data: return "No data found", 404
     df = pd.DataFrame(data)
     
     columns_mapping = {
-        'item_number': 'ID Produktu',
-        'name': 'Nazwa Produktu',
-        'current_stock': 'Stan Magazynowy',
+        'item_number': 'ID',
+        'name': 'Nazwa',
+        'project_number': 'Project',
+        'supplier': 'Supplier',
+        'current_stock': 'Stan',
+        'min_stock': 'Min',
         'location': 'Lokalizacja',
-        'category': 'Kategoria' # DODANE DO EXCELA
+        'category': 'Kategoria'
     }
     
-    df = df[list(columns_mapping.keys())].rename(columns=columns_mapping)
+    available_cols = [c for c in columns_mapping.keys() if c in df.columns]
+    df = df[available_cols].rename(columns=columns_mapping)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -202,13 +151,7 @@ def export_excel():
     
     output.seek(0)
     filename = f"Inventory_{dt.datetime.now().strftime('%Y-%m-%d')}.xlsx"
-
-    return send_file(
-        output,
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        as_attachment=True,
-        download_name=filename
-    )
+    return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=filename)
 
 @app.route("/api/relocate", methods=["POST"])
 @login_required
@@ -216,25 +159,22 @@ def api_relocate():
     d = request.json
     sku = d.get('item_number')
     new_loc = str(d.get('new_location', '')).strip()
-    
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
-    if not res: return jsonify({"ok": False, "error": "Product not found"}), 404
-    
+    if not res: return jsonify({"ok": False}), 404
     p = res[0]
-    old_loc = p.get('location', 'Unknown')
-
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"location": new_loc})
-
     _supabase_request("POST", "audit_logs", json_body={
-        "item_number": sku,
-        "name": p['name'],
-        "action": "RELOCATE",
-        "qty": p['current_stock'],
-        "location": f"{old_loc} -> {new_loc}",
-        "username": current_user.username
+        "item_number": sku, "name": p['name'], "action": "RELOCATE", "qty": p['current_stock'],
+        "location": f"{p.get('location')} -> {new_loc}", "username": current_user.username,
+        "project_number": p.get('project_number', '')
     })
-
     return jsonify({"ok": True})
+
+@app.route("/api/audit")
+@login_required
+def api_audit():
+    data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
+    return jsonify({"ok": True, "audit": data})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
