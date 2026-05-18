@@ -50,45 +50,48 @@
       <button class="navbtn active" id="nav-dashboard" onclick="showView('dashboard')">🏠</button>
       <button class="navbtn" id="nav-inventory" onclick="showView('inventory')">📦</button>
       <button class="navbtn" id="nav-audit" onclick="showView('audit')">✅</button>
-      {% if current_user.is_admin %}<button class="navbtn" onclick="window.location.href='/api/admin/export/excel'">📥</button>{% endif %}
+      {% if current_user.is_admin %}<button class="navbtn" id="nav-admin" onclick="showView('admin')">⚙️</button>{% endif %}
     </div>
-    <button class="navbtn" onclick="window.location.href='/logout'">🚪</button>
+    <button class="navbtn" onclick="logout()">🚪</button>
   </aside>
 
   <main class="main">
     <header class="topbar">
       <span>BTVenloStorage</span>
-      <span id="lowStockBadge" style="background:#dc2626; color:#fff; padding:2px 8px; border-radius:10px; font-size:12px; display:none; cursor:pointer;" onclick="showView('inventory')">Niski stan zapasów!</span>
+      <span id="lowStockBadge" style="background:#dc2626; color:#fff; padding:2px 8px; border-radius:10px; font-size:12px; display:none; cursor:pointer;" onclick="showView('inventory')">Low Stock Alert!</span>
     </header>
     <div class="container">
       
       <section id="view-dashboard" class="view">
         <div class="card">
-          <h2>Panel Akcji</h2>
+          <h2>Action Panel</h2>
+          {% if current_user.is_admin %}
+          <div id="lowStockDashboardAlert" style="display:none; margin-bottom:20px; padding:12px; border-radius:12px; background:#fff5f5; border:1px solid rgba(220,38,38,.25); color:#7a1a1a; font-size:14px; font-weight:bold; cursor:pointer;" onclick="showView('inventory')"></div>
+          {% endif %}
           <div class="pillgrid">
-            <div class="pill" onclick="openModal('addProductBackdrop')"><div class="ic">➕</div>Nowy Produkt</div>
-            <div class="pill" onclick="openStock('receive')"><div class="ic">⬇️</div>Przyjmij (IN)</div>
-            <div class="pill" onclick="openStock('issue')"><div class="ic">⬆️</div>Wydaj (OUT)</div>
-            <div class="pill" onclick="openModal('relocateBackdrop')"><div class="ic">🔄</div>Relokacja</div>
+            <div class="pill" onclick="openModal('addProductBackdrop')"><div class="ic">➕</div>Add Product</div>
+            <div class="pill" onclick="openStock('receive')"><div class="ic">⬇️</div>Receive Material</div>
+            <div class="pill" onclick="openStock('issue')"><div class="ic">⬆️</div>Issue Material</div>
+            <div class="pill" onclick="openModal('relocateBackdrop')"><div class="ic">🔄</div>Relocate Material</div>
           </div>
         </div>
       </section>
 
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
-          <h2>Stan Magazynowy</h2>
+          <h2>Inventory Stock</h2>
           <div style="display:flex; gap:10px; margin-bottom:12px;">
-            <input type="text" id="inventorySearch" placeholder="Szukaj po nazwie, ID, projekcie lub dostawcy..." onkeyup="filterInv()">
+            <input type="text" id="inventorySearch" placeholder="Search by ID, Name, Project or Supplier..." onkeyup="filterInv()">
             <select id="filterCategory" onchange="filterInv()" style="width:150px;">
-              <option value="all">Wszystkie</option>
-              <option value="material">Material</option>
-              <option value="tool">Tool</option>
+              <option value="all">All Categories</option>
+              <option value="material">Materials Only</option>
+              <option value="tool">Tools Only</option>
             </select>
           </div>
           <div style="overflow:auto">
             <table>
               <thead>
-                <tr><th>ID</th><th>Nazwa</th><th>Kategoria</th><th>Project</th><th>Supplier</th><th>Stan</th><th>Lok.</th></tr>
+                <tr><th>ID</th><th>Name</th><th>Category</th><th>Project</th><th>Supplier</th><th>Qty</th><th>Location</th></tr>
               </thead>
               <tbody id="productsBody"></tbody>
             </table>
@@ -98,11 +101,11 @@
 
       <section id="view-audit" class="view" style="display:none">
         <div class="card">
-          <h2>Historia Operacji</h2>
+          <h2>Audit Logs</h2>
           <div style="overflow:auto">
             <table>
               <thead>
-                <tr><th>Data</th><th>Akcja</th><th>Produkt</th><th>Projekt</th><th>Użytkownik</th><th>Notatka</th></tr>
+                <tr><th>Time</th><th>Action</th><th>Product</th><th>Project</th><th>User</th><th>Note/Destiny</th></tr>
               </thead>
               <tbody id="auditBody"></tbody>
             </table>
@@ -110,52 +113,62 @@
         </div>
       </section>
 
+      <section id="view-admin" class="view" style="display:none">
+        <div class="card">
+          <h2>Admin Controls</h2>
+          <button class="btn primary" onclick="downloadExcelBackup()">📥 Download Excel Backup</button>
+        </div>
+      </section>
+
     </div>
 
     <div class="modal-backdrop" id="addProductBackdrop">
       <div class="modal">
-        <div class="modal-header"><b>Nowy Produkt</b><button class="btn" onclick="closeModal('addProductBackdrop')">✕</button></div>
+        <div class="modal-header"><b>Add New Product</b><button class="btn" onclick="closeModal('addProductBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID PRODUKTU (SKU)</label><div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('p_id', 'p_box', 'p_vid', 'product')">📷</button></div><div id="p_box" class="scanner-box"><video id="p_vid" playsinline></video></div></div>
-          <div class="row"><label>NAZWA</label><input id="p_name"></div>
+          <div class="row"><label>PRODUCT ID (SKU)</label><div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('p_id', 'p_box', 'p_vid', 'product')">Scan</button></div><div id="p_box" class="scanner-box"><video id="p_vid" playsinline></video></div></div>
+          <div class="row"><label>NAME</label><input id="p_name"></div>
           <div class="row">
-            <label>KATEGORIA</label>
+            <label>CATEGORY</label>
             <select id="p_category">
               <option value="material">Material</option>
               <option value="tool">Tool</option>
             </select>
           </div>
-          <div class="row"><label>NUMER PROJEKTU</label><input id="p_project"></div>
+          <div class="row"><label>PROJECT NUMBER</label><input id="p_project"></div>
           <div class="row"><label>SUPPLIER</label><input id="p_supplier"></div>
-          <div class="row"><label>STAN POCZĄTKOWY</label><input id="p_qty" type="number" value="0"></div>
-          <div class="row"><label>MINIMALNY STAN</label><input id="p_min_stock" type="number" value="0"></div>
-          <div class="row"><label>LOKALIZACJA</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('p_loc', 'p_box_loc', 'p_vid_loc', 'location')">📷</button></div><div id="p_box_loc" class="scanner-box"><video id="p_vid_loc" playsinline></video></div></div>
-          <button class="btn primary" onclick="saveProduct()">Zapisz Produkt</button>
+          <div class="row"><label>INITIAL QTY</label><input id="p_qty" type="number" value="0"></div>
+          <div class="row"><label>MIN STOCK LEVEL</label><input id="p_min_stock" type="number" value="0"></div>
+          <div class="row"><label>LOCATION</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('p_loc', 'p_box_loc', 'p_vid_loc', 'location')">Scan</button></div><div id="p_box_loc" class="scanner-box"><video id="p_vid_loc" playsinline></video></div></div>
+          <div id="addAlert" style="display:none; margin-top:10px; padding:10px; background:#fff5f5; color:#7a1a1a; border-radius:12px; font-size:13px;"></div>
+          <button class="btn primary" onclick="saveProduct()">Save Product</button>
         </div>
       </div>
     </div>
 
     <div class="modal-backdrop" id="stockBackdrop">
       <div class="modal">
-        <div class="modal-header"><b id="stockTitle">Akcja</b><button class="btn" onclick="closeModal('stockBackdrop')">✕</button></div>
+        <div class="modal-header"><b id="stockTitle">Stock Action</b><button class="btn" onclick="closeModal('stockBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID PRODUKTU</label><div class="scanrow"><input id="s_id" oninput="checkStockInfo(this.value)"><button class="btn" onclick="startScan('s_id', 's_box', 's_vid', 'product')">📷</button></div><div id="s_box" class="scanner-box"><video id="s_vid" playsinline></video></div></div>
+          <div class="row"><label>PRODUCT ID</label><div class="scanrow"><input id="s_id" list="products-list" oninput="checkStockInfo(this.value)"><datalist id="products-list"></datalist><button class="btn" onclick="startScan('s_id', 's_box', 's_vid', 'product')">Scan</button></div><div id="s_box" class="scanner-box"><video id="s_vid" playsinline></video></div></div>
           <div id="s_info" style="margin: 6px 0; font-weight:bold; font-size:13px;"></div>
-          <div class="row"><label>ILOŚĆ</label><input id="s_qty" type="number"></div>
-          <div class="row"><label>NOTATKA / PRZEZNACZENIE</label><input id="s_note" placeholder="Opcjonalnie..."></div>
-          <button class="btn primary" onclick="submitStock()">Zatwierdź</button>
+          <div class="row"><label>QUANTITY</label><input id="s_qty" type="number"></div>
+          <div class="row"><label id="stockNoteLabel">Note</label><input id="s_note" placeholder="Optional info..."></div>
+          <div id="stockAlert" style="display:none; margin-top:10px; padding:10px; background:#fff5f5; color:#7a1a1a; border-radius:12px; font-size:13px;"></div>
+          <button class="btn primary" onclick="submitStock()">Save Changes</button>
         </div>
       </div>
     </div>
 
     <div class="modal-backdrop" id="relocateBackdrop">
       <div class="modal">
-        <div class="modal-header"><b>Relokacja</b><button class="btn" onclick="closeModal('relocateBackdrop')">✕</button></div>
+        <div class="modal-header"><b>Relocate Product</b><button class="btn" onclick="closeModal('relocateBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID PRODUKTU</label><div class="scanrow"><input id="rel_id" oninput="checkRelocateInfo(this.value)"><button class="btn" onclick="startScan('rel_id', 'rel_box', 'rel_vid', 'product')">📷</button></div><div id="rel_box" class="scanner-box"><video id="rel_vid" playsinline></video></div></div>
+          <div class="row"><label>PRODUCT ID</label><div class="scanrow"><input id="rel_id" list="products-list" oninput="checkRelocateInfo(this.value)"><button class="btn" onclick="startScan('rel_id', 'rel_box', 'rel_vid', 'product')">Scan</button></div><div id="rel_box" class="scanner-box"><video id="rel_vid" playsinline></video></div></div>
           <div id="rel_info" style="margin: 6px 0; font-weight:bold; font-size:13px;"></div>
-          <div class="row"><label>NOWA LOKALIZACJA</label><div class="scanrow"><input id="rel_new_loc"><button class="btn" onclick="startScan('rel_new_loc', 'rel_box_loc', 'rel_vid_loc', 'location')">📷</button></div><div id="rel_box_loc" class="scanner-box"><video id="rel_vid_loc" playsinline></video></div></div>
-          <button class="btn primary" onclick="submitRelocate()">Aktualizuj Miejsce</button>
+          <div class="row"><label>NEW LOCATION</label><div class="scanrow"><input id="rel_new_loc"><button class="btn" onclick="startScan('rel_new_loc', 'rel_box_loc', 'rel_vid_loc', 'location')">Scan</button></div><div id="rel_box_loc" class="scanner-box"><video id="rel_vid_loc" playsinline></video></div></div>
+          <div id="relAlert" style="display:none; margin-top:10px; padding:10px; background:#fff5f5; color:#7a1a1a; border-radius:12px; font-size:13px;"></div>
+          <button class="btn primary" onclick="submitRelocate()">Update Location</button>
         </div>
       </div>
     </div>
@@ -178,7 +191,11 @@
     if(name==='audit') loadAudit();
   }
 
-  function openModal(id){ document.getElementById(id).style.display='flex'; }
+  function openModal(id){ 
+    document.getElementById(id).style.display='flex'; 
+    if(id==='addProductBackdrop') document.getElementById('addAlert').style.display='none';
+  }
+  
   function closeModal(id){ 
     stopScan(); 
     document.getElementById(id).style.display='none'; 
@@ -190,9 +207,22 @@
       document.getElementById('rel_id').value=''; document.getElementById('rel_new_loc').value='';
       document.getElementById('rel_info').innerHTML='';
     }
+    if(id==='addProductBackdrop'){
+      document.getElementById('p_id').value=''; document.getElementById('p_name').value='';
+      document.getElementById('p_project').value=''; document.getElementById('p_supplier').value='';
+      document.getElementById('p_qty').value='0'; document.getElementById('p_min_stock').value='0';
+      document.getElementById('p_loc').value='';
+    }
   }
   
-  function openStock(m){ currentStockMode=m; document.getElementById('stockTitle').textContent=m.toUpperCase() === 'RECEIVE' ? 'PRZYJMIJ (IN)' : 'WYDAJ (OUT)'; openModal('stockBackdrop'); }
+  function openStock(m){ 
+    currentStockMode=m; 
+    document.getElementById('stockTitle').textContent=m === 'receive' ? 'Receive Material' : 'Issue Material'; 
+    document.getElementById('stockNoteLabel').textContent=m === 'receive' ? 'Note' : 'Destiny';
+    document.getElementById('s_note').placeholder=m === 'receive' ? 'e.g. Supplier name' : 'e.g. Machine 1';
+    document.getElementById('stockAlert').style.display='none';
+    openModal('stockBackdrop'); 
+  }
 
   async function startScan(targetId, boxId, videoId, mode) {
     stopScan();
@@ -222,9 +252,9 @@
           }
         }, 400);
       } else {
-        console.error("Skaner nie jest wspierany w tej przeglądarce.");
+        alert("BarcodeDetector API not supported on this browser/device.");
       }
-    } catch (e) { console.error("Kamera niedostępna."); }
+    } catch (e) { console.error("Camera access error."); }
   }
 
   function stopScan() {
@@ -238,6 +268,26 @@
     const res = await fetch('/api/products');
     const data = await res.json();
     allProductsCache = data.data || [];
+    
+    const datalist = document.getElementById('products-list');
+    if(datalist) {
+      datalist.innerHTML = '';
+      allProductsCache.forEach(p => {
+        const op = document.createElement('option');
+        op.value = p.item_number;
+        op.textContent = p.name;
+        datalist.appendChild(op);
+      });
+    }
+
+    const dashAlert = document.getElementById('lowStockDashboardAlert');
+    if(dashAlert) {
+      if(data.low_stock_count > 0) {
+        dashAlert.style.display = 'block';
+        dashAlert.innerHTML = `⚠️ <strong>${data.low_stock_count}</strong> products reached minimum stock level! Click to review.`;
+      } else { dashAlert.style.display = 'none'; }
+    }
+
     const body = document.getElementById('productsBody');
     body.innerHTML = '';
     allProductsCache.forEach(p => {
@@ -261,16 +311,16 @@
     const info = document.getElementById('s_info');
     if(!id) { info.innerHTML=''; return; }
     const p = allProductsCache.find(x => String(x.item_number) === id.trim());
-    if(p){ info.innerHTML = `<span style="color:#2563eb">📦 Produkt: ${p.name} | Lokacja: ${p.location} | Obecny Stan: ${p.current_stock}</span>`; }
-    else { info.innerHTML = `<span style="color:red">Produkt nie istnieje w bazie danych!</span>`; }
+    if(p){ info.innerHTML = `<span style="color:#2563eb">📦 Name: ${p.name} | Location: ${p.location} | Current Stock: ${p.current_stock}</span>`; }
+    else { info.innerHTML = `<span style="color:red">Product does not exist in database!</span>`; }
   }
 
   function checkRelocateInfo(id){
     const info = document.getElementById('rel_info');
     if(!id) { info.innerHTML=''; return; }
     const p = allProductsCache.find(x => String(x.item_number) === id.trim());
-    if(p){ info.innerHTML = `<span style="color:#2563eb">🔄 Aktualna lokacja: ${p.location} | Produkt: ${p.name}</span>`; }
-    else { info.innerHTML = `<span style="color:red">Produkt nie znaleziony</span>`; }
+    if(p){ info.innerHTML = `<span style="color:#2563eb">🔄 Current Location: ${p.location} | Product: ${p.name}</span>`; }
+    else { info.innerHTML = `<span style="color:red">Product not found</span>`; }
   }
 
   async function loadAudit(){
@@ -279,14 +329,26 @@
     const body = document.getElementById('auditBody');
     body.innerHTML = '';
     data.audit.forEach(a => {
-      const date = new Date(a.created_at).toLocaleString();
+      const date = a.created_at ? a.created_at.split('.')[0] : '-';
       body.innerHTML += `<tr><td>${date}</td><td>${a.action}</td><td>${a.name} (${a.item_number})</td><td>${a.project_number || '-'}</td><td>${a.username}</td><td>${a.note || '-'}</td></tr>`;
     });
   }
 
   async function saveProduct(){
+    const id = document.getElementById('p_id').value.trim();
+    const alertBox = document.getElementById('addAlert');
+    if(!id) { alertBox.textContent = "Product ID is required."; alertBox.style.display = "block"; return; }
+
+    const exists = allProductsCache.find(x => String(x.item_number) === id);
+    if(exists) {
+        alertBox.textContent = "Product already exists! Redirecting to Receive Material...";
+        alertBox.style.display = "block";
+        setTimeout(() => { closeModal('addProductBackdrop'); openStock('receive'); document.getElementById('s_id').value = id; checkStockInfo(id); }, 2000);
+        return;
+    }
+
     const body = { 
-      item_number: document.getElementById('p_id').value, 
+      item_number: id, 
       name: document.getElementById('p_name').value, 
       category: document.getElementById('p_category').value, 
       project_number: document.getElementById('p_project').value, 
@@ -295,20 +357,48 @@
       min_stock: document.getElementById('p_min_stock').value, 
       location: document.getElementById('p_loc').value 
     };
-    await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    closeModal('addProductBackdrop'); loadProducts();
+    const res = await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if(res.ok) { closeModal('addProductBackdrop'); loadProducts(); }
+    else { alertBox.textContent = "Error saving product."; alertBox.style.display = "block"; }
   }
 
   async function submitStock(){
-    const body = { item_number: document.getElementById('s_id').value, amount: document.getElementById('s_qty').value, note: document.getElementById('s_note').value };
-    await fetch('/api/stock/'+currentStockMode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    closeModal('stockBackdrop'); loadProducts();
+    const id = document.getElementById('s_id').value;
+    const amount = parseInt(document.getElementById('s_qty').value);
+    const note = document.getElementById('s_note').value;
+    const alertBox = document.getElementById('stockAlert');
+
+    if(!id || !amount || amount <= 0) {
+        alertBox.textContent = "Please enter a valid ID and quantity.";
+        alertBox.style.display = "block";
+        return;
+    }
+
+    if(currentStockMode === 'issue') {
+        const p = allProductsCache.find(x => String(x.item_number) === id.trim());
+        if(p && amount > p.current_stock) {
+            alertBox.textContent = `Error: Insufficient stock! Available: ${p.current_stock}`;
+            alertBox.style.display = "block";
+            return;
+        }
+    }
+
+    const body = { item_number: id, amount: amount, note: note };
+    const res = await fetch('/api/stock/'+currentStockMode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if(res.ok) { closeModal('stockBackdrop'); loadProducts(); }
+    else { alertBox.textContent = "Error processing transaction."; alertBox.style.display = "block"; }
   }
 
   async function submitRelocate(){
-    const body = { item_number: document.getElementById('rel_id').value, new_location: document.getElementById('rel_new_loc').value };
-    await fetch('/api/relocate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    closeModal('relocateBackdrop'); loadProducts();
+    const id = document.getElementById('rel_id').value.trim();
+    const newLoc = document.getElementById('rel_new_loc').value.trim();
+    const alertBox = document.getElementById('relAlert');
+    if(!id || !newLoc) { alertBox.textContent = "Product ID and New Location are required."; alertBox.style.display = "block"; return; }
+
+    const body = { item_number: id, new_location: newLoc };
+    const res = await fetch('/api/relocate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if(res.ok) { closeModal('relocateBackdrop'); loadProducts(); }
+    else { alertBox.textContent = "Error processing relocation."; alertBox.style.display = "block"; }
   }
 
   function filterInv(){
@@ -322,6 +412,8 @@
   }
 
   function intVal(v){ return parseInt(v) || 0; }
+  function logout(){ window.location.href = '/logout'; }
+  function downloadExcelBackup(){ window.location.href = '/api/admin/export/excel'; }
   window.onload = loadProducts;
 </script>
 </body>

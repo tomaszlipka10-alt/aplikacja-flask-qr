@@ -48,7 +48,8 @@ def load_user(uid):
     return User(res[0]['id'], res[0]['username'], res[0].get('is_admin', False)) if res else None
 
 @app.route("/health")
-def health(): return "OK", 200
+def health():
+    return "OK", 200
 
 @app.route("/")
 @login_required
@@ -64,10 +65,31 @@ def login():
             return redirect(url_for("index"))
     return render_template("login.html")
 
+@app.route("/register", methods=["POST"])
+def register():
+    u = request.form.get("username")
+    p = request.form.get("password")
+    if not u or not p:
+        return render_template("login.html", error="Username and password required")
+    existing = _supabase_request("GET", "users", {"username": f"eq.{u}"})
+    if existing:
+        return render_template("login.html", error="User already exists")
+    phash = generate_password_hash(p)
+    res = _supabase_request("POST", "users", json_body={
+        "username": u,
+        "password_hash": phash,
+        "is_admin": False
+    })
+    if res is not None:
+        return render_template("login.html", error="Account created! You can now login.", success=True)
+    return render_template("login.html", error="Error creating user")
+
 @app.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for("login"))
+
+# --- API ---
 
 @app.route("/api/products", methods=["GET", "POST"])
 @login_required
@@ -86,6 +108,7 @@ def api_products():
             "min_stock": int(d.get('min_stock', 0)),
             "location": str(d.get('location', '')).strip(),
             "category": str(d.get('category', 'material')),
+            "unit": str(d.get('unit', 'pcs')),
             "project_number": prj,
             "supplier": supplier
         })
@@ -98,7 +121,7 @@ def api_products():
             "location": str(d.get('location', '')).strip(),
             "username": current_user.username,
             "project_number": prj,
-            "note": f"Initial creation. Supplier: {supplier}"
+            "note": f"Initial creation as {str(d.get('category', 'material'))}. Supplier: {supplier}"
         })
         return jsonify({"ok": True})
     
@@ -114,6 +137,10 @@ def api_stock(action):
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     if not res: return jsonify({"ok": False}), 404
     p = res[0]
+    
+    if action == "issue" and p['current_stock'] < amt:
+        return jsonify({"ok": False, "error": "Insufficient stock"}), 400
+        
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
     _supabase_request("POST", "audit_logs", json_body={
@@ -133,13 +160,13 @@ def export_excel():
     
     columns_mapping = {
         'item_number': 'ID',
-        'name': 'Nazwa',
+        'name': 'Name',
         'project_number': 'Project',
         'supplier': 'Supplier',
-        'current_stock': 'Stan',
-        'min_stock': 'Min',
-        'location': 'Lokalizacja',
-        'category': 'Kategoria'
+        'current_stock': 'Qty',
+        'min_stock': 'Min Stock',
+        'location': 'Location',
+        'category': 'Category'
     }
     
     available_cols = [c for c in columns_mapping.keys() if c in df.columns]
@@ -162,10 +189,12 @@ def api_relocate():
     res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
     if not res: return jsonify({"ok": False}), 404
     p = res[0]
+    old_loc = p.get('location', 'Unknown')
+    
     _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"location": new_loc})
     _supabase_request("POST", "audit_logs", json_body={
         "item_number": sku, "name": p['name'], "action": "RELOCATE", "qty": p['current_stock'],
-        "location": f"{p.get('location')} -> {new_loc}", "username": current_user.username,
+        "location": f"{old_loc} -> {new_loc}", "username": current_user.username,
         "project_number": p.get('project_number', '')
     })
     return jsonify({"ok": True})
