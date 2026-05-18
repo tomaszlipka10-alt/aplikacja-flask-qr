@@ -174,8 +174,13 @@
         const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128'] });
         activeTimer = setInterval(async () => {
           const codes = await detector.detect(video);
-          if (codes.length > 0) {
-            document.getElementById(targetId).value = codes[0].rawValue.split('|')[0];
+          if (codes && codes.length > 0 && codes[0].rawValue) {
+            let value = codes[0].rawValue;
+            if (value.includes('|')) {
+              document.getElementById(targetId).value = value.split('|')[0];
+            } else {
+              document.getElementById(targetId).value = value;
+            }
             stopScan();
           }
         }, 500);
