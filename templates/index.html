@@ -30,7 +30,7 @@
     .modal-body{padding:16px; overflow-y:auto;}
     .row{margin-bottom:12px}
     label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px; font-weight:600;}
-    input{ width:100%; padding:12px; border-radius: 12px; border:1px solid var(--border); font-size:16px; }
+    input, select{ width:100%; padding:12px; border-radius: 12px; border:1px solid var(--border); font-size:16px; outline:none; }
     .scanrow{display:flex; gap:10px}
     .scanner-box{display:none; margin-top:12px; border-radius: 14px; overflow:hidden; background:#000; position:relative; aspect-ratio: 4/3;}
     video{width:100%; height:100%; object-fit: cover;}
@@ -39,6 +39,7 @@
     table{width:100%; border-collapse:collapse;}
     th{text-align:left; color:var(--muted); font-size:12px; padding:10px; border-bottom:1px solid var(--border);}
     td{padding:10px; border-bottom:1px solid var(--border); font-size:14px;}
+    .low-stock-alert { color: #dc2626 !important; font-weight: 800; }
   </style>
 </head>
 <body>
@@ -57,7 +58,7 @@
   <main class="main">
     <header class="topbar">
       <span>BTVenloStorage</span>
-      <span id="lowStockBadge" style="background:#dc2626; color:#fff; padding:2px 8px; border-radius:10px; font-size:12px; display:none">Low Stock!</span>
+      <span id="lowStockBadge" style="background:#dc2626; color:#fff; padding:2px 8px; border-radius:10px; font-size:12px; display:none; cursor:pointer;" onclick="showView('inventory')">Niski stan zapasów!</span>
     </header>
     <div class="container">
       
@@ -76,11 +77,18 @@
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
           <h2>Stan Magazynowy</h2>
-          <input type="text" id="inventorySearch" placeholder="Szukaj po nazwie, ID, projekcie lub dostawcy..." onkeyup="filterInv()" style="margin-bottom:12px">
+          <div style="display:flex; gap:10px; margin-bottom:12px;">
+            <input type="text" id="inventorySearch" placeholder="Szukaj po nazwie, ID, projekcie lub dostawcy..." onkeyup="filterInv()">
+            <select id="filterCategory" onchange="filterInv()" style="width:150px;">
+              <option value="all">Wszystkie</option>
+              <option value="material">Material</option>
+              <option value="tool">Tool</option>
+            </select>
+          </div>
           <div style="overflow:auto">
             <table>
               <thead>
-                <tr><th>ID</th><th>Nazwa</th><th>Project</th><th>Supplier</th><th>Stan</th><th>Lok.</th></tr>
+                <tr><th>ID</th><th>Nazwa</th><th>Kategoria</th><th>Project</th><th>Supplier</th><th>Stan</th><th>Lok.</th></tr>
               </thead>
               <tbody id="productsBody"></tbody>
             </table>
@@ -94,7 +102,7 @@
           <div style="overflow:auto">
             <table>
               <thead>
-                <tr><th>Data</th><th>Akcja</th><th>Produkt</th><th>Projekt</th><th>Użytkownik</th></tr>
+                <tr><th>Data</th><th>Akcja</th><th>Produkt</th><th>Projekt</th><th>Użytkownik</th><th>Notatka</th></tr>
               </thead>
               <tbody id="auditBody"></tbody>
             </table>
@@ -108,12 +116,20 @@
       <div class="modal">
         <div class="modal-header"><b>Nowy Produkt</b><button class="btn" onclick="closeModal('addProductBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID PRODUKTU (SKU)</label><div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('p_id', 'p_box', 'p_vid')">📷</button></div><div id="p_box" class="scanner-box"><video id="p_vid"></video></div></div>
+          <div class="row"><label>ID PRODUKTU (SKU)</label><div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('p_id', 'p_box', 'p_vid', 'product')">📷</button></div><div id="p_box" class="scanner-box"><video id="p_vid" playsinline></video></div></div>
           <div class="row"><label>NAZWA</label><input id="p_name"></div>
+          <div class="row">
+            <label>KATEGORIA</label>
+            <select id="p_category">
+              <option value="material">Material</option>
+              <option value="tool">Tool</option>
+            </select>
+          </div>
           <div class="row"><label>NUMER PROJEKTU</label><input id="p_project"></div>
           <div class="row"><label>SUPPLIER</label><input id="p_supplier"></div>
           <div class="row"><label>STAN POCZĄTKOWY</label><input id="p_qty" type="number" value="0"></div>
-          <div class="row"><label>LOKALIZACJA</label><input id="p_loc"></div>
+          <div class="row"><label>MINIMALNY STAN</label><input id="p_min_stock" type="number" value="0"></div>
+          <div class="row"><label>LOKALIZACJA</label><div class="scanrow"><input id="p_loc"><button class="btn" onclick="startScan('p_loc', 'p_box_loc', 'p_vid_loc', 'location')">📷</button></div><div id="p_box_loc" class="scanner-box"><video id="p_vid_loc" playsinline></video></div></div>
           <button class="btn primary" onclick="saveProduct()">Zapisz Produkt</button>
         </div>
       </div>
@@ -123,8 +139,10 @@
       <div class="modal">
         <div class="modal-header"><b id="stockTitle">Akcja</b><button class="btn" onclick="closeModal('stockBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID PRODUKTU</label><div class="scanrow"><input id="s_id"><button class="btn" onclick="startScan('s_id', 's_box', 's_vid')">📷</button></div><div id="s_box" class="scanner-box"><video id="s_vid"></video></div></div>
+          <div class="row"><label>ID PRODUKTU</label><div class="scanrow"><input id="s_id" oninput="checkStockInfo(this.value)"><button class="btn" onclick="startScan('s_id', 's_box', 's_vid', 'product')">📷</button></div><div id="s_box" class="scanner-box"><video id="s_vid" playsinline></video></div></div>
+          <div id="s_info" style="margin: 6px 0; font-weight:bold; font-size:13px;"></div>
           <div class="row"><label>ILOŚĆ</label><input id="s_qty" type="number"></div>
+          <div class="row"><label>NOTATKA / PRZEZNACZENIE</label><input id="s_note" placeholder="Opcjonalnie..."></div>
           <button class="btn primary" onclick="submitStock()">Zatwierdź</button>
         </div>
       </div>
@@ -134,8 +152,9 @@
       <div class="modal">
         <div class="modal-header"><b>Relokacja</b><button class="btn" onclick="closeModal('relocateBackdrop')">✕</button></div>
         <div class="modal-body">
-          <div class="row"><label>ID PRODUKTU</label><div class="scanrow"><input id="rel_id"><button class="btn" onclick="startScan('rel_id', 'rel_box', 'rel_vid')">📷</button></div><div id="rel_box" class="scanner-box"><video id="rel_vid"></video></div></div>
-          <div class="row"><label>NOWA LOKALIZACJA</label><input id="rel_new_loc"></div>
+          <div class="row"><label>ID PRODUKTU</label><div class="scanrow"><input id="rel_id" oninput="checkRelocateInfo(this.value)"><button class="btn" onclick="startScan('rel_id', 'rel_box', 'rel_vid', 'product')">📷</button></div><div id="rel_box" class="scanner-box"><video id="rel_vid" playsinline></video></div></div>
+          <div id="rel_info" style="margin: 6px 0; font-weight:bold; font-size:13px;"></div>
+          <div class="row"><label>NOWA LOKALIZACJA</label><div class="scanrow"><input id="rel_new_loc"><button class="btn" onclick="startScan('rel_new_loc', 'rel_box_loc', 'rel_vid_loc', 'location')">📷</button></div><div id="rel_box_loc" class="scanner-box"><video id="rel_vid_loc" playsinline></video></div></div>
           <button class="btn primary" onclick="submitRelocate()">Aktualizuj Miejsce</button>
         </div>
       </div>
@@ -148,44 +167,64 @@
   let currentStockMode = 'receive';
   let activeStream = null;
   let activeTimer = null;
+  let allProductsCache = [];
 
   function showView(name){
     document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
     document.querySelectorAll('.navbtn').forEach(b => b.classList.remove('active'));
     document.getElementById('view-'+name).style.display = 'block';
-    document.getElementById('nav-'+name).classList.add('active');
-    if(name==='inventory') loadProducts();
+    if(document.getElementById('nav-'+name)) document.getElementById('nav-'+name).classList.add('active');
+    if(name==='inventory'||name==='dashboard') loadProducts();
     if(name==='audit') loadAudit();
   }
 
   function openModal(id){ document.getElementById(id).style.display='flex'; }
-  function closeModal(id){ stopScan(); document.getElementById(id).style.display='none'; }
-  function openStock(m){ currentStockMode=m; document.getElementById('stockTitle').textContent=m.toUpperCase(); openModal('stockBackdrop'); }
+  function closeModal(id){ 
+    stopScan(); 
+    document.getElementById(id).style.display='none'; 
+    if(id==='stockBackdrop'){
+      document.getElementById('s_id').value=''; document.getElementById('s_qty').value='';
+      document.getElementById('s_note').value=''; document.getElementById('s_info').innerHTML='';
+    }
+    if(id==='relocateBackdrop'){
+      document.getElementById('rel_id').value=''; document.getElementById('rel_new_loc').value='';
+      document.getElementById('rel_info').innerHTML='';
+    }
+  }
+  
+  function openStock(m){ currentStockMode=m; document.getElementById('stockTitle').textContent=m.toUpperCase() === 'RECEIVE' ? 'PRZYJMIJ (IN)' : 'WYDAJ (OUT)'; openModal('stockBackdrop'); }
 
-  async function startScan(targetId, boxId, videoId) {
+  async function startScan(targetId, boxId, videoId, mode) {
     stopScan();
     const box = document.getElementById(boxId);
     const video = document.getElementById(videoId);
     box.style.display = 'block';
     try {
       activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      video.srcObject = activeStream; video.play();
+      video.srcObject = activeStream; 
+      video.play();
       if ('BarcodeDetector' in window) {
         const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128'] });
         activeTimer = setInterval(async () => {
           const codes = await detector.detect(video);
           if (codes && codes.length > 0 && codes[0].rawValue) {
             let value = codes[0].rawValue;
-            if (value.includes('|')) {
-              document.getElementById(targetId).value = value.split('|')[0];
+            if (mode === 'product') {
+              let parts = value.split('|');
+              document.getElementById(targetId).value = parts[0];
+              if(targetId === 'p_id' && parts[1]) document.getElementById('p_name').value = parts[1];
+              if(targetId === 's_id') checkStockInfo(parts[0]);
+              if(targetId === 'rel_id') checkRelocateInfo(parts[0]);
             } else {
               document.getElementById(targetId).value = value;
             }
             stopScan();
           }
-        }, 500);
+        }, 400);
+      } else {
+        console.error("Skaner nie jest wspierany w tej przeglądarce.");
       }
-    } catch (e) { console.error("Kamera niedostępna lub brak uprawnień."); }
+    } catch (e) { console.error("Kamera niedostępna."); }
   }
 
   function stopScan() {
@@ -198,14 +237,40 @@
   async function loadProducts(){
     const res = await fetch('/api/products');
     const data = await res.json();
+    allProductsCache = data.data || [];
     const body = document.getElementById('productsBody');
     body.innerHTML = '';
-    data.data.forEach(p => {
-      body.innerHTML += `<tr><td>${p.item_number}</td><td>${p.name}</td><td>${p.project_number || '-'}</td><td>${p.supplier || '-'}</td><td>${p.current_stock}</td><td>${p.location}</td></tr>`;
+    allProductsCache.forEach(p => {
+      const isLow = (intVal(p.min_stock) > 0 && intVal(p.current_stock) <= intVal(p.min_stock));
+      body.innerHTML += `<tr data-cat="${p.category || 'material'}">
+        <td>${p.item_number}</td>
+        <td>${p.name}</td>
+        <td>${(p.category || 'material').toUpperCase()}</td>
+        <td>${p.project_number || '-'}</td>
+        <td>${p.supplier || '-'}</td>
+        <td class="${isLow ? 'low-stock-alert' : ''}">${isLow ? '⚠️ ' : ''}${p.current_stock} <span style="font-size:10px; opacity:0.5">(min: ${p.min_stock || 0})</span></td>
+        <td>${p.location}</td>
+      </tr>`;
     });
     const badge = document.getElementById('lowStockBadge');
     if(data.low_stock_count > 0) badge.style.display = 'inline';
     else badge.style.display = 'none';
+  }
+
+  function checkStockInfo(id){
+    const info = document.getElementById('s_info');
+    if(!id) { info.innerHTML=''; return; }
+    const p = allProductsCache.find(x => String(x.item_number) === id.trim());
+    if(p){ info.innerHTML = `<span style="color:#2563eb">📦 Produkt: ${p.name} | Lokacja: ${p.location} | Obecny Stan: ${p.current_stock}</span>`; }
+    else { info.innerHTML = `<span style="color:red">Produkt nie istnieje w bazie danych!</span>`; }
+  }
+
+  function checkRelocateInfo(id){
+    const info = document.getElementById('rel_info');
+    if(!id) { info.innerHTML=''; return; }
+    const p = allProductsCache.find(x => String(x.item_number) === id.trim());
+    if(p){ info.innerHTML = `<span style="color:#2563eb">🔄 Aktualna lokacja: ${p.location} | Produkt: ${p.name}</span>`; }
+    else { info.innerHTML = `<span style="color:red">Produkt nie znaleziony</span>`; }
   }
 
   async function loadAudit(){
@@ -215,7 +280,7 @@
     body.innerHTML = '';
     data.audit.forEach(a => {
       const date = new Date(a.created_at).toLocaleString();
-      body.innerHTML += `<tr><td>${date}</td><td>${a.action}</td><td>${a.name} (${a.item_number})</td><td>${a.project_number || '-'}</td><td>${a.username}</td></tr>`;
+      body.innerHTML += `<tr><td>${date}</td><td>${a.action}</td><td>${a.name} (${a.item_number})</td><td>${a.project_number || '-'}</td><td>${a.username}</td><td>${a.note || '-'}</td></tr>`;
     });
   }
 
@@ -223,9 +288,11 @@
     const body = { 
       item_number: document.getElementById('p_id').value, 
       name: document.getElementById('p_name').value, 
+      category: document.getElementById('p_category').value, 
       project_number: document.getElementById('p_project').value, 
       supplier: document.getElementById('p_supplier').value, 
       current_stock: document.getElementById('p_qty').value, 
+      min_stock: document.getElementById('p_min_stock').value, 
       location: document.getElementById('p_loc').value 
     };
     await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -233,7 +300,7 @@
   }
 
   async function submitStock(){
-    const body = { item_number: document.getElementById('s_id').value, amount: document.getElementById('s_qty').value };
+    const body = { item_number: document.getElementById('s_id').value, amount: document.getElementById('s_qty').value, note: document.getElementById('s_note').value };
     await fetch('/api/stock/'+currentStockMode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     closeModal('stockBackdrop'); loadProducts();
   }
@@ -246,11 +313,15 @@
 
   function filterInv(){
     let s = document.getElementById('inventorySearch').value.toLowerCase();
+    let cat = document.getElementById('filterCategory').value;
     document.querySelectorAll('#productsBody tr').forEach(tr => { 
-      tr.style.display = tr.textContent.toLowerCase().includes(s) ? '' : 'none'; 
+      const matchesSearch = tr.textContent.toLowerCase().includes(s);
+      const matchesCat = (cat === 'all' || tr.getAttribute('data-cat') === cat);
+      tr.style.display = (matchesSearch && matchesCat) ? '' : 'none'; 
     });
   }
 
+  function intVal(v){ return parseInt(v) || 0; }
   window.onload = loadProducts;
 </script>
 </body>
