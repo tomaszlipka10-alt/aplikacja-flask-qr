@@ -258,7 +258,7 @@
           }
         }, 400);
       } else {
-        alert("BarcodeDetector API not supported on this browser/device.");
+        alert("BarcodeDetector API not supported.");
       }
     } catch (e) { console.error("Camera access error."); }
   }
@@ -281,7 +281,7 @@
       allProductsCache.forEach(p => {
         const op = document.createElement('option');
         op.value = p.item_number;
-        op.textContent = p.name + (p.bt_number ? ' (' + p.bt_number + ')' : '');
+        op.textContent = p.name + ' (' + (p.bt_number || 'N.V.T.') + ')';
         datalist.appendChild(op);
       });
     }
@@ -301,7 +301,7 @@
       body.innerHTML += `<tr data-cat="${p.category || 'material'}">
         <td>${p.item_number}</td>
         <td>${p.name}</td>
-        <td><strong>${p.bt_number || '-'}</strong></td>
+        <td><strong>${p.bt_number || 'N.V.T.'}</strong></td>
         <td>${(p.category || 'material').toUpperCase()}</td>
         <td>${p.project_number || '-'}</td>
         <td>${p.supplier || '-'}</td>
@@ -319,13 +319,12 @@
     const info = document.getElementById('s_info');
     if(!id) { info.innerHTML=''; return; }
     id = id.trim();
-    // Szukanie po ID produktu lub po BT Number
     const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
     if(p){ 
-      document.getElementById('s_id').value = p.item_number; // Wyrównanie do ID bazy danych
-      info.innerHTML = `<span style="color:#2563eb">📦 Name: ${p.name} | BT: ${p.bt_number || '-'} | Loc: ${p.location} | Qty: ${p.current_stock}</span>`; 
+      document.getElementById('s_id').value = p.item_number;
+      info.innerHTML = `<span style="color:#2563eb">📦 Name: ${p.name} | BT: ${p.bt_number || 'N.V.T.'} | Loc: ${p.location} | Qty: ${p.current_stock}</span>`; 
     }
-    else { info.innerHTML = `<span style="color:red">Product does not exist in database!</span>`; }
+    else { info.innerHTML = `<span style="color:red">Product does not exist!</span>`; }
   }
 
   function checkRelocateInfo(id) {
@@ -342,9 +341,9 @@
     const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
     if(p){ 
       document.getElementById('rel_id').value = p.item_number;
-      info.innerHTML = `<span style="color:#2563eb">🔄 Single Product: ${p.name} | BT: ${p.bt_number || '-'} | Current Location: ${p.location}</span>`; 
+      info.innerHTML = `<span style="color:#2563eb">🔄 Product: ${p.name} | BT: ${p.bt_number || 'N.V.T.'} | Current Location: ${p.location}</span>`; 
     }
-    else { info.innerHTML = `<span style="color:red">No single product or pallet found with this ID</span>`; }
+    else { info.innerHTML = `<span style="color:red">No single product or pallet found</span>`; }
   }
 
   async function loadAudit(){
@@ -360,38 +359,46 @@
 
   async function saveProduct(){
     const id = document.getElementById('p_id').value.trim();
+    const btInput = document.getElementById('p_bt_number').value.trim();
+    const finalBt = btInput ? btInput : 'N.V.T.';
     const alertBox = document.getElementById('addAlert');
+    
     if(!id) { alertBox.textContent = "Product ID is required."; alertBox.style.display = "block"; return; }
 
-    const exists = allProductsCache.find(x => String(x.item_number) === id);
+    // ZMIANA: Sprawdzamy parę SKU + BT Number, a nie tylko samo SKU!
+    const exists = allProductsCache.find(x => String(x.item_number) === id && String(x.bt_number || 'N.V.T.').toLowerCase() === finalBt.toLowerCase());
     if(exists) {
-        alertBox.textContent = "Product already exists! Redirecting to Receive Material...";
+        alertBox.textContent = `Product with SKU: ${id} and BT: ${finalBt} already exists!`;
         alertBox.style.display = "block";
-        setTimeout(() => { closeModal('addProductBackdrop'); openStock('receive'); document.getElementById('s_id').value = id; checkStockInfo(id); }, 2000);
         return;
     }
 
     const body = { 
       item_number: id, 
-      name: document.getElementById('p_name').value, 
-      bt_number: document.getElementById('p_bt_number').value,
+      name: document.getElementById('p_name').value.trim(), 
+      bt_number: btInput,
       category: document.getElementById('p_category').value, 
-      project_number: document.getElementById('p_project').value, 
-      supplier: document.getElementById('p_supplier').value, 
-      pallet_id: document.getElementById('p_pallet').value,
+      project_number: document.getElementById('p_project').value.trim(), 
+      supplier: document.getElementById('p_supplier').value.trim(), 
+      pallet_id: document.getElementById('p_pallet').value.trim(),
       current_stock: document.getElementById('p_qty').value, 
       min_stock: document.getElementById('p_min_stock').value, 
-      location: document.getElementById('p_loc').value 
+      location: document.getElementById('p_loc').value.trim() 
     };
+    
     const res = await fetch('/api/products', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if(res.ok) { closeModal('addProductBackdrop'); loadProducts(); }
-    else { alertBox.textContent = "Error saving product."; alertBox.style.display = "block"; }
+    else { 
+      const errData = await res.json();
+      alertBox.textContent = errData.error || "Error saving product."; 
+      alertBox.style.display = "block"; 
+    }
   }
 
   async function submitStock(){
-    const id = document.getElementById('s_id').value;
+    const id = document.getElementById('s_id').value.trim();
     const amount = parseInt(document.getElementById('s_qty').value);
-    const note = document.getElementById('s_note').value;
+    const note = document.getElementById('s_note').value.trim();
     const alertBox = document.getElementById('stockAlert');
 
     if(!id || !amount || amount <= 0) {
@@ -400,8 +407,9 @@
         return;
     }
 
-    const p = allProductsCache.find(x => String(x.item_number) === id.trim() || String(x.bt_number).toLowerCase() === id.trim().toLowerCase());
-    const finalId = p ? p.item_number : id.trim();
+    const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
+    const finalId = p ? p.item_number : id;
+    const finalBt = p ? (p.bt_number || 'N.V.T.') : 'N.V.T.';
 
     if(currentStockMode === 'issue' && p) {
         if(amount > p.current_stock) {
@@ -411,7 +419,7 @@
         }
     }
 
-    const body = { item_number: finalId, amount: amount, note: note };
+    const body = { item_number: finalId, bt_number: finalBt, amount: amount, note: note };
     const res = await fetch('/api/stock/'+currentStockMode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if(res.ok) { closeModal('stockBackdrop'); loadProducts(); }
     else { alertBox.textContent = "Error processing transaction."; alertBox.style.display = "block"; }
@@ -421,12 +429,13 @@
     const id = document.getElementById('rel_id').value.trim();
     const newLoc = document.getElementById('rel_new_loc').value.trim();
     const alertBox = document.getElementById('relAlert');
-    if(!id || !newLoc) { alertBox.textContent = "Product/Pallet ID and New Location are required."; alertBox.style.display = "block"; return; }
+    if(!id || !newLoc) { alertBox.textContent = "ID and New Location are required."; alertBox.style.display = "block"; return; }
 
     const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
     const finalId = p ? p.item_number : id;
+    const finalBt = p ? (p.bt_number || 'N.V.T.') : 'N.V.T.';
 
-    const body = { item_number: finalId, new_location: newLoc };
+    const body = { item_number: finalId, bt_number: finalBt, new_location: newLoc };
     const res = await fetch('/api/relocate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if(res.ok) { closeModal('relocateBackdrop'); loadProducts(); }
     else { alertBox.textContent = "Error processing relocation."; alertBox.style.display = "block"; }
