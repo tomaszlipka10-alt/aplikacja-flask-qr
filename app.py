@@ -36,7 +36,9 @@ def _supabase_request(method, table, params=None, json_body=None):
         with urllib.request.urlopen(req, data=data) as resp:
             r = resp.read().decode("utf-8")
             return json.loads(r) if r else []
-    except: return None
+    except Exception as e:
+        print(f"ERR: Supabase request failed: {e}")
+        return None
 
 class User(UserMixin):
     def __init__(self, id, username, is_admin):
@@ -102,9 +104,8 @@ def api_products():
         item_number = str(d.get('item_number', '')).strip()
         name = str(d.get('name', '')).strip()
         
-        # Jeśli pole BT number jest puste, domyślnie przypisujemy wartość 'N.V.T.'
         bt_input = str(d.get('bt_number', '')).strip()
-        bt_number = bt_input if bt_input else 'N.V.T.'
+        bt_number = bt_input if (bt_input and bt_input.lower() != 'none') else 'N.V.T.'
         
         pallet_id = str(d.get('pallet_id', '')).strip()
         project_number = str(d.get('project_number', '')).strip()
@@ -118,7 +119,7 @@ def api_products():
         current_stock = int(raw_stock) if raw_stock.isdigit() else 0
         min_stock = int(raw_min) if raw_min.isdigit() else 0
 
-        # Sprawdzanie unikalności pary: SKU + BT number (w tym N.V.T.)
+        # Sprawdzenie unikalności na poziomie pary kluczy
         query_params = {
             "item_number": f"eq.{item_number}",
             "bt_number": f"eq.{bt_number}"
@@ -126,9 +127,9 @@ def api_products():
 
         existing = _supabase_request("GET", "products", query_params)
         if existing:
-            return jsonify({"ok": False, "error": "Product with this SKU and BT number already exists"}), 400
+            return jsonify({"ok": False, "error": f"Product with SKU {item_number} and BT {bt_number} already exists"}), 400
 
-        _supabase_request("POST", "products", json_body={
+        write_res = _supabase_request("POST", "products", json_body={
             "item_number": item_number,
             "name": name,
             "bt_number": bt_number,
@@ -142,6 +143,9 @@ def api_products():
             "supplier": supplier
         })
 
+        if write_res is None:
+            return jsonify({"ok": False, "error": "Database rejected the insert. Check composite keys or duplicates."}), 500
+
         _supabase_request("POST", "audit_logs", json_body={
             "item_number": item_number,
             "name": name,
@@ -150,12 +154,17 @@ def api_products():
             "location": location,
             "username": current_user.username,
             "project_number": project_number,
-            "note": f"Initial creation as {category}. BT: {bt_number}. Pallet: {pallet_id if pallet_id else 'None'}."
+            "note": f"Initial creation. BT: {bt_number}. Pallet: {pallet_id if pallet_id else 'None'}."
         })
 
         return jsonify({"ok": True})
 
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
+    # Upewnienie się, że front-end dostanie jednolitą wartość tekstową dla pustych pól BT
+    for p in data:
+        if not p.get('bt_number'):
+            p['bt_number'] = 'N.V.T.'
+            
     low_stock_count = sum(1 for p in data if int(p.get('min_stock', 0)) > 0 and int(p.get('current_stock', 0)) <= int(p.get('min_stock', 0)))
 
     return jsonify({
@@ -171,7 +180,7 @@ def api_stock(action):
     sku = str(d.get('item_number', '')).strip()
     
     bt_input = str(d.get('bt_number', '')).strip()
-    bt_number = bt_input if bt_input else 'N.V.T.'
+    bt_number = bt_input if (bt_input and bt_input.lower() != 'none') else 'N.V.T.'
     
     raw_amount = str(d.get('amount', '0')).strip()
     amt = int(raw_amount) if raw_amount.isdigit() else 0
@@ -264,14 +273,13 @@ def api_relocate():
     target_id = str(d.get('item_number', '')).strip()
     
     bt_input = str(d.get('bt_number', '')).strip()
-    bt_number = bt_input if bt_input else 'N.V.T.'
+    bt_number = bt_input if (bt_input and bt_input.lower() != 'none') else 'N.V.T.'
     
     new_loc = str(d.get('new_location', '')).strip()
     
     if not target_id or not new_loc:
         return jsonify({"ok": False, "error": "Missing parameters"}), 400
 
-    # 1. Sprawdzanie relokacji całej palety
     palette_products = _supabase_request("GET", "products", {"pallet_id": f"eq.{target_id}"})
     if palette_products:
         for p in palette_products:
@@ -289,7 +297,6 @@ def api_relocate():
             })
         return jsonify({"ok": True, "mode": "pallet", "count": len(palette_products)})
 
-    # 2. Relokacja pojedynczego wariantu produktu (SKU + BT)
     query_params = {
         "item_number": f"eq.{target_id}",
         "bt_number": f"eq.{bt_number}"
