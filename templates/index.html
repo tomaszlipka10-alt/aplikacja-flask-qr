@@ -4,6 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BTVenloStorage</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  
   <style>
     :root{
       --bg: #ffffff; --card: #ffffff; --text: #0b1b3a; --muted: #5b6a88;
@@ -40,6 +43,7 @@
     th{text-align:left; color:var(--muted); font-size:12px; padding:10px; border-bottom:1px solid var(--border);}
     td{padding:10px; border-bottom:1px solid var(--border); font-size:14px;}
     .low-stock-alert { color: #dc2626 !important; font-weight: 800; }
+    .btn-group { display: flex; gap: 8px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
@@ -79,7 +83,10 @@
 
       <section id="view-inventory" class="view" style="display:none">
         <div class="card">
-          <h2>Inventory Stock</h2>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2>Inventory Stock</h2>
+            <button class="btn" onclick="exportFilteredToPDF()" style="background:#e11d48; color:#fff; border:none; display:flex; align-items:center; gap:6px;">📄 Export PDF (Filtered)</button>
+          </div>
           <div style="display:flex; gap:10px; margin-bottom:12px;">
             <input type="text" id="inventorySearch" placeholder="Search by ID, Name, BT Number, Pallet, Project..." onkeyup="filterInv()">
             <select id="filterCategory" onchange="filterInv()" style="width:150px;">
@@ -89,7 +96,7 @@
             </select>
           </div>
           <div style="overflow:auto">
-            <table>
+            <table id="inventoryTable">
               <thead>
                 <tr><th>ID</th><th>Name</th><th>BT Number</th><th>Category</th><th>Project</th><th>Supplier</th><th>Pallet ID</th><th>Qty</th><th>Location</th></tr>
               </thead>
@@ -365,7 +372,6 @@
     
     if(!id) { alertBox.textContent = "Product ID is required."; alertBox.style.display = "block"; return; }
 
-    // ZMIANA: Sprawdzamy parę SKU + BT Number, a nie tylko samo SKU!
     const exists = allProductsCache.find(x => String(x.item_number) === id && String(x.bt_number || 'N.V.T.').toLowerCase() === finalBt.toLowerCase());
     if(exists) {
         alertBox.textContent = `Product with SKU: ${id} and BT: ${finalBt} already exists!`;
@@ -449,6 +455,84 @@
       const matchesCat = (cat === 'all' || tr.getAttribute('data-cat') === cat);
       tr.style.display = (matchesSearch && matchesCat) ? '' : 'none'; 
     });
+  }
+
+  // NOWA FUNKCJA: Generowanie dokumentu PDF na podstawie przefiltrowanych rekordów
+  function exportFilteredToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape' }); // Orientacja pozioma, żeby zmieścić wszystkie kolumny
+    
+    // Pobranie kryteriów filtrów do nagłówka
+    const searchVal = document.getElementById('inventorySearch').value.trim();
+    const catVal = document.getElementById('filterCategory').value.toUpperCase();
+    
+    // Tytuł i nagłówek dokumentu
+    doc.setFontSize(18);
+    doc.text("BTVenlo Inventory Report", 14, 16);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    
+    let filterStatus = `Category: ${catVal}`;
+    if(searchVal) filterStatus += ` | Search query: "${searchVal}"`;
+    doc.text(filterStatus, 14, 23);
+    
+    const today = new Date().toISOString().split('T')[0];
+    doc.text(`Generated on: ${today}`, 240, 16);
+
+    // Wyciągnięcie tylko widocznych wierszy z tabeli na ekranie
+    const rows = [];
+    const tableRows = document.querySelectorAll('#productsBody tr');
+    
+    tableRows.forEach(tr => {
+      if (tr.style.display !== 'none') {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length > 0) {
+          // Oczyszczanie tekstu z ikonek ostrzegawczych (np. przy niskim stanie)
+          let qtyText = tds[7].innerText.replace('⚠️', '').trim();
+          
+          rows.push([
+            tds[0].innerText, // ID
+            tds[1].innerText, // Name
+            tds[2].innerText, // BT Number
+            tds[3].innerText, // Category
+            tds[4].innerText, // Project
+            tds[5].innerText, // Supplier
+            tds[6].innerText, // Pallet ID
+            qtyText,          // Qty
+            tds[8].innerText  // Location
+          ]);
+        }
+      }
+    });
+
+    if(rows.length === 0) {
+      alert("No data visible to export!");
+      return;
+    }
+
+    // Automatyczne generowanie struktury tabeli w PDF
+    doc.autoTable({
+      head: [['ID / SKU', 'Name', 'BT Number', 'Category', 'Project', 'Supplier', 'Pallet ID', 'Qty', 'Location']],
+      body: rows,
+      startY: 28,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 42, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 30 }, // ID
+        1: { cellWidth: 55 }, // Name
+        2: { cellWidth: 30 }, // BT
+        3: { cellWidth: 25 }, // Category
+        4: { cellWidth: 25 }, // Project
+        5: { cellWidth: 30 }, // Supplier
+        6: { cellWidth: 25 }, // Pallet ID
+        7: { cellWidth: 25 }, // Qty
+        8: { cellWidth: 35 }  // Location
+      }
+    });
+
+    // Zapisanie wygenerowanego pliku
+    doc.save(`Inventory_Report_${today}.pdf`);
   }
 
   function intVal(v){ return parseInt(v) || 0; }
