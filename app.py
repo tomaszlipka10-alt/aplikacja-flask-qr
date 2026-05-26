@@ -71,15 +71,18 @@ def register():
     p = request.form.get("password")
     if not u or not p:
         return render_template("login.html", error="Username and password required")
+
     existing = _supabase_request("GET", "users", {"username": f"eq.{u}"})
     if existing:
         return render_template("login.html", error="User already exists")
+
     phash = generate_password_hash(p)
     res = _supabase_request("POST", "users", json_body={
         "username": u,
         "password_hash": phash,
         "is_admin": False
     })
+    
     if res is not None:
         return render_template("login.html", error="Account created! You can now login.", success=True)
     return render_template("login.html", error="Error creating user")
@@ -96,92 +99,144 @@ def logout():
 def api_products():
     if request.method == "POST":
         d = request.json
-        sku = str(d.get('item_number', '')).strip()
-        prj = str(d.get('project_number', '')).strip()
-        supplier = str(d.get('supplier', '')).strip()
+        item_number = str(d.get('item_number', '')).strip()
         name = str(d.get('name', '')).strip()
-        pallet_id = str(d.get('pallet_id', '')).strip()
-        bt_number = str(d.get('bt_number', '')).strip()
         
+        # Jeśli pole BT number jest puste, domyślnie przypisujemy wartość 'N.V.T.'
+        bt_input = str(d.get('bt_number', '')).strip()
+        bt_number = bt_input if bt_input else 'N.V.T.'
+        
+        pallet_id = str(d.get('pallet_id', '')).strip()
+        project_number = str(d.get('project_number', '')).strip()
+        supplier = str(d.get('supplier', '')).strip()
+        location = str(d.get('location', '')).strip()
+        unit = str(d.get('unit', 'pcs'))
+        category = str(d.get('category', 'material'))
+
         raw_stock = str(d.get('current_stock', '0')).strip()
         raw_min = str(d.get('min_stock', '0')).strip()
-        
-        current_stock_val = int(raw_stock) if raw_stock.isdigit() else 0
-        min_stock_val = int(raw_min) if raw_min.isdigit() else 0
-        
+        current_stock = int(raw_stock) if raw_stock.isdigit() else 0
+        min_stock = int(raw_min) if raw_min.isdigit() else 0
+
+        # Sprawdzanie unikalności pary: SKU + BT number (w tym N.V.T.)
+        query_params = {
+            "item_number": f"eq.{item_number}",
+            "bt_number": f"eq.{bt_number}"
+        }
+
+        existing = _supabase_request("GET", "products", query_params)
+        if existing:
+            return jsonify({"ok": False, "error": "Product with this SKU and BT number already exists"}), 400
+
         _supabase_request("POST", "products", json_body={
-            "item_number": sku,
+            "item_number": item_number,
             "name": name,
-            "bt_number": bt_number if bt_number else None,
-            "current_stock": current_stock_val,
-            "min_stock": min_stock_val,
-            "location": str(d.get('location', '')).strip(),
-            "category": str(d.get('category', 'material')),
-            "unit": str(d.get('unit', 'pcs')),
-            "project_number": prj,
-            "supplier": supplier,
-            "pallet_id": pallet_id if pallet_id else None
+            "bt_number": bt_number,
+            "current_stock": current_stock,
+            "min_stock": min_stock,
+            "location": location,
+            "unit": unit,
+            "category": category,
+            "pallet_id": pallet_id if pallet_id else None,
+            "project_number": project_number,
+            "supplier": supplier
         })
-        
+
         _supabase_request("POST", "audit_logs", json_body={
-            "item_number": sku,
+            "item_number": item_number,
             "name": name,
             "action": "CREATE",
-            "qty": current_stock_val,
-            "location": str(d.get('location', '')).strip(),
+            "qty": current_stock,
+            "location": location,
             "username": current_user.username,
-            "project_number": prj,
-            "note": f"Initial creation. BT Number: {bt_number if bt_number else 'None'}. Pallet ID: {pallet_id if pallet_id else 'None'}."
+            "project_number": project_number,
+            "note": f"Initial creation as {category}. BT: {bt_number}. Pallet: {pallet_id if pallet_id else 'None'}."
         })
+
         return jsonify({"ok": True})
-    
+
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"}) or []
     low_stock_count = sum(1 for p in data if int(p.get('min_stock', 0)) > 0 and int(p.get('current_stock', 0)) <= int(p.get('min_stock', 0)))
-    return jsonify({"ok": True, "data": data, "low_stock_count": low_stock_count})
+
+    return jsonify({
+        "ok": True, 
+        "data": data, 
+        "low_stock_count": low_stock_count
+    })
 
 @app.route("/api/stock/<action>", methods=["POST"])
 @login_required
 def api_stock(action):
     d = request.json
-    sku = d['item_number']
+    sku = str(d.get('item_number', '')).strip()
+    
+    bt_input = str(d.get('bt_number', '')).strip()
+    bt_number = bt_input if bt_input else 'N.V.T.'
     
     raw_amount = str(d.get('amount', '0')).strip()
     amt = int(raw_amount) if raw_amount.isdigit() else 0
+    note = d.get('note', '')
     
-    res = _supabase_request("GET", "products", {"item_number": f"eq.{sku}"})
+    query_params = {
+        "item_number": f"eq.{sku}",
+        "bt_number": f"eq.{bt_number}"
+    }
+    
+    res = _supabase_request("GET", "products", query_params)
     if not res: return jsonify({"ok": False}), 404
-    p = res[0]
     
+    p = res[0]
     if action == "issue" and p['current_stock'] < amt:
         return jsonify({"ok": False, "error": "Insufficient stock"}), 400
         
     new_q = p['current_stock'] + amt if action == "receive" else p['current_stock'] - amt
-    _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"current_stock": new_q})
+    
+    update_params = {
+        "item_number": f"eq.{p['item_number']}",
+        "bt_number": f"eq.{p['bt_number']}"
+    }
+
+    _supabase_request("PATCH", "products", update_params, {"current_stock": new_q})
     _supabase_request("POST", "audit_logs", json_body={
-        "item_number": sku, "name": p['name'], "action": action.upper(), "qty": amt, 
-        "location": p['location'], "username": current_user.username, "note": d.get('note', ''),
-        "project_number": p.get('project_number', '')
+        "item_number": p['item_number'], 
+        "name": p['name'], 
+        "action": action.upper(), 
+        "qty": amt, 
+        "location": p['location'], 
+        "username": current_user.username,
+        "project_number": p.get('project_number', ''),
+        "note": f"{note} | BT: {p.get('bt_number', 'N.V.T.')}"
     })
     return jsonify({"ok": True, "current_stock": new_q})
+
+@app.route("/api/audit")
+@login_required
+def api_audit():
+    data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
+    return jsonify({"ok": True, "audit": data})
 
 @app.route("/api/admin/export/excel")
 @login_required
 def export_excel():
-    if not current_user.is_admin: return "Access denied", 403
+    if not current_user.is_admin:
+        return "Access denied", 403
+    
     data = _supabase_request("GET", "products", {"select": "*", "order": "item_number"})
-    if not data: return "No data found", 404
+    if not data:
+        return "No data found", 404
+
     df = pd.DataFrame(data)
     
     columns_mapping = {
-        'item_number': 'ID',
-        'name': 'Name',
+        'item_number': 'ID Produktu',
+        'name': 'Nazwa Produktu',
         'bt_number': 'BT Number',
-        'project_number': 'Project',
-        'supplier': 'Supplier',
-        'current_stock': 'Qty',
-        'min_stock': 'Min Stock',
-        'location': 'Location',
-        'category': 'Category',
+        'project_number': 'Projekt',
+        'supplier': 'Dostawca',
+        'current_stock': 'Stan Magazynowy',
+        'min_stock': 'Min Stan',
+        'location': 'Lokalizacja',
+        'category': 'Kategoria',
         'pallet_id': 'Pallet ID'
     }
     
@@ -194,52 +249,77 @@ def export_excel():
     
     output.seek(0)
     filename = f"Inventory_{dt.datetime.now().strftime('%Y-%m-%d')}.xlsx"
-    return send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=filename)
+
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename
+    )
 
 @app.route("/api/relocate", methods=["POST"])
 @login_required
 def api_relocate():
     d = request.json
     target_id = str(d.get('item_number', '')).strip()
+    
+    bt_input = str(d.get('bt_number', '')).strip()
+    bt_number = bt_input if bt_input else 'N.V.T.'
+    
     new_loc = str(d.get('new_location', '')).strip()
     
     if not target_id or not new_loc:
         return jsonify({"ok": False, "error": "Missing parameters"}), 400
 
+    # 1. Sprawdzanie relokacji całej palety
     palette_products = _supabase_request("GET", "products", {"pallet_id": f"eq.{target_id}"})
-    
     if palette_products:
         for p in palette_products:
-            sku = p['item_number']
             old_loc = p.get('location', 'Unknown')
-            _supabase_request("PATCH", "products", {"item_number": f"eq.{sku}"}, {"location": new_loc})
+            cond = {
+                "item_number": f"eq.{p['item_number']}",
+                "bt_number": f"eq.{p['bt_number']}"
+            }
+
+            _supabase_request("PATCH", "products", cond, {"location": new_loc})
             _supabase_request("POST", "audit_logs", json_body={
-                "item_number": sku, "name": p['name'], "action": "RELOCATE_PALLET", "qty": p['current_stock'],
+                "item_number": p['item_number'], "name": p['name'], "action": "RELOCATE_PALLET", "qty": p['current_stock'],
                 "location": f"[{target_id}] {old_loc} -> {new_loc}", "username": current_user.username,
                 "project_number": p.get('project_number', '')
             })
         return jsonify({"ok": True, "mode": "pallet", "count": len(palette_products)})
 
-    res = _supabase_request("GET", "products", {"item_number": f"eq.{target_id}"})
-    if not res: 
-        return jsonify({"ok": False, "error": "No product or pallet found with this ID"}), 404
-        
+    # 2. Relokacja pojedynczego wariantu produktu (SKU + BT)
+    query_params = {
+        "item_number": f"eq.{target_id}",
+        "bt_number": f"eq.{bt_number}"
+    }
+
+    res = _supabase_request("GET", "products", query_params)
+    if not res: return jsonify({"ok": False, "error": "Product not found"}), 404
+    
     p = res[0]
     old_loc = p.get('location', 'Unknown')
-    
-    _supabase_request("PATCH", "products", {"item_number": f"eq.{target_id}"}, {"location": new_loc})
-    _supabase_request("POST", "audit_logs", json_body={
-        "item_number": p['item_number'], "name": p['name'], "action": "RELOCATE", "qty": p['current_stock'],
-        "location": f"{old_loc} -> {new_loc}", "username": current_user.username,
-        "project_number": p.get('project_number', '')
-    })
-    return jsonify({"ok": True, "mode": "single"})
 
-@app.route("/api/audit")
-@login_required
-def api_audit():
-    data = _supabase_request("GET", "audit_logs", {"select": "*", "order": "created_at.desc", "limit": 100}) or []
-    return jsonify({"ok": True, "audit": data})
+    update_cond = {
+        "item_number": f"eq.{p['item_number']}",
+        "bt_number": f"eq.{p['bt_number']}"
+    }
+
+    _supabase_request("PATCH", "products", update_cond, {"location": new_loc})
+
+    _supabase_request("POST", "audit_logs", json_body={
+        "item_number": p['item_number'],
+        "name": p['name'],
+        "action": "RELOCATE",
+        "qty": p['current_stock'],
+        "location": f"{old_loc} -> {new_loc}",
+        "username": current_user.username,
+        "project_number": p.get('project_number', ''),
+        "note": f"BT: {p.get('bt_number', 'N.V.T.')}"
+    })
+
+    return jsonify({"ok": True, "mode": "single"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
