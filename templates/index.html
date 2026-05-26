@@ -81,7 +81,7 @@
         <div class="card">
           <h2>Inventory Stock</h2>
           <div style="display:flex; gap:10px; margin-bottom:12px;">
-            <input type="text" id="inventorySearch" placeholder="Search by ID, Name, Pallet ID, Project..." onkeyup="filterInv()">
+            <input type="text" id="inventorySearch" placeholder="Search by ID, Name, BT Number, Pallet, Project..." onkeyup="filterInv()">
             <select id="filterCategory" onchange="filterInv()" style="width:150px;">
               <option value="all">All Categories</option>
               <option value="material">Materials Only</option>
@@ -91,7 +91,7 @@
           <div style="overflow:auto">
             <table>
               <thead>
-                <tr><th>ID</th><th>Name</th><th>Category</th><th>Project</th><th>Supplier</th><th>Pallet ID</th><th>Qty</th><th>Location</th></tr>
+                <tr><th>ID</th><th>Name</th><th>BT Number</th><th>Category</th><th>Project</th><th>Supplier</th><th>Pallet ID</th><th>Qty</th><th>Location</th></tr>
               </thead>
               <tbody id="productsBody"></tbody>
             </table>
@@ -128,6 +128,7 @@
         <div class="modal-body">
           <div class="row"><label>PRODUCT ID (SKU)</label><div class="scanrow"><input id="p_id"><button class="btn" onclick="startScan('p_id', 'p_box', 'p_vid', 'product')">Scan</button></div><div id="p_box" class="scanner-box"><video id="p_vid" playsinline></video></div></div>
           <div class="row"><label>NAME</label><input id="p_name"></div>
+          <div class="row"><label>BT NUMBER (OPTIONAL)</label><input id="p_bt_number" placeholder="e.g. BT-12345"></div>
           <div class="row">
             <label>CATEGORY</label>
             <select id="p_category">
@@ -209,7 +210,7 @@
       document.getElementById('rel_info').innerHTML='';
     }
     if(id==='addProductBackdrop'){
-      document.getElementById('p_id').value=''; document.getElementById('p_name').value='';
+      document.getElementById('p_id').value=''; document.getElementById('p_name').value=''; document.getElementById('p_bt_number').value='';
       document.getElementById('p_project').value=''; document.getElementById('p_supplier').value='';
       document.getElementById('p_pallet').value='';
       document.getElementById('p_qty').value='0'; document.getElementById('p_min_stock').value='0';
@@ -244,7 +245,10 @@
             if (mode === 'product' || mode === 'pallet') {
               let parts = value.split('|');
               document.getElementById(targetId).value = parts[0];
-              if(targetId === 'p_id' && parts[1]) document.getElementById('p_name').value = parts[1];
+              if(targetId === 'p_id') {
+                if(parts[1]) document.getElementById('p_name').value = parts[1];
+                if(parts[2]) document.getElementById('p_bt_number').value = parts[2];
+              }
               if(targetId === 's_id') checkStockInfo(parts[0]);
               if(targetId === 'rel_id') checkRelocateInfo(parts[0]);
             } else {
@@ -277,7 +281,7 @@
       allProductsCache.forEach(p => {
         const op = document.createElement('option');
         op.value = p.item_number;
-        op.textContent = p.name;
+        op.textContent = p.name + (p.bt_number ? ' (' + p.bt_number + ')' : '');
         datalist.appendChild(op);
       });
     }
@@ -297,6 +301,7 @@
       body.innerHTML += `<tr data-cat="${p.category || 'material'}">
         <td>${p.item_number}</td>
         <td>${p.name}</td>
+        <td><strong>${p.bt_number || '-'}</strong></td>
         <td>${(p.category || 'material').toUpperCase()}</td>
         <td>${p.project_number || '-'}</td>
         <td>${p.supplier || '-'}</td>
@@ -313,8 +318,13 @@
   function checkStockInfo(id){
     const info = document.getElementById('s_info');
     if(!id) { info.innerHTML=''; return; }
-    const p = allProductsCache.find(x => String(x.item_number) === id.trim());
-    if(p){ info.innerHTML = `<span style="color:#2563eb">📦 Name: ${p.name} | Location: ${p.location} | Current Stock: ${p.current_stock}</span>`; }
+    id = id.trim();
+    // Szukanie po ID produktu lub po BT Number
+    const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
+    if(p){ 
+      document.getElementById('s_id').value = p.item_number; // Wyrównanie do ID bazy danych
+      info.innerHTML = `<span style="color:#2563eb">📦 Name: ${p.name} | BT: ${p.bt_number || '-'} | Loc: ${p.location} | Qty: ${p.current_stock}</span>`; 
+    }
     else { info.innerHTML = `<span style="color:red">Product does not exist in database!</span>`; }
   }
 
@@ -323,15 +333,17 @@
     if(!id) { info.innerHTML=''; return; }
     id = id.trim();
     
-    // Sprawdzamy czy wpisany ID to Paleta czy pojedynczy produkt
     const itemsOnPallet = allProductsCache.filter(x => String(x.pallet_id) === id);
     if(itemsOnPallet.length > 0) {
       info.innerHTML = `<span style="color:#16a34a">🗂️ Pallet Detected (${id})! Contains ${itemsOnPallet.length} products. Current Location: ${itemsOnPallet[0].location}</span>`;
       return;
     }
     
-    const p = allProductsCache.find(x => String(x.item_number) === id);
-    if(p){ info.innerHTML = `<span style="color:#2563eb">🔄 Single Product: ${p.name} | Current Location: ${p.location}</span>`; }
+    const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
+    if(p){ 
+      document.getElementById('rel_id').value = p.item_number;
+      info.innerHTML = `<span style="color:#2563eb">🔄 Single Product: ${p.name} | BT: ${p.bt_number || '-'} | Current Location: ${p.location}</span>`; 
+    }
     else { info.innerHTML = `<span style="color:red">No single product or pallet found with this ID</span>`; }
   }
 
@@ -362,6 +374,7 @@
     const body = { 
       item_number: id, 
       name: document.getElementById('p_name').value, 
+      bt_number: document.getElementById('p_bt_number').value,
       category: document.getElementById('p_category').value, 
       project_number: document.getElementById('p_project').value, 
       supplier: document.getElementById('p_supplier').value, 
@@ -387,16 +400,18 @@
         return;
     }
 
-    if(currentStockMode === 'issue') {
-        const p = allProductsCache.find(x => String(x.item_number) === id.trim());
-        if(p && amount > p.current_stock) {
+    const p = allProductsCache.find(x => String(x.item_number) === id.trim() || String(x.bt_number).toLowerCase() === id.trim().toLowerCase());
+    const finalId = p ? p.item_number : id.trim();
+
+    if(currentStockMode === 'issue' && p) {
+        if(amount > p.current_stock) {
             alertBox.textContent = `Error: Insufficient stock! Available: ${p.current_stock}`;
             alertBox.style.display = "block";
             return;
         }
     }
 
-    const body = { item_number: id, amount: amount, note: note };
+    const body = { item_number: finalId, amount: amount, note: note };
     const res = await fetch('/api/stock/'+currentStockMode, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if(res.ok) { closeModal('stockBackdrop'); loadProducts(); }
     else { alertBox.textContent = "Error processing transaction."; alertBox.style.display = "block"; }
@@ -408,7 +423,10 @@
     const alertBox = document.getElementById('relAlert');
     if(!id || !newLoc) { alertBox.textContent = "Product/Pallet ID and New Location are required."; alertBox.style.display = "block"; return; }
 
-    const body = { item_number: id, new_location: newLoc };
+    const p = allProductsCache.find(x => String(x.item_number) === id || String(x.bt_number).toLowerCase() === id.toLowerCase());
+    const finalId = p ? p.item_number : id;
+
+    const body = { item_number: finalId, new_location: newLoc };
     const res = await fetch('/api/relocate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
     if(res.ok) { closeModal('relocateBackdrop'); loadProducts(); }
     else { alertBox.textContent = "Error processing relocation."; alertBox.style.display = "block"; }
